@@ -57,3 +57,18 @@ After each chunk: what worked, what hurt, what I would do differently, and what 
 **Next to watch**
 - Stage on very long paragraphs (taller than the screen), verse, images, dialogue-heavy pages.
 - Pace learning in Stage (manual → presses could teach wpm, as taps do for the pointer).
+
+## Critic #2 on Stage (2026-10-11)
+
+**Worked**
+- Frame-sequence contact sheets + rAF gap tracing made the "feel" measurable: clipped lift, doubled text, and a column that moved on almost every sentence.
+- Fixing at the root: dialogue/elision/heading sentence rules went into the text index, so Stage, the pointer and pacing all benefit.
+
+**Hurt**
+- A fixed anchor (always scroll the sentence to 38%) looked tidy in stills but moved text under the eye. Motion should be the exception: lazy anchor with a reading band.
+- `mask-image` on the column clipped the flying copy. Fades belong in full-width overlays that appear after landing.
+
+**Next to watch**
+- Word-wave ink handoff (needs per-word spans in the Stage copy).
+- Lens tint consistency for Voices across pages (critic #2 saw an untinted Ahab line beside tinted ones).
+- Gradient banding on the edge fades on some displays.

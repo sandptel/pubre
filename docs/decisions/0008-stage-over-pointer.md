@@ -27,3 +27,9 @@ New default guide style **Stage** (monkeytype-inspired, user's idea):
   classes don't apply there, so inline semantics (em/i/strong) survive but book-specific styling doesn't.
 - No lenses inside Stage yet (deliberately calm); candidates: Voices ink, names tint.
 - WebKit draws iframe content unblurred through `backdrop-filter`, so the veil is opaque.
+
+## Revision after critic #2
+- Lazy anchor instead of a fixed one: move only when the sentence leaves the 26–66% band; rest at 34%; 180 ms after the ink change, 600 ms `cubic-bezier(.45,0,.2,1)`. Minimum 1.1 s per sentence.
+- Lift lands whole (full ink), then narrows to the sentence from 60% of the flight. The page paragraph hides during flight and takes over on set-down.
+- Colours: next 56%, later 30%, just read 45%, read 26%; the finished paragraph exhales to 62% during its breath.
+- Chapter headings (h1/h2) inside a file breathe 2.4 s or wait, per Paragraph end.

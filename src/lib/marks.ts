@@ -1,4 +1,4 @@
-// Names: a soft tint in the character's hue + a hue underline, text in normal ink (user preference);
+// Names: a soft tint in the character's hue + a faint hue underline, text in normal ink (user preference);
 // your highlights stay a stronger, flat wash with no underline, so the two never read alike.
 // The visual grammar's marks inside a book document, via the CSS Custom Highlight API.
 // Stacking = registration order (later paints on top); every highlight is registered once, in
@@ -8,11 +8,11 @@ import { mix, type Theme } from './settings.ts'
 
 export const WHO_SLOTS = 8
 const WHO_HUES = [0x08, 0x0d, 0x0a, 0x0b, 0x0e, 0x0c, 0x0f, 0x09] // character colour slots (base16)
-const VOICES = [...Array.from({ length: WHO_SLOTS }, (_, k) => String(k)), 'x'] // 'x' = unattributed voice
+const VOICES = Array.from({ length: WHO_SLOTS }, (_, k) => String(k)) // unattributed quotes stay plain ink
 export const MEANINGS = [['0A', 'Key', 'yellow'], ['0B', 'Beautiful', 'green'], ['0D', 'Idea', 'blue'], ['08', 'Feeling', 'pink'], ['09', 'Question', 'orange'], ['0E', 'Revisit', 'purple']] as const
 
 export const ORDER = [
-  'c-page', 'c-para', 'c-read', 'c-readpara', 'aside', 'c-readfocus', 'c-focus',
+  'aside', 'c-page', 'c-para', 'c-read', 'c-readpara', 'c-readfocus', 'c-focus', // read-dimming wins over asides
   ...VOICES.flatMap(k => [`v-soft-${k}`, `v-ink-${k}`, `v-under-${k}`, `v-marks-${k}`]),
   'hard', 'foreign', ...Array.from({ length: WHO_SLOTS }, (_, k) => `who-${k}`),
   ...MEANINGS.map(([c]) => `u-${c}`), 'u-bold', 'bloom', 'breathe',
@@ -51,20 +51,26 @@ export function level(t: Theme, k: number, floor = 3) {
   while (contrast(c, bg) < floor && k < 1) { k = Math.min(1, k + 0.04); c = mix(bg, fg, k) }
   return c
 }
-export const whoHue = (t: Theme, slot: number) => t.base[WHO_HUES[slot % WHO_SLOTS]]
+/** A character's hue, eased toward body text until it reads (≥ 4.5:1) without outshining the text around it. */
+export function whoHue(t: Theme, slot: number) {
+  const bg = t.base[0], fg = t.base[5], hue = t.base[WHO_HUES[slot % WHO_SLOTS]], body = contrast(fg, bg)
+  let c = hue
+  for (let i = 1; i <= 20 && (contrast(c, bg) < Math.min(4.5, body) || contrast(c, bg) > body); i++) c = mix(hue, fg, i / 20)
+  return c
+}
 const alpha = (hex: string, a: number) => hex + Math.round(a * 255).toString(16).padStart(2, '0')
 
 /** Grammar styles for a book document (inline CSS, so they follow the theme without app CSS vars). */
 export function marksCss(t: Theme): string {
   const fg = t.base[5], accent = t.base[t.accent], muted = t.base[4]
-  const voice = (k: string) => (k === 'x' ? t.base[0x0c] : whoHue(t, +k))
+  const voice = (k: string) => whoHue(t, +k)
   return `
 @property --bloom { syntax: '<length>'; inherits: true; initial-value: 0px }
 @property --breathe { syntax: '<number>'; inherits: true; initial-value: 0 }
 ::highlight(c-page) { color: ${level(t, 0.72, 3.4)} }
 ::highlight(c-para) { color: ${level(t, 0.8, 4)} }
-::highlight(c-read) { color: ${level(t, 0.45, 2.4)} }
-::highlight(c-readpara) { color: ${level(t, 0.55, 2.8)} }
+::highlight(c-read) { color: ${level(t, 0.55, 3.5)} }
+::highlight(c-readpara) { color: ${level(t, 0.62, 4)} }
 ::highlight(aside) { color: ${level(t, 0.72, 3.4)} }
 ::highlight(c-readfocus) { color: ${level(t, 0.68, 3.4)} }
 ::highlight(c-focus) { color: ${fg} }
@@ -74,7 +80,7 @@ ${VOICES.map(k => `::highlight(v-ink-${k}) { color: ${mix(fg, voice(k), 0.55)} }
 ::highlight(v-marks-${k}) { color: ${voice(k)} }`).join('\n')}
 ::highlight(hard) { text-decoration: underline dotted 2px ${alpha(accent, 0.8)}; text-underline-offset: 5px }
 ::highlight(foreign) { text-decoration: underline dashed 1.5px ${alpha(muted, 0.8)}; text-underline-offset: 5px }
-${Array.from({ length: WHO_SLOTS }, (_, k) => `::highlight(who-${k}) { background-color: ${alpha(whoHue(t, k), t.dark ? 0.22 : 0.16)}; text-decoration: underline 2px ${alpha(whoHue(t, k), 0.85)}; text-underline-offset: 3px }`).join('\n')}
+${Array.from({ length: WHO_SLOTS }, (_, k) => `::highlight(who-${k}) { background-color: ${alpha(whoHue(t, k), t.dark ? 0.22 : 0.16)}; text-decoration: underline 1px ${alpha(whoHue(t, k), 0.35)}; text-underline-offset: 3px }`).join('\n')}
 ${MEANINGS.map(([c]) => `::highlight(u-${c}) { background-color: ${alpha(t.base[parseInt(c, 16)], t.dark ? 0.34 : 0.3)} }`).join('\n')}
 ::highlight(u-bold) { -webkit-text-stroke-width: .035em; -webkit-text-stroke-color: currentColor; text-shadow: .02em 0 currentColor }
 ::highlight(bloom) { text-shadow: 0 0 var(--bloom) currentColor }

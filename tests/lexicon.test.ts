@@ -21,3 +21,14 @@ test('hard = no common lemma', () => {
   assert.equal(isHard('binnacle-ship', common), true)
   assert.equal(isHard('walk’d', common), false)
 })
+
+test('derived forms reach their stem; apostrophe forms are never hard', () => {
+  const common = new Set(['dream', 'dreamy', 'shady', 'remote', 'quarrel', 'happy', 'well'])
+  assert.equal(isHard('dreamiest', common), false)
+  assert.equal(isHard('shadiest', common), false)
+  assert.equal(isHard('remotest', common), false)
+  assert.equal(isHard('quarrelsome', common), false)
+  assert.equal(isHard('happiness', common), false)
+  assert.equal(isHard('d’ye', common), false)
+  assert.equal(isHard("we'll", common), false)
+})

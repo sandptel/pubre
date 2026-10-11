@@ -40,3 +40,5 @@ Verified in Chrome (desktop 1440×900) and WebKit (390×844 touch): import of 3 
 - 941fab8 trailer v3: device-framed UI (phone/tablet/desktop), camera zooms, a different e-ink transition per cut. Source ../pubre-samples/reel/trailer3.html, record3.mjs.
 - Trailer v3 re-cut: 120 bpm grid (BEAT=500ms, scene lengths in beats, absolute-time scheduler), refreshes only at the four act breaks, hard cuts with a 140ms e-ink ghost elsewhere.
 - README video: GitHub only plays inline video from user-attachments uploads (CSP media-src); repo/raw and release URLs are blocked. Needs a manual drag-and-drop upload.
+- 6350103 feat(guide): one pause ladder (list<comma<dash<colon<semicolon<sentence<paragraph<section), paragraph end = sentence-end beat + 400 (+200 dialogue, +600 heading); Stage paragraph breath 500 -> 300; Settings.pauses multiplier (0.5-3).
+- 9f3bb12 feat(ui): Pauses slider in Reading aids + Stage quick panel, PauseBars chart, ReadPreview honours pauses.

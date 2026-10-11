@@ -4,10 +4,23 @@
 // for chapters you haven't read yet (no names, no words).
 
 export type Opener = 'classic' | 'daylight' | 'nocturne' | 'stage' | 'swell'
-export interface ChapterInfo { spine: number; title: string; words: number; lens: number[]; talk: number; mood: number; avg: number }
+export type Weather = '' | 'storm' | 'fog' | 'snow' | 'night'
+export interface ChapterInfo { spine: number; title: string; words: number; lens: number[]; talk: number; mood: number; avg: number; weather?: Weather }
 
 const DARK = /\b(dark|darkness|night|nights|black|death|dead|die|died|grave|gloom|gloomy|shadow|shadows|storm|fear|feared|cold|blood|midnight|coffin|doom|dread|grief|sorrow|tears|weep|wept|cruel|evil|hell|ghost|pale|wreck|drown|drowned)\b/gi
 const BRIGHT = /\b(light|sun|sunny|sunshine|bright|warm|joy|joyful|laugh|laughed|laughing|smile|smiled|gold|golden|morning|day|glad|sweet|fair|merry|happy|gay|delight|delighted|pleasant|cheerful|love|loved|lovely|dance|dancing|spring|summer)\b/gi
+const SKY: [Exclude<Weather, ''>, RegExp][] = [
+  ['storm', /\b(storm|storms|stormy|gale|gales|tempest|thunder|lightning|squall|squalls|hurricane|typhoon|rain|rains|raining)\b/gi],
+  ['fog', /\b(fog|foggy|mist|misty|mists|haze|hazy|vapour|vapor)\b/gi],
+  ['snow', /\b(snow|snowy|snows|frost|frosty|ice|icy|sleet|hail|winter)\b/gi],
+  ['night', /\b(night|nights|midnight|moon|moonlight|moonlit|stars|starlight|dusk|darkness)\b/gi],
+]
+/** The weather a chapter is set in, when one kind dominates: ≥ 6 mentions and ≥ 1 per 250 words. */
+export function weatherOf(text: string, words: number): Weather {
+  let best: Weather = '', most = 0
+  for (const [w, re] of SKY) { const n = text.match(re)?.length ?? 0; if (n > most) { most = n; best = w } }
+  return most >= Math.max(6, words / 250) ? best : ''
+}
 const SENTENCES = typeof Intl !== 'undefined' && 'Segmenter' in Intl ? new Intl.Segmenter('en', { granularity: 'sentence' }) : null
 
 const strip = (html: string) => html
@@ -23,7 +36,7 @@ export function profile(text: string): Omit<ChapterInfo, 'spine' | 'title'> {
   const words = lens.reduce((a, n) => a + n, 0)
   const quoted = [...text.matchAll(/“[^”]*”|"[^"]{1,600}"/g)].reduce((a, m) => a + m[0].length, 0)
   const dark = text.match(DARK)?.length ?? 0, bright = text.match(BRIGHT)?.length ?? 0
-  return { words, lens: lens.length > 300 ? sample(lens, 300) : lens, talk: text.length ? quoted / text.length : 0, mood: (bright - dark) / (bright + dark + 4), avg: lens.length ? words / lens.length : 0 }
+  return { words, weather: weatherOf(text, words), lens: lens.length > 300 ? sample(lens, 300) : lens, talk: text.length ? quoted / text.length : 0, mood: (bright - dark) / (bright + dark + 4), avg: lens.length ? words / lens.length : 0 }
 }
 const sample = (a: number[], n: number) => Array.from({ length: n }, (_, i) => a[Math.floor(i * a.length / n)])
 

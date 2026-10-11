@@ -37,6 +37,24 @@
   let marks = $state<Record<string, string>>({}) // your latest highlight per book you're reading
   $effect(() => { for (const b of reading) if (!(b.id in marks)) listAnnotations(b.id).then(l => { const a = l.sort((x, y) => y.created - x.created)[0]; marks = { ...marks, [b.id]: a ? a.exact.replace(/\s+/g, ' ').slice(0, 120) : '' } }) })
   const recent = $derived(books.filter(b => b !== current && b.progress < 0.995 && (b.progress > 0 || b.readAt)).sort((x, y) => lastRead(y) - lastRead(x)).slice(0, 12))
+  // Up next as tinted cards: each takes its cover's own colour (averaged once, cached on the record).
+  let tints = $state<Record<string, string>>({})
+  async function tintOf(b: BookRecord) {
+    if (b.tint) return b.tint
+    if (!b.cover) return ''
+    try {
+      const bmp = await createImageBitmap(new Blob([b.cover], { type: b.coverType }), { resizeWidth: 12, resizeHeight: 18 })
+      const c = new OffscreenCanvas(12, 18), x = c.getContext('2d')!
+      x.drawImage(bmp, 0, 0)
+      const d = x.getImageData(0, 0, 12, 18).data
+      let r = 0, g = 0, bl = 0, n = 0
+      for (let i = 0; i < d.length; i += 4) { const s = Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]); const w = 1 + s / 40; r += d[i] * w; g += d[i + 1] * w; bl += d[i + 2] * w; n += w } // favour coloured pixels
+      const hex = '#' + [r, g, bl].map(v => Math.round(v / n).toString(16).padStart(2, '0')).join('')
+      b.tint = hex; saveBook(b)
+      return hex
+    } catch { return '' }
+  }
+  $effect(() => { for (const b of books) if (!b.progress && !(b.id in tints)) tintOf(b).then(t => (tints = { ...tints, [b.id]: t })) })
   const anyStarted = $derived(books.some(b => b.progress > 0)) // a "new" dot means nothing while every book is new
   // Shelves: what you're reading, what's next, what you've finished. Empty shelves are hidden.
   const shelves = $derived([
@@ -200,6 +218,19 @@
     {#each shelves as shelf (shelf.id)}
       <section class="shelf" aria-label={shelf.title}>
         <h2 class="shelf-h">{shelf.title}<span class="num">{shelf.list.length}</span></h2>
+        {#if shelf.id === 'next'}
+          <div class="stack">
+            {#each shelf.list as b, i (b.id)}
+              <button class="tcard" style:--t={tints[b.id] || 'var(--card)'} style:--i={i} aria-label="Start {b.title}" onclick={() => open(b)}
+                oncontextmenu={e => { e.preventDefault(); showMenu(b, e.clientX, e.clientY) }}
+                onpointerdown={e => pressStart(e, b)} onpointerup={pressEnd} onpointercancel={pressEnd} onpointerleave={pressEnd}>
+                <span class="tc-title">{b.title}</span>
+                <span class="tc-cover" style:view-transition-name={morphId === b.id && b !== current ? 'cover' : undefined}><Cover book={b} /></span>
+                <span class="tc-foot"><span class="tc-author">{b.creator}</span><span class="tc-go">Start <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg></span></span>
+              </button>
+            {/each}
+          </div>
+        {:else}
         <ul class="grid">
           {#each shelf.list as b, i (b.id)}
             <li style:--i={i} animate:flip={{ duration: 450, easing: cubicOut }} out:scale={{ start: 0.85, duration: 250 }}>
@@ -213,6 +244,7 @@
             </li>
           {/each}
         </ul>
+        {/if}
       </section>
     {/each}
   {/if}
@@ -318,6 +350,22 @@
   .mini { flex: 1; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--fg) 12%, transparent); overflow: hidden; }
   .mini i { display: block; height: 100%; background: var(--accent); }
   .shelf + .shelf { margin-top: var(--s6); }
+  /* Up next: tinted cards, each in its cover's colour (softened toward the page), a big title, Start */
+  .stack { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
+  .tcard {
+    all: unset; box-sizing: border-box; cursor: pointer; position: relative; display: grid; grid-template-columns: 1fr 64px; grid-template-rows: 1fr auto; gap: var(--s3);
+    min-height: 168px; padding: var(--s4) var(--s4) var(--s3); border-radius: var(--r4); overflow: hidden;
+    background: color-mix(in srgb, var(--t) 46%, var(--bg)); color: var(--fg); box-shadow: var(--e1);
+    animation: rise .5s var(--ease) both; animation-delay: calc(min(var(--i), 10) * 50ms); transition: transform .4s var(--spring); -webkit-touch-callout: none; user-select: none;
+  }
+  .tcard:active { transform: scale(.98); }
+  .tcard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .tc-title { font: 500 25px/1.08 var(--serif); letter-spacing: -.015em; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .tc-cover { width: 64px; align-self: start; transform: rotate(3deg); }
+  .tc-foot { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: var(--s2); padding-top: var(--s2); border-top: 1px solid color-mix(in srgb, var(--fg) 14%, transparent); }
+  .tc-author { font-size: 12px; color: color-mix(in srgb, var(--fg) 70%, transparent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tc-go { display: inline-flex; align-items: center; gap: 6px; flex: none; padding: 7px 12px; border-radius: 999px; background: var(--ink); color: var(--on-ink); font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+  .tc-go svg { width: 14px; height: 14px; }
   .shelf-h { font: 500 19px var(--serif); color: var(--fg); margin: 0 0 var(--s4); display: flex; gap: var(--s2); align-items: baseline; }
 
   /* The bar: a dark pill that floats in the thumb's reach */

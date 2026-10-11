@@ -27,6 +27,7 @@ export interface BookRecord {
   lastLine?: string // the sentence at your place
   who?: string[] // who was around just before your place
   chapterLeft?: number // words left in the chapter
+  tint?: string // the cover's colour (Up next cards)
   keepsake?: string // the finish keepsake (an SVG), drawn when you finish
   born?: string[] // characters whose first appearance you've seen (star-birth plays once)
   sessionFrom?: number // progress when this reading session began (the library's arc reveal)

@@ -41,6 +41,7 @@
   let breathAt = $state<{ x: number; y: number } | null>(null)
   let gloss = $state<{ key: string; html: string } | null>(null) // "tell me more", when you stop at a word
   let glossT = 0, hoverT = 0
+  let glossTop = $state(false)
   let root = $state<HTMLDivElement>(), veil = $state<HTMLDivElement>(), lift = $state<HTMLDivElement>(), para = $state<HTMLDivElement>()
   let flow = $state<HTMLDivElement>(), marker = $state<HTMLElement>()
   let v: View | undefined, cur = -1, ue = -1, y = 0, glideT = 0, wpm = 260, closing = false
@@ -130,7 +131,8 @@
 
   /** Keep the blocks around b in the column (two before, three after), keeping the view still. */
   function ensure(b: number) {
-    const n = blocks().length, want0 = Math.max(0, b - 2), want1 = Math.min(n - 1, b + 3)
+    // the column starts at this section's heading at the earliest: no tail of the previous chapter above it
+    const n = blocks().length, want0 = Math.max(0, b - 2, sectionOf(ix(), b).from), want1 = Math.min(n - 1, b + 3)
     if (hi < lo) { lo = want0; hi = want0 - 1 }
     while (hi < want1) { hi++; if (readable(hi)) flow!.insertBefore(build(hi), marker!) }
     if (want0 < lo) {
@@ -637,6 +639,7 @@
       waiting = ''; breathAt = null
       go(w); schedule()
       const k = sp!.closest<HTMLElement>('[data-k]')?.dataset.k
+      glossTop = e.clientY > innerHeight * 0.5 // the gloss sits on the other half from the word you tapped
       if (k) showGloss(k)
       return
     }
@@ -685,7 +688,7 @@
     {#if waiting && breathAt && !waits(waiting)}
       <span class="breath" style:left="{breathAt.x}px" style:top="{breathAt.y}px"><i style:animation-duration="{breathMs}ms"></i></span>
     {/if}
-    {#if gloss}<div class="gloss glass" role="note">{@html gloss.html}</div>{/if}
+    {#if gloss}<div class="gloss glass" class:top-g={glossTop} role="note">{@html gloss.html}</div>{/if}
     <div class="foot" aria-live="polite">
       {#if landed && !transient}
         {#if waiting === 'end' && waits(waiting)}<span>End of chapter · {go_} to go on</span>
@@ -746,6 +749,7 @@
   .flow :global(.lx-stamp) { animation: stamp .7s cubic-bezier(.22,1,.36,1); }
   @keyframes stamp { from { background-color: color-mix(in srgb, var(--hl) 60%, transparent); } }
   @keyframes chip { from { background-color: color-mix(in srgb, var(--who) 38%, transparent); box-shadow: 0 0 0 .32em color-mix(in srgb, var(--who) 10%, transparent); } }
+  .gloss.top-g { bottom: auto; top: calc(env(safe-area-inset-top) + 72px); }
   .gloss {
     position: absolute; z-index: 2; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 92px); translate: -50% 0; width: max-content; max-width: min(460px, calc(100vw - 32px));
     padding: 10px 16px; border-radius: 16px; font: 14px/1.45 system-ui; color: var(--fg); animation: glossIn .35s cubic-bezier(.22,1,.36,1);

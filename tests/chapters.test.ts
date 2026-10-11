@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { chapterFor, chapters, fingerprint, openerOf, profile } from '../src/insights/chapters.ts'
+import { chapterFor, chapters, fingerprint, openerOf, profile, weatherOf } from '../src/insights/chapters.ts'
 
 const html = `<html><body><p>Front matter.</p>
 <h2>CHAPTER 1. Loomings.</h2><p>Call me Ishmael. Some years ago—never mind how long precisely—having little or no money in my purse, I thought I would sail about a little.</p>
@@ -41,4 +41,10 @@ test('chapterFor matches TOC labels loosely, else by spine', () => {
   const cs = chapters(3, html)
   assert.equal(chapterFor(cs, 'Chapter 36. The Quarter-Deck')?.title, 'CHAPTER 36. The Quarter-Deck.')
   assert.equal(chapterFor(cs, 'Nope', 3)?.spine, 3)
+})
+
+test('weather: a chapter set in a storm, in fog, or none', () => {
+  assert.equal(weatherOf('The storm broke; thunder, rain and gale, the squall again. Storm! Rain.', 100), 'storm')
+  assert.equal(weatherOf('Fog, mist and haze; the fog lay thick in the mist, misty haze.', 100), 'fog')
+  assert.equal(weatherOf('A quiet day at the inn.', 100), '')
 })

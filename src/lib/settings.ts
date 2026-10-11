@@ -79,7 +79,7 @@ export function resolveTheme(paletteId: string, modeId: string): Theme {
 export function themeVars(t: Theme) {
   const hex = (i: number) => i.toString(16).toUpperCase().padStart(2, '0')
   return t.base.map((c, i) => `--base${hex(i)}:${c}`).join(';')
-    + `;--bg:${t.base[0]};--surface:${t.base[1]};--line:${t.base[2]};--muted:${t.base[4]};--fg:${t.base[5]};--accent:${t.base[t.accent]}`
+    + `;--bg:${t.base[0]};--surface:${t.base[1]};--line:${t.base[2]};--muted:${t.dark ? t.base[4] : mix(t.base[4], t.base[5], 0.4)};--fg:${t.base[5]};--accent:${t.base[t.accent]}` // light themes: muted labels at ≥ 4.5:1
     + `;--card:${t.dark ? mix(t.base[0], t.base[2], 0.45) : mix(t.base[0], '#ffffff', 0.62)};--ink:${t.base[5]};--on-ink:${t.base[0]}` // cards lift off the page; ink = the dark pill
     + `;color-scheme:${t.dark ? 'dark' : 'light'}`
 }
@@ -125,6 +125,7 @@ export interface Settings {
   pinControls: boolean // keep the reader's buttons on screen (the book makes room for them)
   chapterColour: boolean // a colourful chapter lends the accent its colour (ambient palette drift)
   openers: boolean // each chapter opens into its own room (classic, daylight, nocturne, stage, long swell)
+  weather: boolean // a chapter's weather (storm, fog, snow, night) as a faint trace on the page
   brightness: number // 40–100: below 100 a gentle dimmer lies over the page
   pointer: Pointer
   focus: Focus
@@ -146,7 +147,7 @@ export interface Settings {
 
 export const defaults: Settings = {
   palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto', letterSpacing: 0, measure: 'normal',
-  guide: true, guideStyle: 'stage', paraEnd: 'breathe', stageStep: 'sentence', stagePointer: 'ink', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, brightness: 100, pointer: 'word', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
+  guide: true, guideStyle: 'stage', paraEnd: 'breathe', stageStep: 'sentence', stagePointer: 'ink', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, brightness: 100, weather: true, pointer: 'word', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
   intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'ink', asides: true, foreign: true, motion: 'full', onlineDefinitions: false, chapterPrompts: true,
 }
 

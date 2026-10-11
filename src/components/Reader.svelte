@@ -32,13 +32,14 @@
   import Sheet from './Sheet.svelte'
   import Stage, { type StageState } from './Stage.svelte'
   import Ticker from './Ticker.svelte'
+  import Constellation from './Constellation.svelte'
   import ChapterStrip, { type StripChapter } from './ChapterStrip.svelte'
   import Toc from './Toc.svelte'
 
   let { record, settings = $bindable(), onclose }: { record: BookRecord; settings: Settings; onclose: () => void } = $props()
 
-  type View = 'menu' | 'contents' | 'appearance' | 'aids' | 'book' | 'notes'
-  const titles: Record<View, string> = { menu: '', contents: 'Contents', appearance: 'Themes & Settings', aids: 'Reading aids', book: 'This book', notes: 'Highlights & notes' }
+  type View = 'menu' | 'contents' | 'appearance' | 'aids' | 'book' | 'notes' | 'cast'
+  const titles: Record<View, string> = { menu: '', contents: 'Contents', appearance: 'Themes & Settings', aids: 'Reading aids', book: 'This book', notes: 'Highlights & notes', cast: 'The cast so far' }
 
   const rec: BookRecord = untrack(() => $state.snapshot(record)) // local copy we persist
   let host: HTMLDivElement
@@ -247,6 +248,13 @@
     const c = profileChapters && chapterFor(profileChapters, s.label, book?.spineIndex(s.href) ?? -1)
     return { weight: Math.max(0.0005, (sections[i + 1]?.start ?? 1) - s.start), tint: c?.title ? moodTint(c.mood) : undefined }
   }))
+  // Weather & time of day: the chapter you're in, as a faint trace on the page (≈5%, never on the text's contrast).
+  const weather = $derived.by(() => {
+    if (!loc || !eff.weather || eff.intensity === 'quiet' || !profileChapters) return ''
+    const s = sections[stripCur]
+    const c = s && chapterFor(profileChapters, s.label, book?.spineIndex(s.href) ?? -1)
+    return c?.title ? c.weather ?? '' : ''
+  })
   const wedgeInfo = (label: string, href: string) => {
     const c = profileChapters && chapterFor(profileChapters, label, book?.spineIndex(href) ?? -1)
     return c?.title ? { tint: moodTint(c.mood), talk: c.talk } : undefined
@@ -558,11 +566,11 @@
     lenses.paint(v, ws[a].b, ws[b].b)
   }
   async function loadProfile(b: Book) {
-    if (rec.profile?.v === 4) { lenses?.setProfile(rec.profile.names); if (lenses) lenses.hapax = rec.profile.hapax ?? {}; paintLenses(); return }
+    if (rec.profile?.v === 5) { lenses?.setProfile(rec.profile.names); if (lenses) lenses.hapax = rec.profile.hapax ?? {}; paintLenses(); return }
     const texts = await Promise.all(b.spine.map(s => b.zip.text(s.href).catch(() => '')))
     const worker = new Worker(new URL('../insights/worker.ts', import.meta.url), { type: 'module' })
     worker.onmessage = e => {
-      rec.profile = { v: 4, names: e.data.names, words: e.data.words, chapters: e.data.chapters, links: e.data.links, hapax: e.data.hapax, punct: e.data.punct }
+      rec.profile = { v: 5, names: e.data.names, words: e.data.words, chapters: e.data.chapters, links: e.data.links, hapax: e.data.hapax, punct: e.data.punct }
       if (lenses) lenses.hapax = e.data.hapax ?? {}
       profileChapters = e.data.chapters
       if (pag?.current && eff.openers && applyOpeners(pag.current.doc, pag.current.index)) pag.refresh()
@@ -624,9 +632,10 @@
   /** Touch: a tap on a marked word (rare word, name, other language) opens its card. */
   function tapLens(v: BookView, x: number, y: number) {
     if (matchMedia('(hover: hover)').matches) return false
-    const { node, off } = caretAt(v, x, y)
-    const t = node && lenses?.tokenAt(v, node, off)
-    if (!t || t.kind === 'speech') { if (card) { hideCard(); return true } return false }
+    // a finger is wider than a word: look at the tap point, then a little to each side
+    let t: Token | null = null
+    for (const dx of [0, -10, 10, -18, 18]) { const { node, off } = caretAt(v, x + dx, y); const c = node && lenses?.tokenAt(v, node, off); if (c && c.kind !== 'speech') { t = c; break } }
+    if (!t) { if (card) { hideCard(); return true } return false }
     showCard(v, t)
     return true
   }
@@ -941,6 +950,7 @@
   <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} page={loc?.cpage ?? 0} pages={loc?.cpages ?? 0} pageEl={paperEl} {decorate} {explain} onmark={markSentence} book={{ chapters: stripChapters, cur: stripCur }}
     onopen={o => { staged = o; speedOpen = false; if (o) { chrome = false; hideCard(); guide?.deactivate(); pushBack('stage') } else { paintLenses(); popBack('stage') } }} onstate={st => (sstate = st)}
     onpace={w => (settings.wpm = w)} ontoast={toast} />
+  {#if weather}{#key weather}<div class="weather w-{weather}" class:still={eff.motion !== 'full' || reduceMotion} transition:fade={{ duration: 1200 }} aria-hidden="true"></div>{/key}{/if}
   {#if (eff.brightness ?? 100) < 100}<div class="dimmer" style:opacity={(100 - eff.brightness) / 100 * 0.9} aria-hidden="true"></div>{/if}
   {#if bar}
     <div class="hl-bar glass" class:below={bar.below} style:left="{bar.x}px" style:top="{bar.y}px" role="toolbar" aria-label="Highlight">
@@ -1035,6 +1045,13 @@
               <span>Reading aids</span>
               <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
             </button>
+            {#if rec.profile?.names?.some(n => n.kind === 'person')}
+              <button onclick={() => go('cast')}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="6" cy="7" r="1.6" fill="currentColor" /><circle cx="17" cy="6" r="2.2" fill="currentColor" /><circle cx="12" cy="17" r="1.8" fill="currentColor" /><path d="M7.4 7.6l8 -1M7 8.4l4.2 7.2M16.2 7.9L12.9 15.4" stroke-width="1.2" /></svg>
+                <span>The cast</span>
+                <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+              </button>
+            {/if}
             <button onclick={() => go('notes')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16z" /></svg>
               <span>Highlights &amp; notes{#if anns.length}<small class="badge">{anns.length}</small>{/if}</span>
@@ -1052,6 +1069,11 @@
           <Appearance bind:settings />
         {:else if view === 'aids'}
           <ReadingAids bind:value={settings} />
+        {:else if view === 'cast'}
+          <Constellation people={rec.profile?.names ?? []} links={rec.profile?.links} upto={loc?.index ?? 0}
+            hue={slot => whoHue(resolveTheme(eff.palette, eff.mode), slot % WHO_SLOTS)}
+            onpick={name => { const p = lenses?.person(name); const n = p ? p.perSpine.slice(0, (loc?.index ?? 0) + 1).reduce((a, x) => a + x, 0) : 0; const m = companions(rec.profile?.links, name, loc?.index ?? 0); toast(`${name} · ${n} mentions so far${m.length ? ` · often with ${m.slice(0, 2).join(', ')}` : ''}`) }} />
+          <p class="empty-notes">Everyone you've met, brighter the more they're around; a thread for each scene two of them share. It grows as you read.</p>
         {:else if view === 'notes'}
           {#if !anns.length}
             <p class="empty-notes">Select any text to highlight it. Each colour has a meaning: {MEANINGS.map(m => m[1]).join(', ')}.</p>
@@ -1328,6 +1350,15 @@
   .lens-card :global(.c-av) { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 12px var(--serif); }
   @keyframes cardIn { from { opacity: 0; } }
   :global(.star-birth) { position: fixed; z-index: 6; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; }
+  /* weather: a whisper of rain, fog at the edges, slow snow, a night vignette — all very faint */
+  .weather { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+  .w-storm { opacity: .06; background: repeating-linear-gradient(105deg, transparent 0 14px, var(--fg) 14px 15px, transparent 15px 46px); background-size: 180px 180px; animation: rain .7s linear infinite; }
+  .w-fog { background: radial-gradient(ellipse at 50% 50%, transparent 55%, color-mix(in srgb, var(--fg) 7%, transparent) 100%), linear-gradient(transparent 70%, color-mix(in srgb, var(--bg) 60%, color-mix(in srgb, var(--fg) 8%, transparent))); }
+  .w-snow { opacity: .1; background-image: radial-gradient(circle, var(--fg) 1px, transparent 1.5px), radial-gradient(circle, var(--fg) .8px, transparent 1.2px); background-size: 90px 90px, 140px 140px; background-position: 0 0, 40px 60px; animation: snow 14s linear infinite; }
+  .w-night { background: radial-gradient(ellipse at 50% 40%, transparent 50%, rgb(10 14 30 / .14) 100%); }
+  .weather.still { animation: none; }
+  @keyframes rain { to { background-position: -40px 180px; } }
+  @keyframes snow { to { background-position: 30px 90px, 80px 200px; } }
   .dimmer { position: absolute; inset: 0; z-index: 7; background: #000; pointer-events: none; transition: opacity .2s; }
   .toast { position: absolute; z-index: 9; left: 50%; top: calc(env(safe-area-inset-top) + var(--s5)); translate: -50% 0; padding: 8px 14px; border-radius: 999px; font-size: 13px; animation: toastIn .35s var(--ease); pointer-events: none; }
   @keyframes toastIn { from { opacity: 0; transform: translateY(-6px); } }

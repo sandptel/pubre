@@ -77,8 +77,11 @@
   .yours { font-style: italic; font-weight: 400; color: var(--accent); }
   .page { color: var(--muted); font-variant-numeric: tabular-nums; }
 
-  .track { position: relative; display: flex; gap: 2px; height: 14px; align-items: center; cursor: pointer; touch-action: none; outline-offset: 4px; }
-  .track.dense { gap: 1px; }
+  .track { position: relative; min-width: 0; display: flex; gap: 2px; height: 14px; align-items: center; cursor: pointer; touch-action: none; outline-offset: 4px; }
+  .track.dense { gap: 0; }
+  .track.dense .wedge { min-width: 0; border-radius: 0; box-shadow: inset -1px 0 color-mix(in srgb, var(--bg) 80%, transparent); } /* many chapters: hairline ticks, so the bar can shrink on phones */
+  .track.dense .wedge:first-child { border-radius: 2px 0 0 2px; }
+  .track.dense .wedge:last-child { border-radius: 0 2px 2px 0; box-shadow: none; }
   .wedge {
     flex-basis: 0; min-width: 1px; height: 4px; border-radius: 2px; overflow: hidden;
     background: color-mix(in srgb, var(--fg) 14%, transparent);

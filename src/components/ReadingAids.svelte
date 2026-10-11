@@ -74,6 +74,7 @@
 
 <h3>Comfort</h3>
 <div class="group">
+  {@render toggle('Keep controls on screen', 'pinControls', 'Or tap the pin at the top right')}
   {@render toggle('Chapter-end prompts', 'chapterPrompts', '“Three words”, and your open questions')}
   {@render choice('Motion', 'motion', [['full', 'Full'], ['calm', 'Calm']], 'Calm turns off glows and sparks')}
   <div class="line">

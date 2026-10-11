@@ -60,6 +60,7 @@
   let custom = $state(untrack(() => !!rec.prefs && Object.keys(rec.prefs).length > 0))
   let bookVal = $state<Settings>(untrack(() => effective(settings, rec.prefs)))
   const eff = $derived(custom ? effective(settings, prefs) : settings)
+  const showChrome = $derived(chrome || eff.pinControls) // pinned: the buttons stay
   $effect(() => {
     if (!custom) { if (Object.keys(prefs).length) { prefs = {}; rec.prefs = undefined; save() } return }
     const b = $state.snapshot(bookVal), g = $state.snapshot(settings), diff: Partial<Settings> = {}
@@ -139,6 +140,11 @@
     }
   })
 
+  // Pinned controls: the book makes room for them (no text under the buttons).
+  $effect(() => {
+    const pinned = eff.pinControls, t = Math.round(Math.min(72, Math.max(36, innerHeight * 0.065)))
+    pag?.setReserve(pinned ? Math.max(0, 76 - t) : 0, pinned ? Math.max(0, 64 - t) : 0)
+  })
   // Only appearance changes re-lay out the book; feature settings (guide, lenses, pace) don't.
   const LAYOUT = ['palette', 'mode', 'font', 'fontScale', 'lineHeight', 'margin', 'justify', 'bold', 'spread', 'letterSpacing', 'measure'] as const
   let layoutKey = ''
@@ -173,6 +179,9 @@
   function setPace(w: number) { settings.wpm = Math.max(120, Math.min(350, Math.round(w / 5) * 5)); clearTimeout(speedT); speedT = window.setTimeout(() => (speedOpen = false), 4000) }
   let pressX = 0, pressY = 0, pressT = 0
   const stageStyle = () => eff.guideStyle === 'stage'
+  // The speed chip shows while reading; with the controls up it shows too, except on narrow screens where the bar needs the room.
+  let wide = $state(innerWidth >= 720)
+  const speedChip = $derived(staged || gstate.active || (showChrome && wide))
   const padMoving = $derived(eff.guideStyle === 'stage' ? sstate.moving : gstate.gliding)
   /** Shuttle: a dead zone around the press, then right speeds up to 2.5×; left slows to still, then reads backwards. */
   function shuttle(dx: number) {
@@ -556,9 +565,9 @@
   const isCurrent = (t: TocItem) => !!loc && t.label === loc.chapter
 </script>
 
-<svelte:window onkeydown={e => { if (e.key === 'Escape' && !panel && !gstate.active && !staged) chrome = !chrome }} />
+<svelte:window onkeydown={e => { if (e.key === 'Escape' && !panel && !gstate.active && !staged) chrome = !chrome }} onresize={() => (wide = innerWidth >= 720)} />
 
-<div class="reader" class:chrome>
+<div class="reader" class:chrome={showChrome} class:padded={eff.guide} class:speedy={speedChip}>
   <div class="paper" bind:this={paperEl} style:view-transition-name="cover">
     <div class="stage" bind:this={host}></div>
     {#if !loc && !error}<div class="spinner" aria-label="Opening book"></div>{/if}
@@ -574,6 +583,10 @@
   <button class="fab glass close" aria-label="Close book" onclick={onclose}>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17" /></svg>
   </button>
+  <button class="fab glass pin" class:on={eff.pinControls} aria-pressed={eff.pinControls} aria-label={eff.pinControls ? 'Let the controls hide while reading' : 'Keep the controls on screen'}
+    onclick={() => { settings.pinControls = !eff.pinControls; toast(settings.pinControls ? 'Controls pinned' : 'Controls hide while you read') }}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 5 3 3v2H7v-2l3-3z" fill={eff.pinControls ? 'currentColor' : 'none'} /><path d="M12 14v6" /></svg>
+  </button>
 
   <div class="dock">
     {#if loc}
@@ -588,8 +601,8 @@
   </div>
 
   {#if eff.guide && loc && !error}
-    <div class="padgroup" class:up={chrome && !staged}>
-      {#if staged || gstate.active || chrome}
+    <div class="padgroup" class:up={showChrome && !staged}>
+      {#if speedChip}
         <button class="speed glass" class:on={speedOpen} aria-label="Reading speed, {eff.wpm} words a minute" aria-expanded={speedOpen}
           onclick={() => { speedOpen = !speedOpen; clearTimeout(speedT); if (speedOpen) speedT = window.setTimeout(() => (speedOpen = false), 5000) }}>
           <b>{eff.wpm}</b><small>wpm</small>
@@ -606,7 +619,7 @@
       </button>
       </div>
     {#if speedOpen}
-      <div class="speedpop glass" class:up={chrome && !staged} role="dialog" aria-label="Reading speed">
+      <div class="speedpop glass" class:up={showChrome && !staged} role="dialog" aria-label="Reading speed">
         <div class="sp-head"><span>Reading pace</span><b>{paceName(eff.wpm)}</b></div>
         <div class="sp-presets" role="radiogroup" aria-label="Pace presets">
           {#each PACES as [w, name]}
@@ -800,6 +813,10 @@
   /* Floating chrome springs in from its edge; the dock trails slightly. */
   .close, .dock { position: absolute; z-index: 2; transition: transform .5s var(--spring), opacity .25s var(--ease); }
   .close { top: calc(env(safe-area-inset-top) + var(--s3)); left: calc(env(safe-area-inset-left) + var(--s3)); }
+  .pin { position: absolute; z-index: 2; top: calc(env(safe-area-inset-top) + var(--s3)); right: calc(env(safe-area-inset-right) + var(--s3)); transition: transform .5s var(--spring), opacity .25s var(--ease), background-color .2s, color .2s; }
+  .pin.on { color: var(--accent); }
+  .pin svg { width: 18px !important; height: 18px !important; }
+  .reader:not(.chrome) .pin { transform: translateY(-12px) scale(.6); opacity: 0; pointer-events: none; }
   .dock {
     left: calc(env(safe-area-inset-left) + var(--s3)); right: calc(env(safe-area-inset-right) + var(--s3));
     bottom: calc(env(safe-area-inset-bottom) + var(--s3));
@@ -862,7 +879,11 @@
     position: absolute; z-index: 8; right: calc(env(safe-area-inset-right) + var(--s3)); bottom: calc(env(safe-area-inset-bottom) + var(--s3));
     display: flex; align-items: center; gap: var(--s2); transition: transform .5s var(--spring);
   }
-  .padgroup.up { transform: translateY(-60px); }
+  .padgroup.up { transform: translateX(-52px); } /* inline in the bottom bar, just left of the menu */
+  @media (max-width: 719px) {
+    .reader.chrome.padded .progress { margin-right: 64px; transition: margin .3s var(--ease); }
+    .reader.chrome.padded.speedy .progress { margin-right: 150px; }
+  }
   .speed { height: 40px; min-width: 64px; padding: 0 12px; border: 0; border-radius: 999px; display: flex; align-items: baseline; justify-content: center; gap: 3px; color: var(--fg); font-variant-numeric: tabular-nums; animation: padIn .4s var(--spring); transition: background-color .2s, color .2s; }
   .speed b { font: 600 15px system-ui; }
   .speed small { font-size: 10.5px; color: var(--muted); }
@@ -873,7 +894,7 @@
     position: absolute; z-index: 9; right: calc(env(safe-area-inset-right) + var(--s3)); bottom: calc(env(safe-area-inset-bottom) + var(--s3) + 68px);
     width: min(320px, calc(100vw - 2 * var(--s3))); padding: 14px; border-radius: 20px; display: grid; gap: 12px; animation: popIn .3s var(--spring); transform-origin: bottom right;
   }
-  .speedpop.up { bottom: calc(env(safe-area-inset-bottom) + var(--s3) + 128px); }
+  .speedpop.up { right: calc(env(safe-area-inset-right) + var(--s3) + 52px); }
   .sp-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--muted); letter-spacing: .02em; }
   .sp-head b { font: 600 13px system-ui; color: var(--accent); }
   .sp-presets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }

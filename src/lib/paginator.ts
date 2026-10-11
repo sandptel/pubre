@@ -110,7 +110,8 @@ export class Paginator {
   private page = 0
   private busy = false
   private L = { V: 0, H: 0, t: 0, cols: 1, colW: 0, gap: 0, step: 0, left: 0 }
-  private reserve = 0 // extra bottom margin (e.g. room for the reading guide's pad)
+  private reserve = 0 // extra bottom margin (e.g. room for pinned controls)
+  private reserveTop = 0 // extra top margin
   private starts: number[] = [] // cumulative spine weights, for whole-book progress
   private marks: Mark[] = [] // every TOC entry on the progress axis
   private wheelLock = 0
@@ -231,7 +232,7 @@ export class Paginator {
   refresh() { const v = this.view; if (!v) return; v.ix = indexDocument(v.doc, this.book.metadata.language || 'en'); this.relayout() }
 
   /** Keep `px` free at the bottom of every page (relayouts, keeping your place). */
-  setReserve(px: number) { if (px === this.reserve) return; this.reserve = px; this.relayout() }
+  setReserve(px: number, top = 0) { if (px === this.reserve && top === this.reserveTop) return; this.reserve = px; this.reserveTop = top; this.relayout() }
 
   setSettings(s: Settings) {
     this.settings = s
@@ -274,7 +275,7 @@ export class Paginator {
     this.style(v.doc, 'pubre-marks', marksCss(resolveTheme(this.settings.palette, this.settings.mode)))
     this.style(v.doc, 'pubre-layout', `
 html { box-sizing: content-box !important; margin: 0 !important; max-width: none !important;
-  width: ${cols * colW + (cols - 1) * gap}px !important; height: ${H - 2 * t - this.reserve}px !important; padding: ${t}px ${gap / 2}px ${t + this.reserve}px !important;
+  width: ${cols * colW + (cols - 1) * gap}px !important; height: ${H - 2 * t - this.reserve - this.reserveTop}px !important; padding: ${t + this.reserveTop}px ${gap / 2}px ${t + this.reserve}px !important;
   column-width: ${colW}px !important; column-gap: ${gap}px !important; column-fill: auto !important;
   overflow: hidden !important; touch-action: none; }`)
   }
@@ -296,7 +297,7 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
   private anchor(): Range | null {
     const v = this.view
     if (!v) return null
-    const x = this.page * this.L.step + this.L.gap / 2 + 4, y = this.L.t + 12
+    const x = this.page * this.L.step + this.L.gap / 2 + 4, y = this.L.t + this.reserveTop + 12
     const d = v.doc as Document & { caretPositionFromPoint?(x: number, y: number): { offsetNode: Node; offset: number } | null }
     const pos = d.caretPositionFromPoint?.(x, y)
     if (pos) {

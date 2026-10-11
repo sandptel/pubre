@@ -120,6 +120,7 @@ export interface Settings {
   stagePointer: 'ink' | Pointer // stage (phrase/word): words ink in as you go; optionally a marker too
   stageLenses: boolean // stage: names, voices, rare words… in the lifted text
   holdToRead: boolean // press-and-hold on the page starts reading there (off: holding selects text)
+  pinControls: boolean // keep the reader's buttons on screen (the book makes room for them)
   pointer: Pointer
   focus: Focus
   step: 'word' | 'phrase'
@@ -140,7 +141,7 @@ export interface Settings {
 
 export const defaults: Settings = {
   palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto', letterSpacing: 0, measure: 'normal',
-  guide: true, guideStyle: 'stage', paraEnd: 'breathe', stageStep: 'sentence', stagePointer: 'ink', stageLenses: true, holdToRead: true, pointer: 'word', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
+  guide: true, guideStyle: 'stage', paraEnd: 'breathe', stageStep: 'sentence', stagePointer: 'ink', stageLenses: true, holdToRead: true, pinControls: false, pointer: 'word', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
   intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'ink', asides: true, foreign: true, motion: 'full', onlineDefinitions: false, chapterPrompts: true,
 }
 

@@ -41,7 +41,7 @@
     {@render choice('Focus', 'focus', [['sentence', 'Sentence'], ['line', 'Line'], ['paragraph', 'Para']])}
     {@render choice('Step', 'step', [['word', 'Word'], ['phrase', 'Phrase']])}
     {@render toggle('Dim what you’ve read', 'dimRead')}
-    <p class="hint">Hold Space (or the round pad) to glide at your pace ({value.wpm} wpm, learned from your taps); tap to step, double-tap for the start of the sentence.</p>
+    <p class="hint">The guide button, Space or G starts it at your pace ({value.wpm} wpm). Space or the round pad: tap to pause or play, double-tap for the start of the sentence, hold to glide only while held. → steps (and teaches your pace).</p>
   {/if}
 </div>
 

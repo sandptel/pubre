@@ -424,7 +424,7 @@
     {/if}
     {#if eff.guide}
       <button class="fab glass guide-btn" class:on={gstate.active} aria-label={eff.guideStyle === 'stage' ? 'Stage (Space)' : gstate.active ? 'Leave reading guide (G)' : 'Reading guide (G)'} aria-pressed={gstate.active}
-        onclick={() => { if (eff.guideStyle === 'stage') stage?.start(); else guide?.toggle(); chrome = false }}>
+        onclick={() => { if (eff.guideStyle === 'stage') stage?.start(); else if (gstate.active) guide?.deactivate(); else guide?.start(); chrome = false }}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="9" width="9" height="6" rx="2" fill="currentColor" opacity=".35" stroke="none" /><path d="M3 18h18M15 12h6" /></svg>
       </button>
     {/if}
@@ -434,12 +434,14 @@
   </div>
 
   {#if gstate.active}
-    <button class="pad glass" class:held={gstate.gliding} aria-label="Hold to glide, tap to step, double-tap for sentence start"
+    <button class="pad glass" class:held={gstate.gliding} aria-label={gstate.gliding ? 'Pause (tap); double-tap for the sentence start' : 'Play (tap); hold to glide while held'}
       onpointerdown={e => { e.preventDefault(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); padDown = performance.now(); padT = window.setTimeout(() => guide?.holdStart(), 220) }}
-      onpointerup={() => { clearTimeout(padT); if (gstate.gliding) guide?.holdEnd(); else if (padDown) guide?.padTap(); padDown = 0 }}
+      onpointerup={() => { clearTimeout(padT); if (guide?.holding) guide.holdEnd(); else if (padDown) guide?.padTap(); padDown = 0 }}
       onpointercancel={() => { clearTimeout(padT); guide?.holdEnd(); padDown = 0 }}
       oncontextmenu={e => e.preventDefault()}>
-      <span class="pad-ring"></span><span class="pad-l">{gstate.gliding ? `${gstate.wpm} wpm` : 'Hold'}</span>
+      <span class="pad-ring"></span>
+      {#if gstate.gliding}<span class="pad-l">{gstate.wpm}<small>wpm</small></span>
+      {:else}<svg class="pad-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" /></svg>{/if}
     </button>
   {/if}
   <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title}
@@ -672,7 +674,9 @@
   }
   .pad.held { transform: scale(.94); }
   .reader.chrome .pad { opacity: 0; pointer-events: none; }
-  .pad-l { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pad-l { display: grid; justify-items: center; line-height: 1; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pad-l small { font-size: 9px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+  .pad-play { width: 20px; height: 20px; margin-left: 2px; }
   .pad-ring { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; }
   .pad.held .pad-ring { opacity: 1; animation: ring 1.2s ease-out infinite; }
   @media (hover: hover) and (pointer: fine) { .pad { opacity: .55; } .pad:hover, .pad.held { opacity: 1; } }

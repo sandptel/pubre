@@ -1,10 +1,11 @@
-// Reading guide: a pointer that only moves when the reader tells it to.
-// Hold Space (or the pad) to glide at your pace, tap to step, double-tap for the sentence start,
-// arrows / vim motions to move. Contrast does the focusing (see marks.ts). The pointer element lives
+// Reading guide: a pointer that moves at your pace.
+// One click (the guide button, Space or G) starts it moving. Space or the pad: tap to pause or play,
+// double-tap for the sentence start, hold to glide only while held. Arrows / vim motions step (and
+// teach the pace). Contrast does the focusing (see marks.ts). The pointer element lives
 // in the paginator's port, *behind* the transparent book iframe, so the book DOM is never touched.
 import type { Paginator, View } from './paginator.ts'
 import type { Settings } from './settings.ts'
-import { wordTime } from './pacing.ts'
+import { MAX_WPM, wordTime } from './pacing.ts'
 
 export interface GuideState { active: boolean; gliding: boolean; wpm: number }
 type Pending = 'start' | 'end' | null
@@ -30,7 +31,9 @@ export class Guide {
   private moving = false
   private timer = 0
   private lastTap = 0
-  private beforeTap = 0
+  private playBefore = false // play state before the first of a double-tap
+  holding = false            // the current glide lasts only while Space / the pad is held
+  private lastStep = 0
   private spaceDown = 0
   private holdT = 0
   private prevTop: number | null = null
@@ -102,12 +105,14 @@ export class Guide {
     this.emit()
   }
 
+  /** One click: guide on and moving. */
+  start() { this.activate(); this.startGlide() }
+
   // ---------- touch / mouse pad ----------
-  holdStart() { this.activate(); this.startGlide() }
-  holdEnd() { this.stopGlide() }
-  stepForward() { this.activate(); this.go(this.next(this.i)) }
-  /** A tap on the pad: same as tapping Space (double-tap = sentence start, taps teach the pace). */
-  padTap() { if (!this.active) { this.activate(); return } this.tap(performance.now()) }
+  holdStart() { this.activate(); if (!this.gliding) { this.holding = true; this.startGlide() } }
+  holdEnd() { if (this.holding) { this.holding = false; this.stopGlide(); this.lastTap = 0 } }
+  /** A tap on the pad: same as tapping Space (play/pause; double-tap = sentence start). */
+  padTap() { if (!this.active) { this.start(); return } this.tap(performance.now()) }
   sentenceStart() { this.activate(); this.toSentenceStart() }
 
   // ---------- keys (called for keydown and keyup, from the app and the book) ----------
@@ -118,22 +123,26 @@ export class Guide {
     if (e.type === 'keyup') {
       if (e.key !== ' ' || !this.spaceDown) return false
       e.preventDefault(); clearTimeout(this.holdT); this.spaceDown = 0
-      if (this.gliding) { this.stopGlide(); this.lastTap = 0 } else this.tap(performance.now())
+      if (this.holding) this.holdEnd(); else this.tap(performance.now())
       return true
     }
-    if ((e.key === 'g' || e.key === 'G') && !e.altKey) { if (!this.s.guide) return false; e.preventDefault(); this.toggle(); return true }
-    if (!this.active) return false
+    if ((e.key === 'g' || e.key === 'G') && !e.altKey) { if (!this.s.guide) return false; e.preventDefault(); this.active ? this.deactivate() : this.start(); return true }
+    if (!this.active) {
+      if (e.key !== ' ' || e.shiftKey || e.repeat || !this.s.guide) return false
+      e.preventDefault(); this.start(); this.spaceDown = 0 // Space starts the guide moving; its keyup is ignored
+      return true
+    }
     if (e.key === ' ') {
       e.preventDefault()
       if (e.shiftKey) { this.stopGlide(); this.go(this.i - 1); return true }
       if (e.repeat || this.spaceDown) return true
       this.spaceDown = performance.now()
-      this.holdT = window.setTimeout(() => this.startGlide(), HOLD)
+      this.holdT = window.setTimeout(() => this.holdStart(), HOLD)
       return true
     }
     const ix = this.v!.ix, w = ix.words[this.i]
     const act: Record<string, () => void> = {
-      ArrowRight: () => (e.altKey ? this.speed(1.1) : this.go(this.next(this.i))), w: () => this.go(this.next(this.i)), l: () => this.go(this.i + 1), e: () => this.go(this.i + 1),
+      ArrowRight: () => (e.altKey ? this.speed(1.1) : this.step()), w: () => this.step(), l: () => this.step(), e: () => this.go(this.i + 1),
       ArrowLeft: () => (e.altKey ? this.speed(1 / 1.1) : this.go(this.i - 1)), b: () => this.go(this.i - 1), h: () => this.go(this.i - 1),
       ArrowDown: () => (e.ctrlKey || e.shiftKey ? this.paragraph(1) : this.line(1)), j: () => this.line(1),
       ArrowUp: () => (e.ctrlKey || e.shiftKey ? this.paragraph(-1) : this.line(-1)), k: () => this.line(-1),
@@ -179,7 +188,7 @@ export class Guide {
   // punctuation and position (see pacing.ts).
   private wordMs(k: number) { return wordTime(this.v!.ix, k, this.s.wpm) }
   private startGlide() { if (this.gliding) return; this.activate(); if (!this.active) return; this.gliding = true; this.emit(); this.tick() }
-  stopGlide() { if (!this.gliding) return; this.gliding = false; clearTimeout(this.timer); this.emit() }
+  stopGlide() { this.holding = false; if (!this.gliding) return; this.gliding = false; clearTimeout(this.timer); this.emit() }
   private tick() {
     if (!this.gliding || !this.v) return
     const ws = this.v.ix.words, n = this.next(this.i)
@@ -187,19 +196,31 @@ export class Guide {
     for (let k = this.i; k < Math.min(n, ws.length); k++) ms += this.wordMs(k)
     this.timer = window.setTimeout(async () => { if (!this.gliding) return; await this.go(n, true); if (this.gliding && !this.resume) this.tick() }, ms)
   }
+  /** Space / pad tap: play or pause; a quick second tap undoes that and goes to the sentence start. */
   private tap(t: number) {
-    if (t - this.lastTap < DOUBLE_TAP) { this.lastTap = 0; this.i = this.beforeTap; this.toSentenceStart(); this.onToast?.('Back to the start of the sentence'); return }
-    if (this.lastTap && t - this.lastTap < 3000) { // longer gaps are pauses, not pace
-      const sample = this.s.wpm * this.wordMs(this.i) / (t - this.lastTap) // your time on this word vs. expected
+    if (t - this.lastTap < DOUBLE_TAP) {
+      this.lastTap = 0
+      this.toSentenceStart(); this.onToast?.('Back to the start of the sentence')
+      if (this.playBefore) this.startGlide(); else this.stopGlide()
+      return
+    }
+    this.playBefore = this.gliding; this.lastTap = t
+    if (this.gliding) this.stopGlide(); else this.startGlide()
+  }
+  /** → / l / w: one step; steps in a steady rhythm teach the pace. */
+  private step() {
+    const t = performance.now()
+    if (this.lastStep && t - this.lastStep < 3000) { // longer gaps are pauses, not pace
+      const sample = this.s.wpm * this.wordMs(this.i) / (t - this.lastStep) // your time on this word vs. expected
       if (sample > 90 && sample < 900) {
-        this.s = { ...this.s, wpm: Math.round(Math.max(120, Math.min(450, this.s.wpm * 0.8 + sample * 0.2))) }
+        this.s = { ...this.s, wpm: Math.round(Math.max(120, Math.min(MAX_WPM, this.s.wpm * 0.8 + sample * 0.2))) }
         this.onPace?.(this.s.wpm); this.emit()
       }
     }
-    this.beforeTap = this.i; this.lastTap = t
+    this.lastStep = t
     this.go(this.next(this.i))
   }
-  private speed(f: number) { this.s = { ...this.s, wpm: Math.round(Math.max(120, Math.min(450, this.s.wpm * f))) }; this.onPace?.(this.s.wpm); this.onToast?.(`${this.s.wpm} wpm`); this.emit() }
+  private speed(f: number) { this.s = { ...this.s, wpm: Math.round(Math.max(120, Math.min(MAX_WPM, this.s.wpm * f))) }; this.onPace?.(this.s.wpm); this.onToast?.(`${this.s.wpm} wpm`); this.emit() }
   private toSentenceStart() { const ix = this.v!.ix, w = ix.words[this.i], s = ix.sentences[w.s]; this.go(this.i > s.a ? s.a : w.s > 0 ? ix.sentences[w.s - 1].a : 0) }
   private paragraph(dir: 1 | -1) {
     const ix = this.v!.ix, b = ix.words[this.i].b, blk = ix.blocks[b]

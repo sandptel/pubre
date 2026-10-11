@@ -35,10 +35,11 @@
   const chapterLeft = (b: BookRecord) => { const r = b.chapterLeft ? calmRange(b.chapterLeft / Math.max(60, settings.wpm)) : ''; return r ? `${r} left in chapter` : '' }
   let marks = $state<Record<string, string>>({}) // your latest highlight per book you're reading
   $effect(() => { for (const b of reading) if (!(b.id in marks)) listAnnotations(b.id).then(l => { const a = l.sort((x, y) => y.created - x.created)[0]; marks = { ...marks, [b.id]: a ? a.exact.replace(/\s+/g, ' ').slice(0, 120) : '' } }) })
+  const recent = $derived(books.filter(b => b !== current && (b.progress > 0 || b.readAt)).sort((x, y) => lastRead(y) - lastRead(x)).slice(0, 12))
   const anyStarted = $derived(books.some(b => b.progress > 0)) // a "new" dot means nothing while every book is new
   // Shelves: what you're reading, what's next, what you've finished. Empty shelves are hidden.
   const shelves = $derived([
-    { id: 'reading', title: 'Recently read', list: reading.filter(b => b !== current) },
+
     { id: 'next', title: 'Up next', list: books.filter(b => !b.progress) },
     { id: 'done', title: 'Finished', list: books.filter(b => b.progress >= 0.995) },
   ].filter(s => s.list.length))
@@ -130,14 +131,11 @@
 />
 
 <main class="library">
-  <header>
-    <h1>Library</h1>
-    <button class="fab gear" aria-label="Settings" onclick={() => { sview = 'menu'; settingsOpen = true }}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></svg>
-    </button>
-    <button class="fab add" aria-label="Add books" onclick={() => input.click()} disabled={busy > 0} class:busy={busy > 0}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
-    </button>
+  <header class="lib-h">
+    <div>
+      <h1>My Library</h1>
+      <p class="sub">{current ? 'Pick up where you left off' : books.length ? `${books.length} ${books.length === 1 ? 'book' : 'books'}` : 'Your shelf, at your pace'}</p>
+    </div>
     <input bind:this={input} type="file" accept=".epub,application/epub+zip" multiple hidden
       onchange={e => { add(e.currentTarget.files ?? []); e.currentTarget.value = '' }} />
   </header>
@@ -145,17 +143,18 @@
   {#if error}<p class="error" role="alert" transition:fly={{ y: -8, duration: 250 }}>{error}</p>{/if}
 
   {#if current}
-    <section class="continue" in:fly={{ y: 12, duration: 500, easing: cubicOut }} aria-label="Pick up where you left off">
-      <button class="c-main" onclick={() => open(current)}>
-        <span class="c-cover" style:view-transition-name={morphId === current.id ? 'cover' : undefined}><Cover book={current} /></span>
-        <span class="c-info">
+    <section class="hero" in:fly={{ y: 12, duration: 500, easing: cubicOut }} aria-label="Pick up where you left off">
+      <div class="h-top">
+        <button class="h-cover" aria-label="Open {current.title}" onclick={() => open(current)} style:view-transition-name={morphId === current.id ? 'cover' : undefined}><Cover book={current} /></button>
+        <div class="h-info">
           <span class="eyebrow">{away ? 'Welcome back' : 'Now reading'}{current.readAt ? ` · ${since(current.readAt)}` : ''}</span>
-          <span class="c-title">{current.title}</span>
-          {#if current.chapter}<span class="c-chapter">{current.chapter}</span>{/if}
-          <span class="c-cap"><MiniCapsule words={current.profile?.words} progress={current.progress} /></span>
-          <span class="c-meta">{pct(current.progress)}{chapterLeft(current) ? ` · ${chapterLeft(current)}` : timeLeft(current) ? ` · ${timeLeft(current)}` : ''}</span>
-        </span>
-      </button>
+          <b class="h-title">{current.title}</b>
+          <span class="h-author">{current.creator}</span>
+          {#if current.chapter}<span class="h-chapter">{current.chapter}</span>{/if}
+          <span class="h-prog"><MiniCapsule words={current.profile?.words} progress={current.progress} /><span class="num">{pct(current.progress)}</span></span>
+          {#if chapterLeft(current) || timeLeft(current)}<span class="h-left">{chapterLeft(current) || timeLeft(current)}</span>{/if}
+        </div>
+      </div>
       {#if current.lastLine}
         {#if away && !recalled}
           <div class="c-recall"><span>What happened last? Take a moment to recall it.</span><button onclick={() => (recalled = true)}>Remind me</button></div>
@@ -166,6 +165,8 @@
           </blockquote>
         {/if}
       {/if}
+      <button class="go" onclick={() => open(current)}>Continue reading
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
     </section>
   {/if}
 
@@ -173,53 +174,60 @@
     <section class="empty" in:fly={{ y: 16, duration: 600, easing: cubicOut }}>
       <div class="art" aria-hidden="true"><span></span><span></span><span></span></div>
       <h2>Your library is empty</h2>
-      <p>Drop an <strong>.epub</strong> here, or add one from your device.</p>
-      <button class="pill" onclick={() => input.click()}>Add books</button>
+      <p>Drop an <strong>.epub</strong> here, or add one with the + below.</p>
+      <button class="go small" onclick={() => input.click()}>Add books</button>
       <p class="hint">DRM-free books work — try <a href="https://standardebooks.org" target="_blank" rel="noopener">Standard Ebooks</a>
         or <a href="https://www.gutenberg.org" target="_blank" rel="noopener">Project Gutenberg</a>.</p>
     </section>
   {:else}
+    {#if recent.length}
+      <section class="shelf" aria-label="Recent">
+        <h2 class="shelf-h">Recent</h2>
+        <div class="row">
+          {#each recent as b (b.id)}
+            <button class="tile" aria-label="Open {b.title}" onclick={() => open(b)} oncontextmenu={e => { e.preventDefault(); showMenu(b, e.clientX, e.clientY) }}
+              onpointerdown={e => pressStart(e, b)} onpointerup={pressEnd} onpointercancel={pressEnd} onpointerleave={pressEnd}>
+              <span class="cover" style:view-transition-name={morphId === b.id && b !== current ? 'cover' : undefined}><Cover book={b} /></span>
+              <span class="title">{b.title}</span>
+              <span class="author">{b.creator}</span>
+              <span class="t-prog">{#if b.progress >= 0.995}Finished{:else}<span class="mini"><i style:width="{b.progress * 100}%"></i></span><span class="num">{pct(b.progress)}</span>{/if}</span>
+            </button>
+          {/each}
+        </div>
+      </section>
+    {/if}
     {#each shelves as shelf (shelf.id)}
       <section class="shelf" aria-label={shelf.title}>
-        <h2 class="shelf-h">{shelf.title}<span>{shelf.list.length}</span></h2>
-    {#if shelf.id === 'reading'}
-      <div class="recent">
-        {#each shelf.list as b (b.id)}
-          <button class="r-card" onclick={() => open(b)} oncontextmenu={e => { e.preventDefault(); showMenu(b, e.clientX, e.clientY) }}
-            onpointerdown={e => pressStart(e, b)} onpointerup={pressEnd} onpointercancel={pressEnd} onpointerleave={pressEnd}>
-            <span class="r-cover"><Cover book={b} /></span>
-            <span class="r-info">
-              <b>{b.title}</b>
-              {#if b.chapter}<span class="c-chapter">{b.chapter}</span>{/if}
-              {#if b.lastLine}<span class="r-line">“{b.lastLine}”</span>{/if}
-              <span class="r-cap"><MiniCapsule words={b.profile?.words} progress={b.progress} /></span>
-              <span class="c-meta">{b.readAt ? since(b.readAt) : pct(b.progress)}{b.who?.length ? ` · with ${b.who.join(', ')}` : ''}</span>
-            </span>
-          </button>
-        {/each}
-      </div>
-    {:else}
-    <ul class="grid">
-      {#each shelf.list as b, i (b.id)}
-        <li style:--i={i} animate:flip={{ duration: 450, easing: cubicOut }} out:scale={{ start: 0.85, duration: 250 }}>
-          <button class="book" aria-label="Open {b.title}" onclick={() => open(b)}
-            oncontextmenu={e => { e.preventDefault(); showMenu(b, e.clientX, e.clientY) }}
-            onpointerdown={e => pressStart(e, b)} onpointerup={pressEnd} onpointercancel={pressEnd} onpointerleave={pressEnd}>
-            <span class="cover" style:view-transition-name={morphId === b.id && b !== current ? 'cover' : undefined}>
-              <Cover book={b} />
-              {#if b.progress > 0 && b.progress < 0.995}<span class="bar"><span style:width="{b.progress * 100}%"></span></span>{/if}
-            </span>
-            <span class="title">{#if !b.progress && anyStarted}<i class="dot" title="New"></i>{/if}{b.title}</span>
-            <span class="author">{b.creator}{b.progress >= 0.995 ? ' · Finished' : ''}</span>
-          </button>
-        </li>
-      {/each}
-    </ul>
-    {/if}
+        <h2 class="shelf-h">{shelf.title}<span class="num">{shelf.list.length}</span></h2>
+        <ul class="grid">
+          {#each shelf.list as b, i (b.id)}
+            <li style:--i={i} animate:flip={{ duration: 450, easing: cubicOut }} out:scale={{ start: 0.85, duration: 250 }}>
+              <button class="book" aria-label="Open {b.title}" onclick={() => open(b)}
+                oncontextmenu={e => { e.preventDefault(); showMenu(b, e.clientX, e.clientY) }}
+                onpointerdown={e => pressStart(e, b)} onpointerup={pressEnd} onpointercancel={pressEnd} onpointerleave={pressEnd}>
+                <span class="cover" style:view-transition-name={morphId === b.id && b !== current ? 'cover' : undefined}><Cover book={b} /></span>
+                <span class="title">{#if !b.progress && anyStarted}<i class="dot" title="New"></i>{/if}{b.title}</span>
+                <span class="author">{b.creator}</span>
+              </button>
+            </li>
+          {/each}
+        </ul>
       </section>
     {/each}
   {/if}
 </main>
+
+<!-- The bar: one dark pill in the thumb's reach — your library, add a book, settings. -->
+<nav class="dockbar" aria-label="Library">
+  <button class="b-item on" aria-current="page" onclick={() => scrollTo({ top: 0, behavior: 'smooth' })}>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4v16H5zM10.5 4h4v16h-4zM16 5.2l3.6-1 3.4 15.4-3.6 1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></svg>
+    <span>Library</span></button>
+  <button class="b-add" aria-label="Add books" onclick={() => input.click()} disabled={busy > 0} class:busy={busy > 0}>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" /></svg></button>
+  <button class="b-item" onclick={() => { sview = 'menu'; settingsOpen = true }}>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="16" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="1.8" /><circle cx="8" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="1.8" /></svg>
+    <span>Settings</span></button>
+</nav>
 
 {#if menu}
   <div class="scrim" role="presentation" onclick={() => (menu = null)} oncontextmenu={e => { e.preventDefault(); menu = null }}></div>
@@ -264,52 +272,65 @@
 <style>
   .library {
     max-width: 1180px; margin: 0 auto;
-    padding: max(var(--s6), env(safe-area-inset-top)) max(var(--s5), env(safe-area-inset-right)) var(--s7) max(var(--s5), env(safe-area-inset-left));
+    padding: max(var(--s6), env(safe-area-inset-top)) max(var(--s5), env(safe-area-inset-right)) calc(var(--s7) + 88px + env(safe-area-inset-bottom)) max(var(--s5), env(safe-area-inset-left));
   }
-  header { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s5); }
-  header h1 { flex: 1; }
-  .gear { background: var(--hover); }
-  h1 { font: 700 34px/1.1 var(--serif); letter-spacing: -.02em; margin: 0; }
-  .add { background: var(--accent); color: var(--bg); box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--accent) 60%, transparent); }
-  .add:hover { background: var(--accent); filter: brightness(1.06); }
-  .add.busy svg { animation: spin 1s linear infinite; }
-  .error { background: color-mix(in srgb, var(--base08) 14%, transparent); color: var(--base08); padding: var(--s3) var(--s4); border-radius: 12px; margin: 0 0 var(--s5); }
+  .lib-h { display: flex; align-items: end; gap: var(--s3); margin-bottom: var(--s5); }
+  h1 { font: 400 36px/1.05 var(--serif); letter-spacing: -.015em; margin: 0; }
+  .sub { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
+  .error { background: color-mix(in srgb, var(--base08) 14%, transparent); color: var(--base08); padding: var(--s3) var(--s4); border-radius: var(--r2); margin: 0 0 var(--s5); }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--muted); }
+  .eyebrow { font: 600 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
 
-  /* Pick up where you left off: the book, your place in it, and the line you stopped on. */
-  .continue { box-sizing: border-box; width: min(100%, 560px); margin-bottom: var(--s6); border-radius: 20px; background: var(--hover); overflow: hidden; }
-  .c-main {
-    all: unset; box-sizing: border-box; cursor: pointer; display: flex; gap: var(--s4); align-items: center; width: 100%;
-    padding: var(--s3); transition: transform .4s var(--spring), background-color .2s;
-  }
-  .c-main:hover { background: color-mix(in srgb, var(--fg) 5%, transparent); }
-  .c-main:active { transform: scale(.985); }
-  .c-main:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 20px; }
-  .c-cap { display: block; margin: 6px 0 2px; }
-  .c-line { margin: 0; padding: var(--s1) var(--s4) var(--s4) calc(var(--s3) + 64px + var(--s4)); }
+  /* Pick up where you left off: a card that lifts off the page — the book, your place, the line you stopped on. */
+  .hero { width: min(100%, 560px); margin-bottom: var(--s6); padding: var(--s4); border-radius: var(--r4); background: var(--card); box-shadow: var(--e1); display: grid; gap: var(--s4); }
+  .h-top { display: flex; gap: var(--s4); align-items: start; }
+  .h-cover { all: unset; cursor: pointer; width: 92px; flex: none; transition: transform .45s var(--spring); }
+  .h-cover:active { transform: scale(.97); }
+  .h-info { display: grid; gap: 4px; min-width: 0; flex: 1; padding-top: 2px; }
+  .h-title { font: 500 21px/1.2 var(--serif); letter-spacing: -.01em; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .h-author { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .h-chapter { font: italic 13.5px var(--serif); color: color-mix(in srgb, var(--fg) 72%, var(--bg)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .h-prog { display: flex; align-items: center; gap: var(--s2); margin-top: 6px; }
+  .h-prog :global(.mini) { flex: 1; }
+  .h-left { font: 12px var(--mono); color: var(--muted); }
+  .c-line { margin: 0; padding: 0 2px; }
   .c-line p { margin: 0; font: italic 15px/1.5 var(--serif); color: color-mix(in srgb, var(--fg) 82%, var(--bg)); display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .c-line cite { display: block; margin-top: 6px; font: 12px system-ui; color: var(--muted); font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .c-recall { display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s4) var(--s4) calc(var(--s3) + 64px + var(--s4)); font: italic 14px/1.4 var(--serif); color: var(--muted); }
+  .c-recall { display: flex; align-items: center; gap: var(--s3); font: italic 14px/1.4 var(--serif); color: var(--muted); }
   .c-recall span { flex: 1; }
-  .c-recall button { flex: none; border: 0; border-radius: 999px; padding: 8px 14px; background: var(--bg); color: var(--fg); font: 600 13px system-ui; font-style: normal; box-shadow: 0 1px 3px rgb(0 0 0 / .08); }
-  @media (max-width: 480px) { .c-line, .c-recall { padding-left: var(--s4); } }
-  .recent { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
-  .r-card { all: unset; box-sizing: border-box; cursor: pointer; display: flex; gap: var(--s3); padding: var(--s3); border-radius: 16px; background: var(--hover); -webkit-touch-callout: none; user-select: none; transition: transform .4s var(--spring), background-color .2s; }
-  .r-card:hover { background: color-mix(in srgb, var(--fg) 9%, transparent); }
-  .r-card:active { transform: scale(.98); }
-  .r-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .r-cover { width: 56px; flex: none; }
-  .r-info { display: grid; gap: 3px; min-width: 0; align-content: start; }
-  .r-info b { font: 600 16px/1.25 var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .r-line { font: italic 13.5px/1.45 var(--serif); color: color-mix(in srgb, var(--fg) 75%, var(--bg)); display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .r-cap { display: block; margin: 4px 0 1px; }
-  .c-cover { width: 64px; flex: none; }
-  .c-info { display: grid; gap: var(--s1); min-width: 0; flex: 1; }
-  .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
-  .c-title { font: 600 18px/1.25 var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .c-chapter { font-size: 13px; font-style: italic; font-family: var(--serif); color: color-mix(in srgb, var(--fg) 75%, var(--bg)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .c-recall button { flex: none; border: 0; border-radius: 999px; padding: 8px 14px; background: var(--bg); color: var(--fg); font: 600 13px system-ui; font-style: normal; box-shadow: var(--e1); }
+  /* The ink pill (the one strong action on the screen) */
+  .go { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 52px; padding: 0 var(--s4) 0 var(--s5); border: 0; border-radius: var(--r3); background: var(--ink); color: var(--on-ink); font: 600 15px system-ui; transition: transform .35s var(--spring), filter .2s; }
+  .go svg { width: 20px; height: 20px; }
+  .go:active { transform: scale(.98); }
+  .go:hover { filter: brightness(1.12); }
+  .go.small { width: auto; gap: var(--s3); padding: 0 var(--s5); }
+
+  /* Recent: covers in a row, with how far along */
+  .row { display: flex; gap: var(--s4); overflow-x: auto; padding: 4px 2px 10px; margin: 0 calc(-1 * var(--s5)); padding-inline: var(--s5); scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .row::-webkit-scrollbar { display: none; }
+  .tile { all: unset; box-sizing: border-box; cursor: pointer; flex: none; width: 112px; display: grid; gap: 2px; scroll-snap-align: start; -webkit-touch-callout: none; user-select: none; }
+  .tile .title { font-size: 13px; }
+  .t-prog { display: flex; align-items: center; gap: 6px; margin-top: 3px; font: 11px var(--mono); color: var(--muted); }
+  .t-prog .num { font-size: 11px; }
+  .mini { flex: 1; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--fg) 12%, transparent); overflow: hidden; }
+  .mini i { display: block; height: 100%; background: var(--accent); }
   .shelf + .shelf { margin-top: var(--s6); }
-  .shelf-h { font: 600 13px var(--sans, system-ui); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 var(--s4); display: flex; gap: var(--s2); align-items: baseline; }
-  .shelf-h span { font-weight: 400; }
+  .shelf-h { font: 500 19px var(--serif); color: var(--fg); margin: 0 0 var(--s4); display: flex; gap: var(--s2); align-items: baseline; }
+
+  /* The bar: a dark pill that floats in the thumb's reach */
+  .dockbar {
+    position: fixed; z-index: 8; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + var(--s4)); margin-inline: auto; width: fit-content;
+    display: flex; align-items: center; gap: var(--s2); padding: 6px; border-radius: 999px; background: var(--ink); color: var(--on-ink); box-shadow: var(--e2);
+  }
+  .b-item { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 var(--s4); border: 0; border-radius: 999px; background: transparent; color: color-mix(in srgb, var(--on-ink) 65%, transparent); font: 600 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; transition: color .2s, background-color .2s; }
+  .b-item svg { width: 18px; height: 18px; }
+  .b-item.on { color: var(--on-ink); }
+  .b-item:hover { color: var(--on-ink); background: color-mix(in srgb, var(--on-ink) 10%, transparent); }
+  .b-add { width: 44px; height: 44px; border: 0; border-radius: 50%; display: grid; place-items: center; background: var(--on-ink); color: var(--ink); transition: transform .35s var(--spring); }
+  .b-add svg { width: 20px; height: 20px; }
+  .b-add:active { transform: scale(.9); }
+  .b-add.busy svg { animation: spin 1s linear infinite; }
   .slist { border-radius: 12px; background: var(--hover); overflow: hidden; }
   .slist button { display: flex; align-items: center; gap: var(--s3); width: 100%; min-height: 58px; padding: 0 var(--s4); border: 0; background: none; text-align: left; font-size: 16px; }
   .slist button + button { border-top: .5px solid var(--hairline); }
@@ -319,8 +340,6 @@
   .slist .chev { width: 16px; height: 16px; color: var(--muted); }
   .aa { width: 20px; font: 600 15px var(--serif); color: var(--accent); text-align: center; }
   .about { font-size: 12px; color: var(--muted); line-height: 1.5; margin: var(--s4) 0 0; }
-  .c-meta { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .bar span { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
 
   .grid {
     list-style: none; padding: 0; margin: 0;
@@ -333,7 +352,6 @@
   .cover { position: relative; display: block; margin-bottom: var(--s2); transition: transform .45s var(--spring); }
   .book:hover .cover { transform: translateY(-6px) rotate(-.4deg); }
   .book:active .cover { transform: scale(.96); }
-  .bar { position: absolute; left: 8%; right: 8%; bottom: 7px; height: 3px; border-radius: 2px; background: rgb(255 255 255 / .45); overflow: hidden; box-shadow: 0 1px 3px rgb(0 0 0 / .3); }
   .dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--accent); vertical-align: 1px; }
   .title { font-size: 14px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .author { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

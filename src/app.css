@@ -8,6 +8,11 @@
   --spring: linear(0, .009, .035 2.1%, .141 4.4%, .723 12.9%, .938 16.7%, 1.017 19.4%, 1.061 22.2%,
     1.077 25.3%, 1.068 29.4%, 1.016 37.9%, .997 45.6%, .994 53.8%, 1.001 73.5%, 1);
   --serif: ui-serif, "New York", "Iowan Old Style", Charter, Georgia, serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace; /* small labels and numbers */
+  /* radius · elevation (cards sit just above the page; floating bars and sheets above that) */
+  --r1: 8px; --r2: 12px; --r3: 16px; --r4: 24px; --r5: 32px;
+  --e1: 0 1px 2px rgb(0 0 0 / .05), 0 8px 24px -12px rgb(0 0 0 / .14);
+  --e2: 0 2px 6px rgb(0 0 0 / .08), 0 16px 40px -14px rgb(0 0 0 / .28);
   --glass: color-mix(in srgb, var(--surface) 78%, transparent);
   --glass-solid: color-mix(in srgb, var(--surface) 94%, transparent);
   --hairline: color-mix(in srgb, var(--fg) 10%, transparent);

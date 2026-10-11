@@ -79,7 +79,9 @@ export function resolveTheme(paletteId: string, modeId: string): Theme {
 export function themeVars(t: Theme) {
   const hex = (i: number) => i.toString(16).toUpperCase().padStart(2, '0')
   return t.base.map((c, i) => `--base${hex(i)}:${c}`).join(';')
-    + `;--bg:${t.base[0]};--surface:${t.base[1]};--line:${t.base[2]};--muted:${t.base[4]};--fg:${t.base[5]};--accent:${t.base[t.accent]};color-scheme:${t.dark ? 'dark' : 'light'}`
+    + `;--bg:${t.base[0]};--surface:${t.base[1]};--line:${t.base[2]};--muted:${t.base[4]};--fg:${t.base[5]};--accent:${t.base[t.accent]}`
+    + `;--card:${t.dark ? mix(t.base[0], t.base[2], 0.45) : mix(t.base[0], '#ffffff', 0.62)};--ink:${t.base[5]};--on-ink:${t.base[0]}` // cards lift off the page; ink = the dark pill
+    + `;color-scheme:${t.dark ? 'dark' : 'light'}`
 }
 
 export const fonts: Record<string, { name: string; stack: string }> = {

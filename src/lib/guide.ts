@@ -172,9 +172,11 @@ export class Guide {
     for (let c = 1; c < 3 && !ws[k].pause && ws[k + 1]; c++) k++
     return k + 1
   }
+  // Glide is a ceiling, not a pacer (reading research): never faster than 350 wpm, with breathing
+  // room at sentence (+250 ms) and paragraph (+600 ms) ends.
   private wordMs(w: Word) {
-    const f = (0.7 + 0.3 * Math.min(w.text.length, 14) / 5) * [1, 1.5, 2, 2.5][w.pause] / 1.25
-    return (60000 / this.s.wpm) * f
+    const f = (0.7 + 0.3 * Math.min(w.text.length, 14) / 5) * [1, 1.5, 1, 1][w.pause] / 1.25
+    return (60000 / Math.min(350, this.s.wpm)) * f + [0, 0, 250, 600][w.pause]
   }
   private startGlide() { if (this.gliding) return; this.activate(); if (!this.active) return; this.gliding = true; this.emit(); this.tick() }
   stopGlide() { if (!this.gliding) return; this.gliding = false; clearTimeout(this.timer); this.emit() }

@@ -32,7 +32,7 @@
     onopen?: (open: boolean) => void; onstate?: (s: StageState) => void
     onpace?: (wpm: number) => void; ontoast?: (m: string) => void
     /** The quick switcher changed a reading setting (pointer, step). */
-    onsetting?: (key: 'stagePointer' | 'stageStep' | 'inkRead' | 'inkNow' | 'inkAhead', value: string | number) => void
+    onsetting?: (key: 'stagePointer' | 'stageStep' | 'inkRead' | 'inkNow' | 'inkAhead' | 'fontScale', value: string | number) => void
   } = $props()
 
   let open = $state(false)
@@ -65,6 +65,8 @@
   const pointer = $derived(step === 'sentence' ? 'ink' : settings.stagePointer ?? 'ink')
   const go_ = $derived(touch ? 'tap ▶' : 'Space')
   $effect(() => { const w = settings.wpm; untrack(() => { if (w !== wpm) { wpm = w; if (open) setRate(rate) } }) }) // a new pace applies mid-sentence
+  // text size changed while reading: the column reflows; keep your sentence in its place
+  $effect(() => { void settings.fontScale; untrack(() => { if (open && landed) tick().then(() => requestAnimationFrame(() => requestAnimationFrame(() => { place(false); placeMarker(false) }))) }) })
   let progress = $state(0) // through this chapter's text, for the pad's ring and the line under the label
   let sections = $state<number[]>([]) // paragraph starts within this section (ticks on the line)
   let span: [number, number, View?] = [0, 0] // this section's word range [a, b) in its view
@@ -719,6 +721,15 @@
             <button role="radio" aria-checked={step === v} class:on={step === v} onclick={() => onsetting?.('stageStep', v)}>{l}</button>
           {/each}
         </div>
+        <div class="q-size" aria-label="Text size">
+          <button aria-label="Smaller text" onclick={() => onsetting?.('fontScale', Math.max(70, (settings.fontScale ?? 100) - 10))}><span style:font-size="13px">A</span></button>
+          <div class="qs-mid">
+            <span class="qs-aa" style:font-size="{Math.round(18 * (settings.fontScale ?? 100) / 100)}px">Aa</span>
+            <input type="range" min="70" max="200" step="5" value={settings.fontScale ?? 100} aria-label="Text size" oninput={e => onsetting?.('fontScale', +e.currentTarget.value)} />
+            <b>{settings.fontScale ?? 100}%</b>
+          </div>
+          <button aria-label="Larger text" onclick={() => onsetting?.('fontScale', Math.min(200, (settings.fontScale ?? 100) + 10))}><span style:font-size="22px">A</span></button>
+        </div>
         <div class="q-ink" aria-label="Contrast">
           {#each [['inkRead', 'Read', 8, 70, settings.inkRead ?? 22], ['inkNow', 'Now', 60, 100, settings.inkNow ?? 100], ['inkAhead', 'Ahead', 12, 90, settings.inkAhead ?? 46]] as [k, l, lo, hi, val]}
             <label><span>{l}<b>{val}%</b></span><input type="range" min={lo} max={hi} step="2" value={val} oninput={e => onsetting?.(k as 'inkRead', +e.currentTarget.value)} /></label>
@@ -836,6 +847,12 @@
   .x.on { opacity: 1; }
   .quick { position: absolute; z-index: 9; bottom: calc(env(safe-area-inset-bottom) + 86px); left: 12px; right: 12px; margin-inline: auto; max-width: 560px; padding: 10px; border-radius: 22px; display: grid; gap: 10px;
     background: color-mix(in srgb, var(--accent) 8%, var(--surface)); box-shadow: 0 0 0 1px var(--hairline), 0 18px 40px -18px rgb(0 0 0 / .35); animation: glossIn .3s cubic-bezier(.22,1,.36,1); }
+  .q-size { display: flex; align-items: center; gap: 8px; }
+  .q-size > button { width: 40px; height: 40px; flex: none; border: 0; border-radius: 50%; background: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 18%, transparent); color: var(--fg); font-family: var(--serif); display: grid; place-items: center; }
+  .qs-mid { flex: 1; display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 8px; }
+  .qs-aa { font-family: var(--serif); line-height: 1; text-align: center; transition: font-size .15s; }
+  .qs-mid input { width: 100%; accent-color: var(--accent); margin: 0; }
+  .qs-mid b { font: 600 11px var(--mono); min-width: 38px; text-align: right; }
   .q-ink { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 2px 4px; }
   .q-ink label { display: grid; gap: 4px; }
   .q-ink span { display: flex; justify-content: space-between; font: 600 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }

@@ -4,7 +4,8 @@
   import ReadPreview from './ReadPreview.svelte'
 
   // Every reading aid, opt-in or out. Used for the global defaults and for one book's overrides.
-  let { value = $bindable() }: { value: Settings } = $props()
+  /** part: 'guide' = reading guide + contrast (Reading aids); 'look' = lenses + comfort (Themes & Settings); 'all' = both (one book's overrides). */
+  let { value = $bindable(), part = 'all' }: { value: Settings; part?: 'guide' | 'look' | 'all' } = $props()
 
   type Opt = [string, string]
   const stage = $derived(value.guideStyle === 'stage')
@@ -41,6 +42,7 @@
     {/each}
   </div>
 {/snippet}
+{#if part !== 'look'}
 <h3>Reading guide</h3>
 {#if value.guide}
   <!-- what your choices look like in action, live -->
@@ -83,7 +85,20 @@
   </div>
 {/if}
 
+{/if}
+{#if part !== 'guide'}
 <h3>Lenses</h3>
+<!-- what the lenses and comfort settings do, on a sample passage -->
+<div class="lens-sample" style:letter-spacing="{value.letterSpacing ?? 0}em" style:max-width={value.measure === 'short' ? '22em' : null}>
+  {#if value.intensity === 'quiet'}
+    “Call me Ishmael,” said the sailor to Queequeg (who smiled), as the binnacle lamp swung; <i>tout est calme</i>.
+  {:else}
+    <span class:q={value.voices !== 'off'} class:qline={value.voices === 'underline'} class:qmarks={value.voices === 'marks'}>“Call me Ishmael,”</span> said the sailor to
+    <span class:nm={value.names}>Queequeg</span> <span class:aside={value.asides}>(who smiled)</span>, as the
+    <span class:hw={value.hardWords && value.hardStyle === 'shown'}>binnacle</span> lamp swung; <span class:fr={value.foreign}>tout est calme</span>.
+  {/if}
+  <span class="ls-l">Sample · {value.intensity === 'quiet' ? 'no marks (Quiet)' : 'names, voices, rare words, asides, other languages'}</span>
+</div>
 <div class="group">
   {@render choice('Intensity', 'intensity', [['quiet', 'Quiet'], ['guided', 'Guided'], ['rich', 'Rich']], 'How many marks a page may carry')}
   {#if value.intensity !== 'quiet'}
@@ -122,6 +137,7 @@
     <input type="checkbox" role="switch" checked={value.measure === 'short'} onchange={e => (value.measure = e.currentTarget.checked ? 'short' : 'normal')} /></label>
 </div>
 
+{/if}
 <style>
   h3 { font: 600 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: var(--s5) 0 var(--s2); }
   h3:first-child { margin-top: var(--s1); }
@@ -133,6 +149,15 @@
   .line > span:first-child { flex: 1; display: grid; }
   small { font-size: 12px; color: var(--muted); }
   .hint { font-size: 12px; color: var(--muted); margin: 0; padding: var(--s2) 0 var(--s3); line-height: 1.45; }
+  .lens-sample { position: relative; margin-bottom: var(--s2); padding: 12px 14px 26px; border-radius: var(--r3); background: var(--bg); box-shadow: inset 0 0 0 1px var(--hairline); font: 17px/1.65 var(--serif); color: var(--fg); transition: letter-spacing .2s; }
+  .lens-sample .q { color: var(--base0D, var(--accent)); }
+  .lens-sample .q.qline { color: inherit; text-decoration: underline 2px color-mix(in srgb, var(--base0D, var(--accent)) 60%, transparent); text-underline-offset: 4px; }
+  .lens-sample .q.qmarks { color: inherit; }
+  .lens-sample .nm { color: var(--base0E, var(--accent)); background: color-mix(in srgb, var(--base0E, var(--accent)) 14%, transparent); border-radius: 3px; text-decoration: underline 1px color-mix(in srgb, var(--base0E, var(--accent)) 35%, transparent); }
+  .lens-sample .aside { opacity: .6; }
+  .lens-sample .hw { text-decoration: underline dotted 2px color-mix(in srgb, var(--accent) 80%, transparent); text-underline-offset: 4px; }
+  .lens-sample .fr { font-style: italic; color: var(--base0C, var(--accent)); }
+  .ls-l { position: absolute; left: 14px; bottom: 6px; font: 600 9.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
   .live { position: sticky; top: 0; z-index: 2; display: grid; gap: 4px; padding: 6px 0 10px; margin: 0 calc(-1 * var(--s1)) var(--s2); padding-inline: var(--s1); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
   .live-l { font: 600 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
   .line.col { flex-direction: column; align-items: stretch; gap: var(--s2); padding: var(--s3) 0; text-transform: none; }

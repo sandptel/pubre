@@ -6,6 +6,7 @@
   import { fly } from 'svelte/transition'
   import { fonts, modes, palettes, resolveTheme, type Settings } from '../lib/settings.ts'
   import VSlider from './VSlider.svelte'
+  import ReadingAids from './ReadingAids.svelte'
 
   let { settings = $bindable() }: { settings: Settings } = $props()
   let page = $state<'main' | 'text'>('main')
@@ -70,6 +71,7 @@
       </button>
     {/each}
   </div>
+  <ReadingAids bind:value={settings} part="look" />
 {:else}
   <div in:fly={{ x: 14, duration: 200, easing: cubicOut }}>
     <button class="back" onclick={() => (page = 'main')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>Back</button>

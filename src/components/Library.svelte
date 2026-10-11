@@ -274,7 +274,7 @@
   {:else if sview === 'look'}
     <Appearance bind:settings />
   {:else}
-    <ReadingAids bind:value={settings} />
+    <ReadingAids bind:value={settings} part="guide" />
   {/if}
 </Sheet>
 

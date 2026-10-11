@@ -1079,7 +1079,7 @@
         {:else if view === 'appearance'}
           <Appearance bind:settings />
         {:else if view === 'aids'}
-          <ReadingAids bind:value={settings} />
+          <ReadingAids bind:value={settings} part="guide" />
         {:else if view === 'cast'}
           <Constellation people={rec.profile?.names ?? []} links={rec.profile?.links} upto={loc?.index ?? 0}
             hue={slot => whoHue(resolveTheme(eff.palette, eff.mode), slot % WHO_SLOTS)}

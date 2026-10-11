@@ -62,7 +62,8 @@ export function whoHue(t: Theme, slot: number) {
 const alpha = (hex: string, a: number) => hex + Math.round(a * 255).toString(16).padStart(2, '0')
 
 /** Grammar styles for a book document (inline CSS, so they follow the theme without app CSS vars). */
-export function marksCss(t: Theme): string {
+export function marksCss(t: Theme, inkRead = 22): string {
+  const rd = Math.min(0.95, 0.3 + inkRead / 100) // your 'already read' level, on the page
   const fg = t.base[5], accent = t.base[t.accent], muted = t.base[4]
   const voice = (k: string) => whoHue(t, +k)
   return openersCss(t) + `
@@ -73,8 +74,8 @@ export function marksCss(t: Theme): string {
 @property --breathe { syntax: '<number>'; inherits: true; initial-value: 0 }
 ::highlight(c-page) { color: ${level(t, 0.72, 3.4)} }
 ::highlight(c-para) { color: ${level(t, 0.8, 4)} }
-::highlight(c-read) { color: ${level(t, 0.55, 3.5)} }
-::highlight(c-readpara) { color: ${level(t, 0.62, 4)} }
+::highlight(c-read) { color: ${level(t, rd, 2.2)} }
+::highlight(c-readpara) { color: ${level(t, Math.min(0.95, rd + 0.07), 2.4)} }
 ::highlight(aside) { color: ${level(t, 0.72, 3.4)} }
 ::highlight(c-readfocus) { color: ${level(t, 0.68, 3.4)} }
 ::highlight(c-focus) { color: ${fg} }

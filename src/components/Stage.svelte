@@ -16,11 +16,13 @@
   import { breath, MAX_WPM, sentenceTime, wordTime, type Breath } from '../lib/pacing.ts'
   import { prevUnit, sectionOf, segments, unitAt, type Decor, type Step } from '../lib/stagetext.ts'
   import Ticker from './Ticker.svelte'
+  import { POINTERS, pointerBox, type PointerType } from '../lib/pointers.ts'
+  import ReadPreview from './ReadPreview.svelte'
   import ChapterStrip, { type StripChapter } from './ChapterStrip.svelte'
   import { edgesOnFirstLine, letterRects, typeFrames } from '../lib/typing.ts'
   import type { TextIndex } from '../lib/textindex.ts'
 
-  let { pag, settings, chapter = '', page = 0, pages = 0, book, pageEl, decorate, explain, onmark, onopen, onstate, onpace, ontoast }: {
+  let { pag, settings, chapter = '', page = 0, pages = 0, book, pageEl, decorate, explain, onmark, onopen, onstate, onpace, ontoast, onsetting }: {
     pag: Paginator | undefined; settings: Settings; chapter?: string; page?: number; pages?: number; pageEl?: HTMLElement
     /** The book's chapters, for the strip under the label (the one you're in is magnified). */
     book?: { chapters: StripChapter[]; cur: number }
@@ -29,6 +31,8 @@
     onmark?: (v: View, s: number) => Promise<boolean | null>
     onopen?: (open: boolean) => void; onstate?: (s: StageState) => void
     onpace?: (wpm: number) => void; ontoast?: (m: string) => void
+    /** The quick switcher changed a reading setting (pointer, step). */
+    onsetting?: (key: 'stagePointer' | 'stageStep', value: string) => void
   } = $props()
 
   let open = $state(false)
@@ -39,6 +43,7 @@
   let waiting = $state<'' | Breath>('')
   let breathMs = $state(0)
   let breathAt = $state<{ x: number; y: number } | null>(null)
+  let quick = $state(false) // the quick switcher: pointer and step, while you read
   let gloss = $state<{ key: string; html: string } | null>(null) // "tell me more", when you stop at a word
   let glossT = 0, hoverT = 0
   let glossTop = $state(false)
@@ -209,7 +214,7 @@
     if (!rs.length) { m.classList.remove('on'); return }
     const f = rs[0], line = rs.filter(r => Math.abs(r.top - f.top) < 4)
     const l = f.left, t = f.top, w = Math.max(...line.map(r => r.right)) - f.left, h = f.height
-    const g = ({ word: [l - 4, t - 1, w + 8, h + 2], outline: [l - 4, t - 1, w + 8, h + 2], underline: [l, t + h - 1, w, 3], dot: [l + w / 2 - 3, t + h + 2, 6, 6] } as Record<string, number[]>)[pointer]
+    const g = pointerBox(pointer as PointerType, l, t, w, h)
     const newLine = prevTop !== null && Math.abs(t - prevTop) > 4
     prevTop = t
     const set = (dur: number) => {
@@ -635,7 +640,7 @@
   function up(e: PointerEvent) {
     clearTimeout(markT); markT = 0
     if (marked) { marked = false; return }
-    if ((e.target as HTMLElement).closest('button, .gloss')) return
+    if ((e.target as HTMLElement).closest('button, .gloss, .quick')) return
     const dy = e.clientY - downY, dx = e.clientX - downX
     if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) return unit(dx > 0 ? -1 : 1) // swipe right: back a word (or unit)
     if (Math.abs(dy) > 40) return sentence(dy < 0 ? 1 : -1)
@@ -673,7 +678,7 @@
     <div class="win" style:font-family={font} style:--size="{settings.fontScale / 100}">
       <div class="lift" bind:this={lift}>
         <div class="para" bind:this={para}>
-          <div class="flow" class:fine={step !== 'sentence'} bind:this={flow} aria-live="polite"><i class="marker" bind:this={marker} aria-hidden="true"></i></div>
+          <div class="flow" class:fine={step !== 'sentence'} style:--in-read={settings.inkRead ?? 22} style:--in-now={settings.inkNow ?? 100} style:--in-ahead={settings.inkAhead ?? 46} bind:this={flow} aria-live="polite"><i class="marker ptr" bind:this={marker} aria-hidden="true"></i></div>
         </div>
       </div>
     </div>
@@ -703,6 +708,27 @@
         {:else if !playing && !holdPlay && !touch}<span>Paused · {go_} to go on</span>{/if}
       {/if}
     </div>
+    <button class="qbtn" class:on={landed} class:open={quick} aria-label="Pointer and step" aria-expanded={quick} onclick={() => (quick = !quick)}>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" /><path d="M6 13.5l3-7.5 3 7.5M7.2 11h3.6M14.5 13.5V6.5h2.4a1.8 1.8 0 010 3.6h-2.4 2.8a1.7 1.7 0 010 3.4h-2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+    </button>
+    {#if quick && landed}
+      <div class="quick" role="dialog" aria-label="Pointer and step">
+        <div class="q-seg" role="radiogroup" aria-label="Move by">
+          {#each [['sentence', 'Sentence'], ['phrase', 'Phrase'], ['word', 'Word']] as [v, l]}
+            <button role="radio" aria-checked={step === v} class:on={step === v} onclick={() => onsetting?.('stageStep', v)}>{l}</button>
+          {/each}
+        </div>
+        {#if step !== 'sentence'}
+          <div class="q-tiles" role="radiogroup" aria-label="Pointer">
+            {#each [['ink', 'Ink'], ...POINTERS.map(p => [p[0], p[1]])] as [id, name]}
+              <button role="radio" aria-checked={pointer === id} class:on={pointer === id} onclick={() => onsetting?.('stagePointer', id)}>
+                <ReadPreview mini step="word" pointer={id as PointerType | 'ink'} read={settings.inkRead ?? 22} now={settings.inkNow ?? 100} ahead={settings.inkAhead ?? 46} wpm={150} /><b>{name}</b>
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
     <button class="x" class:on={landed} aria-label="Back to the page (Esc)" onclick={close}>
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
     </button>
@@ -730,20 +756,22 @@
   .flow:global(.solo) > :global([data-b]:not(.card)) { opacity: 0; transition-duration: .25s; }
   /* Ink steps. Every piece knows its state; colour = its ink (a voice's hue, or the text colour) at the step's strength. */
   .flow :global([data-st]) { color: color-mix(in srgb, var(--ink, var(--fg)) var(--a, 30%), transparent); transition: color var(--t, .8s) ease; }
-  .flow :global([data-st="now"]) { --a: 100%; --t: .45s; }
-  .flow :global([data-st="ahead"]) { --a: 70%; --t: .2s; }
+  /* Your three levels (Reading aids → Contrast): read · being read · to read; everything else is derived */
+  .flow :global([data-st="now"]) { --a: calc(var(--in-now) * 1%); --t: .45s; }
+  .flow :global([data-st="next"]) { --a: calc(var(--in-ahead) * 1%); }
+  .flow :global([data-st="later"]) { --a: calc(var(--in-ahead) * .7%); }
+  .flow :global([data-st="prev"]) { --a: calc(var(--in-read) * 1.4%); --t: .5s; }
+  .flow :global([data-st="read"]) { --a: calc(var(--in-read) * 1%); --t: 1.2s; }
+  .flow :global([data-st="ahead"]) { --a: calc(var(--in-ahead) * 1%); --t: .2s; }
   /* Word / phrase steps: one bright spot, a soft wake ahead, the rest of the page well back */
-  .flow:global(.fine) :global([data-st]) { --a: 17%; }
-  .flow:global(.fine) :global([data-st="now"]) { --a: 100%; --t: .12s; -webkit-text-stroke: .018em currentColor; text-shadow: 0 0 .6em color-mix(in srgb, var(--accent) 35%, transparent); }
-  .flow:global(.fine) :global([data-st="near"]) { --a: 62%; --t: .2s; }
-  .flow:global(.fine) :global([data-st="ahead"]) { --a: 42%; --t: .25s; }
-  .flow:global(.fine) :global([data-st="far"]) { --a: 30%; --t: .3s; }
-  .flow:global(.fine) :global([data-st="done"]) { --a: 34%; --t: .3s; }
-  .flow:global(.fine) :global([data-st="prev"]) { --a: 22%; --t: .25s; }
-  .flow:global(.fine) :global([data-st="next"]) { --a: 22%; }
-  .flow :global([data-st="next"]) { --a: 56%; }
-  .flow :global([data-st="prev"]) { --a: 45%; --t: .5s; }
-  .flow :global([data-st="read"]) { --a: 26%; --t: 1.2s; }
+  .flow:global(.fine) :global([data-st]) { --a: calc(var(--in-read) * .7%); }
+  .flow:global(.fine) :global([data-st="now"]) { --a: calc(var(--in-now) * 1%); --t: .12s; -webkit-text-stroke: .018em currentColor; text-shadow: 0 0 .6em color-mix(in srgb, var(--accent) 35%, transparent); }
+  .flow:global(.fine) :global([data-st="near"]) { --a: calc((var(--in-ahead) + (var(--in-now) - var(--in-ahead)) * .35) * 1%); --t: .2s; }
+  .flow:global(.fine) :global([data-st="ahead"]) { --a: calc(var(--in-ahead) * 1%); --t: .25s; }
+  .flow:global(.fine) :global([data-st="far"]) { --a: calc(var(--in-ahead) * .72%); --t: .3s; }
+  .flow:global(.fine) :global([data-st="done"]) { --a: calc(var(--in-read) * 1.35%); --t: .3s; }
+  .flow:global(.fine) :global([data-st="prev"]) { --a: calc(var(--in-read) * .9%); --t: .25s; }
+  .flow:global(.fine) :global([data-st="next"]) { --a: calc(var(--in-ahead) * .5%); }
   .flow:global(.exhale) :global([data-st="now"]) { --a: 62%; --t: 1.4s; }
   .flow:global(.whole) :global([data-st]) { --a: 100%; transition: none; }
   /* Lenses in the Stage: who (names, voices), tell me more (rare words, other languages), asides, yours. */
@@ -775,11 +803,6 @@
   /* The marker (phrase / word steps) */
   .marker { position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .25s; }
   .marker:global(.on) { opacity: 1; }
-  .marker:global([data-p="word"]) { background: color-mix(in srgb, var(--accent) 26%, transparent); border-radius: 7px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
-  .marker:global([data-p="outline"]) { border-radius: 7px; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 80%, transparent); }
-  .marker:global([data-p="underline"]) { background: var(--accent); border-radius: 2px; }
-  .marker:global([data-p="dot"]) { background: var(--accent); border-radius: 50%; }
-  .marker:global([data-p="type"]) { background: color-mix(in srgb, var(--accent) 24%, transparent); border-radius: 6px 2px 2px 6px; box-shadow: inset -2px 0 0 var(--accent); }
   .fade { position: absolute; left: 0; right: 0; height: 26%; pointer-events: none; opacity: 0; transition: opacity .4s ease; }
   .fade.on { opacity: 1; }
   .top-fade { top: 0; background: linear-gradient(var(--bg) 40%, transparent); }
@@ -805,6 +828,20 @@
   .breath i { display: block; height: 100%; background: var(--accent); transform-origin: left; animation: fill linear both; }
   .x { position: absolute; z-index: 1; top: calc(env(safe-area-inset-top) + 10px); right: calc(env(safe-area-inset-right) + 10px); width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; transition: background-color .2s, color .2s, opacity .3s; opacity: 0; }
   .x.on { opacity: 1; }
+  .qbtn { position: absolute; z-index: 3; top: calc(env(safe-area-inset-top) + 10px); left: calc(env(safe-area-inset-left) + 10px); width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); display: grid; place-items: center; opacity: 0; transition: opacity .3s, background-color .2s, color .2s; }
+  .qbtn.on { opacity: 1; }
+  .qbtn.open, .qbtn:hover { background: var(--hover); color: var(--fg); }
+  .qbtn svg { width: 22px; height: 22px; }
+  .quick { position: absolute; z-index: 3; top: calc(env(safe-area-inset-top) + 60px); left: 12px; right: 12px; margin-inline: auto; max-width: 560px; padding: 10px; border-radius: 22px; display: grid; gap: 10px;
+    background: color-mix(in srgb, var(--accent) 8%, var(--surface)); box-shadow: 0 0 0 1px var(--hairline), 0 18px 40px -18px rgb(0 0 0 / .35); animation: glossIn .3s cubic-bezier(.22,1,.36,1); }
+  .q-seg { display: flex; padding: 3px; border-radius: 999px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 18%, transparent); }
+  .q-seg button { flex: 1; min-height: 36px; border: 0; border-radius: 999px; background: none; color: var(--fg); font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+  .q-seg button.on { background: var(--ink); color: var(--on-ink); }
+  .q-tiles { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px; }
+  .q-tiles::-webkit-scrollbar { display: none; }
+  .q-tiles button { flex: none; width: 128px; border: 0; padding: 5px; border-radius: 14px; background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 14%, transparent); display: grid; gap: 4px; text-align: left; color: var(--fg); }
+  .q-tiles button.on { box-shadow: inset 0 0 0 2px var(--accent); }
+  .q-tiles b { font: 600 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 0 3px 2px; }
   .x:hover { background: var(--hover); color: var(--fg); }
   @keyframes fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
   @keyframes fade { from { opacity: 0; } }

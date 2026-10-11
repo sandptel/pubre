@@ -1,10 +1,15 @@
 <script lang="ts">
   import type { Settings } from '../lib/settings.ts'
+  import { POINTERS } from '../lib/pointers.ts'
+  import ReadPreview from './ReadPreview.svelte'
 
   // Every reading aid, opt-in or out. Used for the global defaults and for one book's overrides.
   let { value = $bindable() }: { value: Settings } = $props()
 
   type Opt = [string, string]
+  const stage = $derived(value.guideStyle === 'stage')
+  const pkey = $derived<'stagePointer' | 'pointer'>(stage ? 'stagePointer' : 'pointer')
+  const pstep = $derived(stage ? value.stageStep : value.step)
   const hard = $derived(!value.hardWords ? 'off' : value.hardStyle)
   function setHard(v: string) {
     if (v === 'off') value.hardWords = false
@@ -26,7 +31,22 @@
   <label class="line"><span>{label}{#if hint}<small>{hint}</small>{/if}</span><input type="checkbox" role="switch" bind:checked={(value as any)[key]} /></label>
 {/snippet}
 
+{#snippet pointers()}
+  <div class="tiles" role="radiogroup" aria-label="Pointer">
+    {#if stage}<button role="radio" aria-checked={value.stagePointer === 'ink'} class="tile" class:on={value.stagePointer === 'ink'} onclick={() => (value.stagePointer = 'ink')}>
+      <ReadPreview mini step="word" pointer="ink" read={value.inkRead ?? 22} now={value.inkNow ?? 100} ahead={value.inkAhead ?? 46} wpm={150} /><b>Ink</b></button>{/if}
+    {#each POINTERS as [id, name, hint]}
+      <button role="radio" aria-checked={value[pkey] === id} class="tile" class:on={value[pkey] === id} title={hint} onclick={() => ((value as any)[pkey] = id)}>
+        <ReadPreview mini step="word" pointer={id} read={value.inkRead ?? 22} now={value.inkNow ?? 100} ahead={value.inkAhead ?? 46} wpm={150} /><b>{name}</b></button>
+    {/each}
+  </div>
+{/snippet}
 <h3>Reading guide</h3>
+{#if value.guide}
+  <!-- what your choices look like in action, live -->
+  <div class="live"><ReadPreview step={pstep ?? 'word'} pointer={value[pkey] ?? 'underline'} read={value.inkRead ?? 22} now={value.inkNow ?? 100} ahead={value.inkAhead ?? 46}
+    lenses={value.intensity !== 'quiet' && (stage ? value.stageLenses : true)} wpm={value.wpm} /><span class="live-l">Preview · your settings, in action</span></div>
+{/if}
 <div class="group">
   {@render toggle('Reading guide', 'guide', 'The round pad, Space or G')}
   {#if value.guide}
@@ -38,20 +58,30 @@
   {#if value.guide && value.guideStyle === 'stage'}
     {@render choice('Move by', 'stageStep', [['sentence', 'Sentence'], ['phrase', 'Phrase'], ['word', 'Word']], value.stageStep === 'sentence' ? 'A sentence lights up at a time' : 'Words ink in as you go')}
     {#if value.stageStep !== 'sentence'}
-      {@render choice('Pointer', 'stagePointer', [['ink', 'Ink'], ['word', 'Word'], ['type', 'Type'], ['underline', 'Line'], ['dot', 'Dot'], ['outline', 'Ring']], value.stagePointer === 'type' ? 'Letters type themselves' : '')}
+      <div class="line col"><span>Pointer<small>How the words you're on are marked</small></span>{@render pointers()}</div>
     {/if}
     {@render toggle('Lenses in Stage', 'stageLenses', 'Names, voices, rare words, your highlights')}
     {@render choice('Paragraph end', 'paraEnd', [['breathe', 'Breathe'], ['wait', 'Wait']], value.paraEnd === 'breathe' ? 'A pause, then the next rises' : 'Waits for a tap')}
     <p class="hint">Tap the round pad (or Space) to start and pause. Hold it to read only while you hold; let go and it goes back to the page. In the Stage, long-press a sentence to keep it as a highlight. While holding, slide right for faster, left for slower and then backwards, up to lock. ← → step, ↑ ↓ paragraph, [ ] pace ({value.wpm} wpm).</p>
   {/if}
   {#if value.guide && value.guideStyle === 'pointer'}
-    {@render choice('Pointer', 'pointer', [['word', 'Word'], ['type', 'Type'], ['underline', 'Line'], ['dot', 'Dot'], ['outline', 'Ring']], value.pointer === 'type' ? 'Letters type themselves' : '')}
+    <div class="line col"><span>Pointer<small>How the words you're on are marked</small></span>{@render pointers()}</div>
     {@render choice('Focus', 'focus', [['sentence', 'Sentence'], ['line', 'Line'], ['paragraph', 'Para']])}
     {@render choice('Step', 'step', [['word', 'Word'], ['phrase', 'Phrase']])}
     {@render toggle('Dim what you’ve read', 'dimRead')}
     <p class="hint">Tap the round pad (or Space) to start and pause; double-tap for the start of the sentence. Hold to glide only while held; slide while holding to change speed, up to lock. → steps (and teaches your pace, {value.wpm} wpm).</p>
   {/if}
 </div>
+
+{#if value.guide}
+  <h3>Contrast</h3>
+  <div class="group">
+    <label class="line"><span>Already read<small>{value.inkRead ?? 22}%</small></span><input class="pace" type="range" min="8" max="70" step="2" bind:value={value.inkRead} aria-label="Already read" /></label>
+    <label class="line"><span>Being read<small>{value.inkNow ?? 100}%</small></span><input class="pace" type="range" min="60" max="100" step="2" bind:value={value.inkNow} aria-label="Being read" /></label>
+    <label class="line"><span>To read<small>{value.inkAhead ?? 46}%</small></span><input class="pace" type="range" min="12" max="90" step="2" bind:value={value.inkAhead} aria-label="To read" /></label>
+    <p class="hint">How bright each is, against the page. The preview above follows as you slide.</p>
+  </div>
+{/if}
 
 <h3>Lenses</h3>
 <div class="group">
@@ -103,6 +133,15 @@
   .line > span:first-child { flex: 1; display: grid; }
   small { font-size: 12px; color: var(--muted); }
   .hint { font-size: 12px; color: var(--muted); margin: 0; padding: var(--s2) 0 var(--s3); line-height: 1.45; }
+  .live { position: sticky; top: 0; z-index: 2; display: grid; gap: 4px; padding: 6px 0 10px; margin: 0 calc(-1 * var(--s1)) var(--s2); padding-inline: var(--s1); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+  .live-l { font: 600 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .line.col { flex-direction: column; align-items: stretch; gap: var(--s2); padding: var(--s3) 0; text-transform: none; }
+  .line.col > span:first-child { text-transform: uppercase; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: var(--s2); }
+  .tile { border: 0; padding: 6px; border-radius: var(--r3); background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 14%, transparent); display: grid; gap: 6px; text-align: left; color: var(--fg); transition: box-shadow .2s, transform .3s var(--spring); }
+  .tile b { font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 0 4px 2px; }
+  .tile.on { box-shadow: inset 0 0 0 2px var(--accent); }
+  .tile:active { transform: scale(.97); }
   .pace { width: 38%; flex: none; accent-color: var(--accent); }
   /* Phones: a choice sits under its label, full width, instead of squeezing the label into a column. */
   @media (max-width: 460px) {

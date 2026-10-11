@@ -283,7 +283,7 @@ export class Paginator {
     const solo = cols > 1 && (v.doc.body?.textContent ?? '').trim().length < 40 && !!v.doc.querySelector('img, svg, image')
     const colW = solo ? cols * this.L.colW + (cols - 1) * gap : this.L.colW
     this.style(v.doc, 'pubre-user', bookCss(this.settings, H - 2 * t))
-    this.style(v.doc, 'pubre-marks', marksCss(resolveTheme(this.settings.palette, this.settings.mode)))
+    this.style(v.doc, 'pubre-marks', marksCss(resolveTheme(this.settings.palette, this.settings.mode), this.settings.inkRead))
     this.style(v.doc, 'pubre-layout', `
 html { box-sizing: content-box !important; margin: 0 !important; max-width: none !important;
   width: ${solo ? colW : cols * colW + (cols - 1) * gap}px !important; height: ${H - 2 * t - this.reserve - this.reserveTop}px !important; padding: ${t + this.reserveTop}px ${gap / 2}px ${t + this.reserve}px !important;

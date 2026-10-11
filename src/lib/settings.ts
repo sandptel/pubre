@@ -96,7 +96,7 @@ export const fonts: Record<string, { name: string; stack: string }> = {
   seravek: { name: 'Seravek', stack: 'Seravek, "Gill Sans Nova", Ubuntu, Calibri, "DejaVu Sans", sans-serif' },
 }
 
-export type Pointer = 'word' | 'underline' | 'dot' | 'outline' | 'type'
+export type Pointer = import('./pointers.ts').PointerType
 export type Focus = 'sentence' | 'line' | 'paragraph'
 export type Intensity = 'quiet' | 'guided' | 'rich'
 export type VoicesStyle = 'ink' | 'underline' | 'marks' | 'off'
@@ -126,6 +126,10 @@ export interface Settings {
   chapterColour: boolean // a colourful chapter lends the accent its colour (ambient palette drift)
   openers: boolean // each chapter opens into its own room (classic, daylight, nocturne, stage, long swell)
   weather: boolean // a chapter's weather (storm, fog, snow, night) as a faint trace on the page
+  inkRead: number // how bright text you've already read is (0–100)
+  inkNow: number // how bright the words being read are
+  inkAhead: number // how bright the words still to read are
+  v?: number // settings version (migrations)
   brightness: number // 40–100: below 100 a gentle dimmer lies over the page
   pointer: Pointer
   focus: Focus
@@ -147,7 +151,7 @@ export interface Settings {
 
 export const defaults: Settings = {
   palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto', letterSpacing: 0, measure: 'normal',
-  guide: true, guideStyle: 'stage', paraEnd: 'breathe', stageStep: 'sentence', stagePointer: 'ink', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, brightness: 100, weather: true, pointer: 'word', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
+  guide: true, guideStyle: 'stage', paraEnd: 'breathe', stageStep: 'sentence', stagePointer: 'underline', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, v: 2, brightness: 100, inkRead: 22, inkNow: 100, inkAhead: 46, weather: true, pointer: 'underline', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
   intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'ink', asides: true, foreign: true, motion: 'full', onlineDefinitions: false, chapterPrompts: true,
 }
 
@@ -156,7 +160,10 @@ export const effective = (global: Settings, book?: Partial<Settings>): Settings 
 
 export function loadSettings(): Settings {
   try {
-    return { ...defaults, ...JSON.parse(localStorage.getItem('pubre:settings') ?? '{}') }
+    const saved = JSON.parse(localStorage.getItem('pubre:settings') ?? '{}')
+    // v2: Line became the default pointer (move everyone to it once; later choices are kept)
+    if ((saved.v ?? 1) < 2) { saved.pointer = 'underline'; if (saved.stagePointer && saved.stagePointer !== 'ink') saved.stagePointer = 'underline'; saved.v = 2 }
+    return { ...defaults, ...saved }
   } catch {
     return { ...defaults }
   }

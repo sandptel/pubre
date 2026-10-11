@@ -70,3 +70,19 @@ button { cursor: pointer; }
     animation-duration: 1ms !important; transition-duration: 1ms !important;
   }
 }
+
+/* Pointer types (src/lib/pointers.ts) — the page guide, the Stage marker and the previews share these */
+.ptr[data-p="underline"] { background: var(--accent); border-radius: 2px; }
+.ptr[data-p="word"] { background: color-mix(in srgb, var(--accent) 24%, transparent); border-radius: 7px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent); }
+.ptr[data-p="outline"] { border-radius: 7px; box-shadow: inset 0 0 0 1.5px var(--accent); }
+.ptr[data-p="highlighter"] { background: color-mix(in srgb, var(--accent) 42%, transparent); border-radius: 3px 8px 4px 9px; transform-origin: left; }
+.ptr[data-p="spotlight"] { background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 34%, transparent), transparent); border-radius: 50%; }
+.ptr[data-p="bracket"] { --c: var(--accent); background:
+  linear-gradient(var(--c), var(--c)) 0 0 / 6px 2px, linear-gradient(var(--c), var(--c)) 0 0 / 2px 6px,
+  linear-gradient(var(--c), var(--c)) 100% 0 / 6px 2px, linear-gradient(var(--c), var(--c)) 100% 0 / 2px 6px,
+  linear-gradient(var(--c), var(--c)) 0 100% / 6px 2px, linear-gradient(var(--c), var(--c)) 0 100% / 2px 6px,
+  linear-gradient(var(--c), var(--c)) 100% 100% / 6px 2px, linear-gradient(var(--c), var(--c)) 100% 100% / 2px 6px; background-repeat: no-repeat; }
+.ptr[data-p="caret"] { background: var(--accent); border-radius: 2px; animation: ptr-blink 1s steps(2, jump-none) infinite; }
+.ptr[data-p="dot"] { background: var(--accent); border-radius: 50%; }
+.ptr[data-p="type"] { background: color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 4px 2px 2px 4px; box-shadow: inset -2px 0 0 var(--accent); }
+@keyframes ptr-blink { 50% { opacity: .35; } }

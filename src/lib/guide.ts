@@ -8,6 +8,7 @@ import type { Settings } from './settings.ts'
 import { MAX_WPM, wordTime } from './pacing.ts'
 import { edgesOnFirstLine, letterRects, typeFrames } from './typing.ts'
 import { nearestWord } from './textindex.ts'
+import { pointerBox } from './pointers.ts'
 
 export interface GuideState { active: boolean; gliding: boolean; wpm: number }
 type Pending = 'start' | 'end' | null
@@ -50,7 +51,7 @@ export class Guide {
     this.pag = pag
     this.s = settings
     this.el = document.createElement('div')
-    this.el.className = 'pubre-pointer'
+    this.el.className = 'pubre-pointer ptr'
     this.el.setAttribute('aria-hidden', 'true')
     pag.port.prepend(this.el)
     // Dead-man's switch: anything that takes attention away stops the glide.
@@ -68,7 +69,7 @@ export class Guide {
   setSettings(s: Settings) {
     this.s = s
     if (!s.guide && this.active) this.deactivate()
-    this.el.className = `pubre-pointer p-${s.pointer}${this.active ? ' on' : ''}`
+    this.el.className = `pubre-pointer ptr${this.active ? ' on' : ''}`; this.el.dataset.p = s.pointer
     if (this.active) { this.prevTop = null; this.render(0) }
   }
 
@@ -95,7 +96,7 @@ export class Guide {
     if (!this.v || !this.v.ix.words.length) return
     this.active = true
     this.i = this.pag.firstWordOnPage(this.v)
-    this.el.className = `pubre-pointer p-${this.s.pointer} on`
+    this.el.className = 'pubre-pointer ptr on'; this.el.dataset.p = this.s.pointer
     this.prevTop = null
     this.render(0)
     this.emit()
@@ -321,7 +322,7 @@ export class Guide {
     else if (newLine) { this.el.animate([{ opacity: 1 }, { opacity: 0, offset: 0.4 }, { opacity: 1 }], { duration: Math.min(260, dur || 260) }); dur = 0 }
     if (this.s.pointer === 'type' && this.typeTo(v, k, j, dur > 0)) { this.paintFocus(); if (k !== this.lastArrive) { this.lastArrive = k; this.onArrive?.(v, k) } return }
     const x = r.left + this.pag.xOf(v), y = r.top, w = r.width, h = r.height
-    const g = ({ word: [x - 3, y - 1, w + 6, h + 2], type: [x - 2, y - 1, w + 4, h + 2], outline: [x - 3, y - 1, w + 6, h + 2], underline: [x, y + h + 1, w, 3], dot: [x + w / 2 - 3, y + h + 2, 6, 6] } as const)[this.s.pointer]
+    const g = pointerBox(this.s.pointer, x, y, w, h)
     // Calm motion: position settles barely (≈0.5%), size eases monotonically, glides ease in-out.
     const move = glide ? 'cubic-bezier(.45,0,.25,1)' : 'cubic-bezier(.22,1.12,.36,1)', size = 'cubic-bezier(.25,.8,.25,1)'
     this.el.style.transition = dur ? `transform ${dur}ms ${move}, width ${Math.round(dur * 0.85)}ms ${size}, height ${Math.round(dur * 0.85)}ms ${size}, opacity .2s` : 'opacity .2s'

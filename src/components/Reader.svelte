@@ -185,7 +185,7 @@
     pag?.setReserve(eff.guide || pinned ? Math.max(0, 76 - t) : 0, pinned ? Math.max(0, 64 - t) : 0) // the pad never sits on text
   })
   // Only appearance changes re-lay out the book; feature settings (guide, lenses, pace) don't.
-  const LAYOUT = ['palette', 'mode', 'font', 'fontScale', 'lineHeight', 'margin', 'justify', 'bold', 'spread', 'letterSpacing', 'measure'] as const
+  const LAYOUT = ['palette', 'mode', 'font', 'fontScale', 'lineHeight', 'margin', 'justify', 'bold', 'spread', 'letterSpacing', 'measure', 'inkRead'] as const
   let layoutKey = ''
   $effect(() => {
     const s = $state.snapshot(eff)
@@ -951,7 +951,8 @@
   {/if}
   <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} page={loc?.cpage ?? 0} pages={loc?.cpages ?? 0} pageEl={paperEl} {decorate} {explain} onmark={markSentence} book={{ chapters: stripChapters, cur: stripCur }}
     onopen={o => { staged = o; speedOpen = false; if (o) { chrome = false; hideCard(); guide?.deactivate(); pushBack('stage') } else { paintLenses(); popBack('stage') } }} onstate={st => (sstate = st)}
-    onpace={w => (settings.wpm = w)} ontoast={toast} />
+    onpace={w => (settings.wpm = w)} ontoast={toast}
+    onsetting={(k, val) => { if (custom && k in prefs) (bookVal as any)[k] = val; else (settings as any)[k] = val }} />
   {#if weather}{#key weather}<div class="weather w-{weather}" class:still={eff.motion !== 'full' || reduceMotion} transition:fade={{ duration: 1200 }} aria-hidden="true"></div>{/key}{/if}
   {#if (eff.brightness ?? 100) < 100}<div class="dimmer" style:opacity={(100 - eff.brightness) / 100 * 0.9} aria-hidden="true"></div>{/if}
   {#if bar}
@@ -1213,11 +1214,6 @@
   /* Reading guide: pointer (in the page strip, behind the transparent book), pad, toast */
   .reader :global(.pubre-pointer) { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; opacity: 0; transition: opacity .2s; }
   .reader :global(.pubre-pointer.on) { opacity: 1; }
-  .reader :global(.pubre-pointer.p-word) { background: color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 6px; }
-  .reader :global(.pubre-pointer.p-outline) { border-radius: 6px; box-shadow: inset 0 0 0 1.5px var(--accent); }
-  .reader :global(.pubre-pointer.p-underline) { background: var(--accent); border-radius: 2px; }
-  .reader :global(.pubre-pointer.p-dot) { background: var(--accent); border-radius: 50%; }
-  .reader :global(.pubre-pointer.p-type) { background: color-mix(in srgb, var(--accent) 16%, transparent); border-radius: 4px 2px 2px 4px; box-shadow: inset -2px 0 0 var(--accent); }
   /* The reading pad: always in the thumb's corner; above the menu while the controls show; above the Stage too. */
   .padgroup {
     position: absolute; z-index: 8; right: calc(env(safe-area-inset-right) + var(--s3)); bottom: calc(env(safe-area-inset-bottom) + var(--s3));

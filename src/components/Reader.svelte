@@ -85,6 +85,7 @@
     return r ? `${r} left in chapter` : loc.page >= loc.pages - 1 ? 'Last page in chapter' : ''
   })
 
+  const footLeft = $derived(footText.replace(/ in chapter$/, ''))
   function save() {
     clearTimeout(saveTimer)
     saveBook(rec)
@@ -123,7 +124,7 @@
         pag.keyHook = e => !!stage?.key(e) || guide!.key(e)
         pag.tapHook = (v, x, y) => guide!.tapWord(v, x, y) || tapAnnotation(v, x, y) || tapLens(v, x, y)
         pag.holdHook = textHold
-        pag.prepareHook = (doc, index) => { if (eff.openers) applyOpeners(doc, index) }
+        pag.prepareHook = (doc, index) => { if (eff.openers) { titleHeadings(doc); applyOpeners(doc, index) } }
         lenses = new Lenses($state.snapshot(eff), b.metadata.language)
         lenses.onChange = () => paintLenses()
         pag.onView = v => { stage?.view(v); guide!.view(v); attachHover(v); attachSelection(v); paintAnns(v); paintLenses() }
@@ -196,6 +197,22 @@
   }
 
   // ---------- chapter openers: each chapter opens into its own room (from its profile) ----------
+  /** "CHAPTER 5. The Wealth Equation" → a small eyebrow over the title (a CFI-transparent span; the text is untouched). */
+  function titleHeadings(doc: Document) {
+    for (const h of Array.from(doc.querySelectorAll('h1, h2'))) {
+      if (h.querySelector('[data-pubre="eyebrow"]')) continue
+      const tw = doc.createTreeWalker(h, NodeFilter.SHOW_TEXT)
+      let t: Text | null = null
+      while (tw.nextNode()) { const n = tw.currentNode as Text; if (n.data.trim()) { t = n; break } }
+      const m = t && /^\s*((?:chapter|book|part|letter|canto|act|section|volume)\s+[0-9ivxlcdm]+[.:]?)\s+(?=\S)/i.exec(t.data)
+      if (!t || !m) continue
+      t.splitText(m[0].length)
+      const span = doc.createElementNS(doc.documentElement.namespaceURI, 'span') as HTMLElement
+      span.setAttribute('data-pubre', 'eyebrow')
+      t.before(span); span.append(t)
+      h.setAttribute('data-pubre-titled', '')
+    }
+  }
   /** Mark chapter headings (and the first paragraph after each) with their opener; true if anything changed. */
   function applyOpeners(doc: Document, index: number) {
     const list = rec.profile?.chapters
@@ -766,19 +783,29 @@
       {#key where.key}<em class="w-sweep"></em>{/key}
     </div>
   {/if}
-  <button class="fab glass close" aria-label="Close book" onclick={onclose}>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17" /></svg>
+  <button class="fab glass close" aria-label="Back to library" onclick={onclose}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6l-6 6 6 6" /></svg>
   </button>
-  <button class="fab glass pin" class:on={eff.pinControls} aria-pressed={eff.pinControls} aria-label={eff.pinControls ? 'Let the controls hide while reading' : 'Keep the controls on screen'}
+  <div class="topright glass">
+    <button aria-label={resolveTheme(eff.palette, eff.mode).dark ? 'Light' : 'Dark'} onclick={() => { settings.mode = resolveTheme(eff.palette, eff.mode).dark ? 'paper' : 'night' }}>
+      {#if resolveTheme(eff.palette, eff.mode).dark}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="4" /><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" /></svg>
+      {:else}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z" /></svg>{/if}
+    </button>
+    <button aria-label="Themes and text" onclick={() => { view = 'appearance'; dir = 1; panel = true }}><span class="aa-t">Aa</span></button>
+    <button aria-label="Contents" onclick={() => { view = 'contents'; dir = 1; panel = true }}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11" /><circle cx="4.5" cy="6" r="1" fill="currentColor" /><circle cx="4.5" cy="12" r="1" fill="currentColor" /><circle cx="4.5" cy="18" r="1" fill="currentColor" /></svg>
+    </button>
+  <button class="pin" class:on={eff.pinControls} aria-pressed={eff.pinControls} aria-label={eff.pinControls ? 'Let the controls hide while reading' : 'Keep the controls on screen'}
     onclick={() => { settings.pinControls = !eff.pinControls; toast(settings.pinControls ? 'Controls pinned' : 'Controls hide while you read') }}>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 5 3 3v2H7v-2l3-3z" fill={eff.pinControls ? 'currentColor' : 'none'} /><path d="M12 14v6" /></svg>
   </button>
+  </div>
 
   <div class="dock">
     {#if loc}
       <div class="progress">
         <Progress {sections} {words} progress={loc.progress} chapter={loc.chapter || rec.title} page={loc.cpage} pages={loc.cpages}
-          onjump={jump} onscrub={p => pag?.goToProgress(p)} />
+          onjump={jump} onscrub={p => pag?.goToProgress(p)} left={footLeft} />
       </div>
     {/if}
     <button class="fab glass menu" aria-label="Reading menu" onclick={() => { view = 'menu'; panel = true }} disabled={!book}>
@@ -1032,10 +1059,15 @@
   /* Floating chrome springs in from its edge; the dock trails slightly. */
   .close, .dock { position: absolute; z-index: 2; transition: transform .5s var(--spring), opacity .25s var(--ease); }
   .close { top: calc(env(safe-area-inset-top) + var(--s3)); left: calc(env(safe-area-inset-left) + var(--s3)); }
-  .pin { position: absolute; z-index: 2; top: calc(env(safe-area-inset-top) + var(--s3)); right: calc(env(safe-area-inset-right) + var(--s3)); transition: transform .5s var(--spring), opacity .25s var(--ease), background-color .2s, color .2s; }
+  /* top right: one quiet cluster (light/dark · Aa · contents · pin) */
+  .topright { position: absolute; z-index: 2; top: calc(env(safe-area-inset-top) + var(--s3)); right: calc(env(safe-area-inset-right) + var(--s3)); display: flex; padding: 2px; border-radius: 999px; transition: transform .5s var(--spring), opacity .25s var(--ease); }
+  .topright button { width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: var(--fg); display: grid; place-items: center; transition: background-color .2s, color .2s, transform .3s var(--spring); }
+  .topright button:hover { background: var(--hover); }
+  .topright button:active { transform: scale(.9); }
+  .topright svg { width: 19px; height: 19px; }
+  .aa-t { font: 500 16px var(--serif); }
   .pin.on { color: var(--accent); }
-  .pin svg { width: 18px !important; height: 18px !important; }
-  .reader:not(.chrome) .pin { transform: translateY(-12px) scale(.6); opacity: 0; pointer-events: none; }
+  .reader:not(.chrome) .topright { transform: translateY(-12px) scale(.8); opacity: 0; pointer-events: none; }
   .dock {
     left: calc(env(safe-area-inset-left) + var(--s3)); right: calc(env(safe-area-inset-right) + var(--s3));
     bottom: calc(env(safe-area-inset-bottom) + var(--s3));

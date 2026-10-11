@@ -97,6 +97,9 @@ export function openersCss(t: Theme): string {
   const accent = t.base[t.accent], muted = t.base[4], line = t.base[2], gold = t.base[0x0a], bg = t.base[0]
   const a = (hex: string, alpha: number) => hex + Math.round(alpha * 255).toString(16).padStart(2, '0')
   return `
+[data-pubre="eyebrow"] { display: block; font: 600 .46em/1.7 ui-sans-serif, system-ui, -apple-system, sans-serif !important; letter-spacing: .22em; text-transform: uppercase; color: ${muted}; margin-bottom: .55em; font-style: normal !important; }
+[data-pubre-titled] { font-weight: 400 !important; letter-spacing: -.01em; line-height: 1.15 !important; }
+[data-pubre-titled]::after { content: ''; display: block; width: 2.4em; height: 1px; margin: .7em auto 0; background: ${line}; }
 [data-pubre-first="classic"] { text-indent: 0 !important; }
 [data-pubre-first="classic"]::first-letter { float: left; font-size: 3.1em; line-height: .82; margin: .06em .09em 0 0; font-weight: 600; color: ${accent}; }
 [data-pubre-opener="daylight"] { color: ${gold} !important; background: radial-gradient(closest-side, ${a(gold, .16)}, ${a(gold, 0)}); letter-spacing: .01em; }

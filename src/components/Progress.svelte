@@ -3,9 +3,9 @@
 
   // Floating progress capsule: where you are (chapter, page) over a track split into one wedge per
   // chapter. Tap a wedge to jump to that chapter; drag anywhere to scrub; hover to preview.
-  let { sections, progress, chapter, page, pages, onjump, onscrub, words = {} }: {
+  let { sections, progress, chapter, page, pages, onjump, onscrub, words = {}, left = '' }: {
     sections: Section[]; progress: number; chapter: string; page: number; pages: number
-    onjump: (href: string) => void; onscrub: (p: number) => void; words?: Record<string, string>
+    onjump: (href: string) => void; onscrub: (p: number) => void; words?: Record<string, string>; left?: string
   } = $props()
 
   let track: HTMLDivElement
@@ -68,6 +68,11 @@
     {/each}
     <i class="knob" style:left="{shown * 100}%" class:active={probe !== null}></i>
   </div>
+  <div class="under" aria-hidden="true">
+    <span>{Math.round(shown * 100)}%</span>
+    {#if sections.length > 1}<span>Chapter {Math.max(1, sections.findLastIndex(s => s.start <= shown + 1e-6) + 1)} of {sections.length}</span>{/if}
+    {#if left}<span>{left}</span>{/if}
+  </div>
 </div>
 
 <style>
@@ -77,6 +82,8 @@
   .yours { font-style: italic; font-weight: 400; color: var(--accent); }
   .page { color: var(--muted); font-variant-numeric: tabular-nums; }
 
+  .under { display: flex; justify-content: space-between; gap: var(--s2); font: 10.5px var(--mono, ui-monospace, monospace); letter-spacing: .02em; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }
+  .under span:nth-child(2) { flex: 1; text-align: center; overflow: hidden; text-overflow: ellipsis; }
   .track { position: relative; min-width: 0; display: flex; gap: 2px; height: 14px; align-items: center; cursor: pointer; touch-action: none; outline-offset: 4px; }
   .track.dense { gap: 0; }
   .track.dense .wedge { min-width: 0; border-radius: 0; box-shadow: inset -1px 0 color-mix(in srgb, var(--bg) 80%, transparent); } /* many chapters: hairline ticks, so the bar can shrink on phones */

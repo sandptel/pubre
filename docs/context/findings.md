@@ -32,3 +32,8 @@ Each entry: date · finding · evidence · where handled.
 - **Svelte scoped classes vs `el.className = …`:** assigning `className` drops the `svelte-xyz` class and every scoped rule stops matching. Use `classList`/data attributes, and `:global(...)` for classes added at runtime (Svelte prunes selectors it can't see in the template).
 - **Grid items default to `min-width: auto`:** a flex row with an unwrapped title inside a grid item widened the progress bar on phones; `min-width: 0` on the grid item fixes it. A flex track of 136 `min-width: 1px` wedges + gaps also can't shrink below ~270 px.
 - **A two-column multicol spread can host a single "page" as wide as the spread:** set `column-width` to the spread width for image-only documents; the page step stays the same.
+- **A caret between two words matches no word.** Word lookup from `caretPositionFromPoint` must take the nearest word in the node (`nearestWord`), or taps/holds on spaces silently do nothing.
+- **`left: 50%` + translate caps an auto-width absolutely positioned box at half the container.** Centre with `inset-inline: 0; margin-inline: auto; width: fit-content`.
+- **`overflow: hidden` containers are still scrollable** (find-in-page, focus, scrollIntoView). Use `overflow: clip` for overlays that must never scroll.
+- **Highlights can stage text without touching the DOM:** `::highlight(x) { color: transparent }` on a shrinking range reveals words one by one (first-line staging); the text index and CFIs stay valid.
+- **A registered `@property --accent: <color>`** lets the accent itself transition (palette drift) everywhere it's used.

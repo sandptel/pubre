@@ -72,3 +72,19 @@ After each chunk: what worked, what hurt, what I would do differently, and what 
 - Word-wave ink handoff (needs per-word spans in the Stage copy).
 - Lens tint consistency for Voices across pages (critic #2 saw an untinted Ahab line beside tinted ones).
 - Gradient banding on the edge fades on some displays.
+
+## C7–C8 on phones (2026-10-11)
+
+**Worked**
+- The user's own screen recordings and screenshots found what my tests didn't (the hover card under a held finger on Android; the hint under the chip). Extracting frames with headless Chrome made a video reviewable.
+- A separate worktree + dev server let me keep building while a critic tested the live server for 40 minutes.
+- Measuring before fixing: geometry dumps found the half-width centring trap and the dense progress track that couldn't shrink.
+
+**Hurt**
+- I tested hold-to-read by pressing exactly on words; real thumbs land on spaces. Tests must press where people do (gaps, margins, edges).
+- Several "fixed" UI changes were checked only on desktop first; the user is on Android Chrome — phone first, always.
+- Shuttle range was designed in px, not in the room the thumb actually has.
+
+**Next to watch**
+- One gesture grammar: hold = read (page), long-press = keep (Stage); selection only with the setting off.
+- Slow phones: pre-build the Stage column in idle time (critic #3: 50 ms start at 4× CPU).

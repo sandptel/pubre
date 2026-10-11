@@ -1,7 +1,7 @@
 // EPUB 2 + 3 parsing and resource loading. Book resources are served to the reader iframe as
 // blob: URLs, with every internal reference (img src, link href, CSS url(), @import, SVG href)
 // rewritten to point at its own blob. Book scripts are stripped and blocked by CSP.
-import { Zip } from './zip.ts'
+import { Zip } from '../epub/zip.ts'
 
 export interface TocItem { label: string; href: string; children: TocItem[] }
 export interface SpineItem { href: string; mediaType: string; linear: boolean; size: number }

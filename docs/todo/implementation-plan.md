@@ -56,11 +56,13 @@ The source of truth for *what* to build is plan v3.2: https://claude.ai/artifact
 ### ⟶ Critic pass #2 (agent): focused on Stage feel + lens density
 
 ### C7 · Guide v3 + phone (user request 2026-10-11)
-- [ ] S1 One-click start: the guide button / Space / G start reading immediately in either style. Pointer: Space tap = play/pause, double-tap = sentence start, hold = glide while held.
-- [ ] S2 Stage strip: the next paragraph is already there below and scrolls up into focus (no swap). Move by Sentence / Phrase / Word; pointer types inside Stage (Ink, Word, Line, Dot, Ring); words ink in as you go; motion polish.
-- [ ] S3 Stage highlighting: names (hue, chip on first mention), Voices by speaker, hard words (dotted, gloss on tap/hover/pause), foreign phrases, asides, your own highlights. Stage lenses toggle.
-- [ ] S4 Pin controls: a quick toggle keeps the reader's buttons visible; the book reserves room so nothing overlaps.
-- [ ] S5 Phone-first UI pass at 360/390/430/768/1024/1440/2000 wide: Stage controls for thumbs, sheets, library, reader chrome, touch targets. Then critic #3.
+- [x] S1 One-click start: the guide button / Space / G start reading immediately in either style. Pointer: Space tap = play/pause, double-tap = sentence start, hold = glide while held.
+- [x] S2 Stage strip: the next paragraph is already there below and scrolls up into focus (no swap). Move by Sentence / Phrase / Word; pointer types inside Stage (Ink, Word, Line, Dot, Ring); words ink in as you go; motion polish.
+- [x] S3 Stage highlighting: names (hue, chip on first mention), Voices by speaker, hard words (dotted, gloss on tap/hover/pause), foreign phrases, asides, your own highlights. Stage lenses toggle.
+- [x] S4 Pin controls: a quick toggle keeps the reader's buttons visible; the book reserves room so nothing overlaps.
+- [~] S5 Phone-first UI pass (first pass done; critic #3 running) at 360/390/430/768/1024/1440/2000 wide: Stage controls for thumbs, sheets, library, reader chrome, touch targets. Then critic #3.
+
+- [x] Mid-chunk user asks: hold to read (pad, Space, or the page text) with release = back; shuttle while holding (right faster, left slower → backwards, up = lock); quick speed chip (presets, ±, slider); the lift made visible on phones (card + page sinking back).
 
 ### C6 · Living capsule (if time allows)
 - [ ] Mood-tinted wedges from insights, time left at your pace, and a crossing pulse.
@@ -73,3 +75,4 @@ The source of truth for *what* to build is plan v3.2: https://claude.ai/artifact
   - names as a soft tint with an underline (plan-demo style)
   - the latest iteration is always hosted (push after each chunk)
 - 2026-10-11: Critic #1 fixed (dark-mode pointer, guide toggle relayout, phone exit, confident-only Voices, one lens budget per spread, rarity-ranked hard words with definitions only, asides as parentheses only, gentler read-dimming, clamped name hues, queued page turns, reduced motion, running header). User pivot: Stage replaces the pointer as the default guide (ADR 0008). Chapter-end card + "Previously…" deployed.
+- 2026-10-11: C7 S1–S4 + hold-to-read + quick speed landed and are deployed; S5 first pass done (phone bar, Reading aids layout, library, tablets, centred covers). Critic #3 running.

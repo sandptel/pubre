@@ -27,3 +27,8 @@ Each entry: date · finding · evidence · where handled.
 - **WebKit shows iframe content unblurred through `backdrop-filter`** on an overlay above it. Use an opaque veil over book iframes.
 - **TOC fragment positions from file byte offsets drift** from the rendered page. Once a chapter is loaded, place TOC entries by their anchor element's page (`getElementById` + `pageOfRect`).
 - **An iframe whose element `color-scheme` differs from its document's** gets an opaque canvas; keep the iframe inheriting the theme's scheme.
+- **Android Chrome sends emulated mouse moves for a held finger.** A `mousemove` hover card pops up under a long-press. Use `pointermove` and check `pointerType === 'mouse'` for hover UI.
+- **Measuring through a scaled ancestor:** while the page `.paper` had a WAAPI `scale(.94)` with `fill: forwards`, `iframe.getBoundingClientRect()` was scaled but word rects inside the frame were not; adding them flew the set-down off-screen. Cancel the scale before measuring.
+- **Svelte scoped classes vs `el.className = …`:** assigning `className` drops the `svelte-xyz` class and every scoped rule stops matching. Use `classList`/data attributes, and `:global(...)` for classes added at runtime (Svelte prunes selectors it can't see in the template).
+- **Grid items default to `min-width: auto`:** a flex row with an unwrapped title inside a grid item widened the progress bar on phones; `min-width: 0` on the grid item fixes it. A flex track of 136 `min-width: 1px` wedges + gaps also can't shrink below ~270 px.
+- **A two-column multicol spread can host a single "page" as wide as the spread:** set `column-width` to the spread width for image-only documents; the page step stays the same.

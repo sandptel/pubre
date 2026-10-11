@@ -1,0 +1,51 @@
+import { chromium, webkit } from 'playwright'
+// Smoke test + screenshots. Run from ../pubre-samples (which has playwright + the sample EPUBs):
+//   cp docs/instructions/smoke-e2e.mjs ../pubre-samples/ && (cd ../pubre-samples && node smoke-e2e.mjs webkit mobile)
+// Needs the dev server on :5179. Screenshots land in ./shots/.
+import { mkdirSync } from 'node:fs'
+const S = './'
+mkdirSync('shots', { recursive: true })
+const engine = process.argv[2] === 'webkit' ? webkit : chromium
+const mobile = process.argv[3] === 'mobile'
+const browser = await engine.launch(engine === chromium ? { channel: 'chrome' } : {})
+const ctx = await browser.newContext(mobile ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true } : { viewport: { width: 1440, height: 900 } })
+const page = await ctx.newPage()
+const errs = []
+page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') errs.push(m.type() + ': ' + m.text()) })
+page.on('pageerror', e => errs.push('pageerror: ' + e.message))
+const tag = (process.argv[2] || 'chromium') + (mobile ? '-m' : '')
+await page.goto('http://localhost:5179/')
+await page.waitForTimeout(500)
+await page.screenshot({ path: S + `shots/${tag}-0-empty.png` })
+await page.setInputFiles('input[type=file]', [S + 'Moby-Dick-Or-The-Whale.epub', S + 'Alices-Adventures-in-Wonderlan.epub', S + 'pride.epub'])
+await page.waitForSelector('.grid li:nth-child(3)', { timeout: 20000 })
+await page.waitForTimeout(800)
+await page.screenshot({ path: S + `shots/${tag}-1-library.png` })
+await page.click('.grid li:has-text("Moby") .cover-btn')
+await page.waitForSelector('.running.foot', { timeout: 15000 })
+await page.waitForTimeout(2000)
+await page.screenshot({ path: S + `shots/${tag}-2-open.png` })
+for (let i = 0; i < 4; i++) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(500) }
+await page.screenshot({ path: S + `shots/${tag}-3-pages.png` })
+await page.locator('.running.foot').textContent().then(t => console.log('foot:', t))
+await page.evaluate(() => document.querySelector('.reader').classList.add('chrome'))
+await page.click('button[aria-label=Contents]')
+await page.waitForTimeout(700)
+await page.screenshot({ path: S + `shots/${tag}-4-toc.png` })
+await page.click('nav button:has-text("CHAPTER 1.")')
+await page.waitForTimeout(1200)
+await page.screenshot({ path: S + `shots/${tag}-5-ch1.png` })
+await page.evaluate(() => document.querySelector('.reader').classList.add('chrome'))
+await page.click('button[aria-label=Appearance]')
+await page.waitForTimeout(700)
+await page.click('.theme:has-text("Focus")')
+await page.waitForTimeout(900)
+await page.screenshot({ path: S + `shots/${tag}-6-aa.png` })
+await page.keyboard.press('Escape')
+await page.waitForTimeout(600)
+await page.screenshot({ path: S + `shots/${tag}-7-focus.png` })
+await page.click('.back')
+await page.waitForTimeout(1200)
+await page.screenshot({ path: S + `shots/${tag}-8-back.png` })
+console.log(errs.join('\n') || 'no console errors')
+await browser.close()

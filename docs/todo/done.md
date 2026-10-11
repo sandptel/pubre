@@ -1,0 +1,15 @@
+# Done (newest first)
+
+## v0.1: first iteration (2026-10-11)
+
+- `ci`: Pages workflow (test, check, build, deploy on push to main) and README
+- `feat(ui)`: reader chrome, running head/foot, progress scrubber, Contents sheet, Themes & Settings sheet
+- `feat(ui)`: library with continue-reading hero, generated base16 covers, drag-and-drop or picker import, cover-morph View Transition
+- `feat(reader)`: column paginator with animated page and chapter slides, touch drag, tap zones, wheel/keys, relayout that preserves the anchor (verified across a resize)
+- `feat(theme)`: base16 theme system: 6 pubre reading themes + 21 tinted-theming schemes, 9 font stacks, size, line spacing, margins, justify, bold, two-page spreads
+- `feat(store)`: IndexedDB library (ArrayBuffers), SHA-256 dedupe, cover thumbnails, `storage.persist()`
+- `feat(core)`: EPUB 2/3 parser (OPF, spine, nav/NCX, cover, IDPF/Adobe font deobfuscation, DRM detection) and blob-URL loader with script stripping + CSP
+- `feat(core)`: ZIP reader on DecompressionStream, with test
+- `chore`: scaffold
+
+Verified in Chrome (desktop 1440×900) and WebKit (390×844 touch): import of 3 books, open, page turns, TOC jump, theme switch, return to library.

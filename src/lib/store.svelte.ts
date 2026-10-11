@@ -2,6 +2,7 @@
 // Binary data is stored as ArrayBuffer, not Blob: WebKit (Safari private mode, Playwright) rejects Blobs in IDB.
 import { Book } from './epub.ts'
 import type { Settings } from './settings.ts'
+import type { NameInfo } from '../insights/names.ts'
 
 export interface Location { index: number; fraction: number; cfi?: string }
 export interface BookRecord {
@@ -15,6 +16,7 @@ export interface BookRecord {
   progress: number // 0..1 across the whole book
   location?: Location
   prefs?: Partial<Settings> // this book's overrides of the global settings
+  profile?: { v: number; names: NameInfo[] } // on-device insights (cast), computed once
 }
 
 let dbp: Promise<IDBDatabase> | undefined

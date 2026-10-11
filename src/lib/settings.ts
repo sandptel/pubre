@@ -121,6 +121,7 @@ export interface Settings {
   intensity: Intensity
   names: boolean
   hardWords: boolean
+  hardStyle: 'shown' | 'story' // story: nothing until you rest on a word
   voices: VoicesStyle
   asides: boolean
   foreign: boolean
@@ -131,7 +132,7 @@ export interface Settings {
 export const defaults: Settings = {
   palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto',
   guide: true, pointer: 'word', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
-  intensity: 'guided', names: true, hardWords: true, voices: 'ink', asides: true, foreign: true, motion: 'full', onlineDefinitions: false,
+  intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'ink', asides: true, foreign: true, motion: 'full', onlineDefinitions: false,
 }
 
 /** Global settings with a book's own overrides layered on top. */

@@ -6,6 +6,11 @@
   import { Paginator, type Relocation, type Section } from '../lib/paginator.ts'
   import { effective, type Settings } from '../lib/settings.ts'
   import { Guide, type GuideState } from '../lib/guide.ts'
+  import { Lenses, type Token } from '../lib/lenses.ts'
+  import { define, loadCommon } from '../lib/lexicon.ts'
+  import { whoHue, WHO_SLOTS } from '../lib/marks.ts'
+  import { resolveTheme } from '../lib/settings.ts'
+  import type { View as BookView } from '../lib/paginator.ts'
   import { getFile, saveBook, type BookRecord } from '../lib/store.svelte.ts'
   import Appearance from './Appearance.svelte'
   import Cover from './Cover.svelte'
@@ -32,6 +37,10 @@
   let saveTimer = 0
   let padT = 0, padDown = 0
   let guide: Guide | undefined
+  let lenses: Lenses | undefined
+  let card = $state<{ x: number; y: number; below: boolean; html: string } | null>(null)
+  let cardKey = '', dwellT = 0, hoverT = 0
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
   let gstate = $state<GuideState>({ active: false, gliding: false, wpm: 260 })
   let toastMsg = $state('')
   let toastT = 0
@@ -56,17 +65,23 @@
         book = b
         pag = new Paginator(host, b, $state.snapshot(eff))
         guide = new Guide(pag, $state.snapshot(eff))
-        guide.onState = s => { if (s.active !== gstate.active) pag?.setReserve(s.active ? 44 : 0); gstate = s; if (s.active) chrome = false }
+        guide.onState = s => { if (s.active !== gstate.active) { pag?.setReserve(s.active ? 44 : 0); lastFocusBlock = -1; if (!s.active) paintLenses() } gstate = s; if (s.active) chrome = false; if (s.gliding) hideCard() }
         guide.onPace = wpm => (settings.wpm = wpm)
         guide.onToast = toast
         pag.keyHook = e => guide!.key(e)
         pag.tapHook = (v, x, y) => guide!.tapWord(v, x, y)
-        pag.onView = v => guide!.view(v)
+        lenses = new Lenses($state.snapshot(eff), b.metadata.language)
+        pag.onView = v => { guide!.view(v); attachHover(v); paintLenses() }
+        guide.onArrive = (v, k) => arrive(v, k)
+        loadCommon().then(set => { lenses?.setCommon(set); paintLenses() })
+        loadProfile(b)
         pag.onSections = s => (sections = s)
         pag.onRelocate = r => {
           loc = r
           rec.location = { index: r.index, fraction: r.fraction, cfi: r.cfi }
           rec.progress = r.progress
+          if (!gstate.active) paintLenses()
+          hideCard()
           clearTimeout(saveTimer)
           saveTimer = window.setTimeout(save, 500)
         }
@@ -96,6 +111,8 @@
     const key = JSON.stringify(LAYOUT.map(k => s[k]))
     if (key !== layoutKey) { layoutKey = key; pag?.setSettings(s) }
     guide?.setSettings(s)
+    lenses?.setSettings(s)
+    paintLenses()
   })
   $effect(() => { if (!panel) setTimeout(() => (view = 'menu'), 400) }) // reset after the close animation
 
@@ -107,6 +124,89 @@
     panel = false
     chrome = false
     pag?.goTo(href)
+  }
+
+  // ---------- lenses ----------
+  let lastFocusBlock = -1
+  function paintLenses(focusBlock = -1) {
+    const v = pag?.current
+    if (!v || !lenses || !pag) return
+    if (gstate.active) {
+      if (focusBlock < 0) focusBlock = lastFocusBlock
+      return lenses.paint(v, focusBlock, focusBlock, focusBlock)
+    }
+    // Only pages near you are painted (keeps WebKit fast; see findings).
+    const page = pag.currentPage, ws = v.ix.words
+    if (!ws.length) return
+    const a = pag.firstWordOnPage(v, Math.max(0, page - 1)), b = page + 2 < v.pages ? pag.firstWordOnPage(v, page + 2) : ws.length - 1
+    lenses.paint(v, ws[a].b, ws[b].b)
+  }
+  async function loadProfile(b: Book) {
+    if (rec.profile?.v === 1) { lenses?.setProfile(rec.profile.names); paintLenses(); return }
+    const texts = await Promise.all(b.spine.map(s => b.zip.text(s.href).catch(() => '')))
+    const worker = new Worker(new URL('../insights/worker.ts', import.meta.url), { type: 'module' })
+    worker.onmessage = e => {
+      rec.profile = { v: 1, names: e.data.names }
+      lenses?.setProfile(e.data.names); paintLenses(); save(); worker.terminate()
+    }
+    worker.postMessage({ texts })
+  }
+  const escape = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
+  async function cardHtml(v: BookView, t: Token): Promise<string> {
+    const theme = resolveTheme(eff.palette, eff.mode)
+    if (t.kind === 'name' || (t.kind === 'speech' && t.key)) {
+      const p = lenses!.person(t.key)
+      const sofar = p ? p.perSpine.slice(0, v.index + 1).reduce((a, n) => a + n, 0) : 0
+      const hue = p && p.slot >= 0 ? whoHue(theme, p.slot % WHO_SLOTS) : 'var(--muted)'
+      const lead = t.kind === 'speech' ? 'is speaking.' : sofar > 1 ? `Mentioned ${sofar} times so far.` : 'You’re meeting them now.'
+      return `<div class="c-who"><span class="c-av" style="background:${hue}">${escape(t.key[0])}</span><b>${escape(t.key)}</b></div><div class="c-def">${lead}</div><div class="c-meta">Counts stop at your page</div>`
+    }
+    if (t.kind === 'speech') return `<div class="c-def">Quoted words with no speaker named nearby.</div>`
+    if (t.kind === 'foreign') return `<b>${escape(lenses!.rangeOf(v, t).toString().slice(0, 60))}</b><div class="c-def">A phrase in another language (${escape(t.key)}).</div>`
+    const d = await define(t.key)
+    return `<b>${escape(t.key)}</b>${d ? ` <span class="c-meta">${escape(d.pos)}</span><div class="c-def">${escape(d.text)}</div>` : '<div class="c-def">A rare word. No offline definition for this form.</div>'}`
+  }
+  async function showCard(v: BookView, t: Token) {
+    const key = `${v.index}:${t.blk}:${t.a}:${t.kind}`
+    if (key === cardKey) return
+    cardKey = key
+    const html = await cardHtml(v, t)
+    if (cardKey !== key) return
+    const r = lenses!.rangeOf(v, t).getClientRects()[0], f = v.iframe.getBoundingClientRect()
+    if (!r) return
+    const x = Math.max(12, Math.min(innerWidth - 292, f.left + r.left + r.width / 2 - 140))
+    const below = f.top + r.top < 110 // never cover the line being read: above it, or below when there's no room
+    card = { x, y: below ? f.top + r.bottom + 10 : f.top + r.top - 10, below, html }
+  }
+  function hideCard() { clearTimeout(dwellT); clearTimeout(hoverT); card = null; cardKey = '' }
+  const hooked = new WeakSet<Document>()
+  function attachHover(v: BookView) {
+    if (hooked.has(v.doc)) return
+    hooked.add(v.doc)
+    v.doc.addEventListener('mousemove', e => {
+      clearTimeout(hoverT)
+      hoverT = window.setTimeout(() => {
+        const d = v.doc as Document & { caretPositionFromPoint?(x: number, y: number): { offsetNode: Node; offset: number } | null }
+        const pos = d.caretPositionFromPoint?.(e.clientX, e.clientY), cr = pos ? null : d.caretRangeFromPoint?.(e.clientX, e.clientY)
+        const node = pos?.offsetNode ?? cr?.startContainer, off = pos?.offset ?? cr?.startOffset ?? 0
+        const t = node && lenses?.tokenAt(v, node, off)
+        if (t) showCard(v, t); else hideCard()
+      }, 350)
+    })
+    v.doc.addEventListener('mouseleave', hideCard)
+  }
+  /** The guide reached word k: repaint lenses if the block changed, bloom names, and offer a card after a dwell. */
+  function arrive(v: BookView, k: number) {
+    hideCard()
+    const w = v.ix.words[k]
+    if (!w) return
+    if (w.b !== lastFocusBlock) { lastFocusBlock = w.b; paintLenses(w.b) }
+    const t = lenses?.tokenAt(v, w.sn, w.so)
+    if (t?.kind === 'name' && eff.names && eff.intensity !== 'quiet' && eff.motion === 'full' && !reduceMotion) {
+      v.marks.set('bloom', [lenses!.rangeOf(v, t)])
+      v.doc.documentElement.animate([{ '--bloom': '0px' }, { '--bloom': '8px' }, { '--bloom': '0px' }] as Keyframe[], { duration: 700, easing: 'ease-out' })
+    } else v.marks.set('bloom', [])
+    if (t && t.kind !== 'speech') dwellT = window.setTimeout(() => { if (!gstate.gliding) showCard(v, t) }, 600) // help on request, never mid-sentence
   }
 
   const isCurrent = (t: TocItem) => !!loc && t.label === loc.chapter
@@ -157,6 +257,9 @@
       oncontextmenu={e => e.preventDefault()}>
       <span class="pad-ring"></span><span class="pad-l">{gstate.gliding ? `${gstate.wpm} wpm` : 'Hold'}</span>
     </button>
+  {/if}
+  {#if card}
+    <div class="lens-card glass" class:below={card.below} style:left="{card.x}px" style:top="{card.y}px" role="tooltip">{@html card.html}</div>
   {/if}
   {#if toastMsg}<div class="toast glass" role="status">{toastMsg}</div>{/if}
 
@@ -287,6 +390,17 @@
   @media (hover: hover) and (pointer: fine) { .pad { opacity: .55; } .pad:hover, .pad.held { opacity: 1; } }
   @keyframes padIn { from { opacity: 0; transform: scale(.8); } }
   @keyframes ring { from { transform: scale(.96); opacity: .9; } to { transform: scale(1.15); opacity: 0; } }
+  .lens-card {
+    position: fixed; z-index: 5; width: 280px; padding: 10px 14px; border-radius: 14px; font-size: 13.5px; line-height: 1.45;
+    transform: translateY(-100%); pointer-events: none; animation: cardIn .2s var(--ease);
+  }
+  .lens-card.below { transform: none; }
+  .lens-card :global(b) { font: 600 16px var(--serif); }
+  .lens-card :global(.c-def) { margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .lens-card :global(.c-meta) { font-size: 11.5px; color: var(--muted); }
+  .lens-card :global(.c-who) { display: flex; align-items: center; gap: 8px; }
+  .lens-card :global(.c-av) { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 12px var(--serif); }
+  @keyframes cardIn { from { opacity: 0; } }
   .toast { position: absolute; z-index: 4; left: 50%; top: calc(env(safe-area-inset-top) + var(--s5)); translate: -50% 0; padding: 8px 14px; border-radius: 999px; font-size: 13px; animation: toastIn .35s var(--ease); pointer-events: none; }
   @keyframes toastIn { from { opacity: 0; transform: translateY(-6px); } }
   .error { position: absolute; inset: 0; z-index: 3; display: grid; place-content: center; justify-items: center; text-align: center; padding: var(--s5); background: var(--bg); }

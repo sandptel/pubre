@@ -29,3 +29,7 @@ Verified in Chrome (desktop 1440×900) and WebKit (390×844 touch): import of 3 
 - Stage reading mode (Space lifts the paragraph; sentence-at-a-time; breaths; chapter continuation) — 2026-10-11
 - Chapter-end card (three words, Question resurfacing) and "Previously…" recap — 2026-10-11
 - Critic #1 fixes (see implementation-plan status) — 2026-10-11
+
+## v1.0.0 release (2026-10-12)
+- README (live link, trailer GIF), CONTRIBUTING, 20 repo topics, homepage, release v1.0.0 with MP4 trailer.
+- Trailer source: ../pubre-samples/reel/trailer2.html (recreated UI, light gruvbox, e-ink pixel refresh); record with record2.mjs.

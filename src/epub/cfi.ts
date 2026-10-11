@@ -257,14 +257,32 @@ function elementId(el: Element): string | undefined {
   return el.getAttribute('id') || el.getAttribute('xml:id') || undefined
 }
 
+// Elements a reading system injects (e.g. pubre's italic-highlight spans, marked data-pubre) are
+// transparent to CFIs: their children count as children of the nearest real ancestor, and their text
+// joins the surrounding character chunk. CFIs therefore never change when such spans come and go.
+const ignored = (n: Node | null): boolean => !!n && n.nodeType === 1 && !!(n as Element).hasAttribute?.('data-pubre')
+function vkids(el: Node): Node[] {
+  const out: Node[] = []
+  for (let c = el.firstChild; c; c = c.nextSibling) ignored(c) ? out.push(...vkids(c)) : out.push(c)
+  return out
+}
+function realParent(n: Node): Node | null {
+  let p = n.parentNode
+  while (p && ignored(p)) p = p.parentNode
+  return p
+}
+
 /** Steps from the document element down to `el` (the document element itself = no steps). */
 function stepsTo(el: Element): CfiStep[] {
   const steps: CfiStep[] = []
-  for (let e: Element | null = el; e && e.parentNode && e.parentNode.nodeType === 1; e = e.parentNode as Element) {
+  for (let e: Element | null = el; e; ) {
+    const parent = realParent(e)
+    if (!parent || parent.nodeType !== 1) break
     let n = 0
-    for (let s: Node | null = e; s; s = s.previousSibling) if (isElem(s)) n++
+    for (const s of vkids(parent)) { if (isElem(s)) n++; if (s === e) break }
     const id = elementId(e)
     steps.unshift(id ? { index: n * 2, id } : { index: n * 2 })
+    e = parent as Element
   }
   return steps
 }
@@ -272,24 +290,29 @@ function stepsTo(el: Element): CfiStep[] {
 /** A DOM boundary point → steps + character offset (always in an odd chunk). */
 function pointSteps(node: Node, offset: number): { steps: CfiStep[]; char: number } {
   let parent: Node
-  let index: number // child position in parent.childNodes
+  let index: number // child position in the (virtual) child list
   let char = 0
+  if (ignored(node)) { // a position inside an injected span: move to its first leaf
+    const kids = vkids(node)
+    const target = kids[Math.min(offset, kids.length - 1)]
+    if (target) return pointSteps(target, 0)
+    node = node.parentNode!; offset = 0
+  }
   if (isChar(node)) {
-    parent = node.parentNode!
+    parent = realParent(node)!
     char = offset
-    index = 0
-    for (let s = node.previousSibling; s; s = s.previousSibling) index++
+    index = parent ? vkids(parent).indexOf(node) : 0
   } else if (isElem(node)) {
     parent = node
-    index = offset
+    const real = Array.from(node.childNodes).slice(0, offset)
+    index = real.reduce((n, c) => n + (ignored(c) ? vkids(c).length : 1), 0)
   } else {
     // comment / PI: treat as a position before the node
-    parent = node.parentNode!
-    index = 0
-    for (let s = node.previousSibling; s; s = s.previousSibling) index++
+    parent = realParent(node)!
+    index = parent ? vkids(parent).indexOf(node) : 0
   }
   if (!parent || !isElem(parent)) throw new EpubError('BAD_CFI', 'Position is outside the document element')
-  const children = parent.childNodes
+  const children = vkids(parent)
   let elems = 0
   for (let i = 0; i < index; i++) if (isElem(children[i])) elems++
   // Characters of the chunk before the position.
@@ -361,7 +384,7 @@ export function resolvePoint(doc: Document, steps: CfiStep[], offset?: CfiOffset
   let el: Element = doc.documentElement
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i]
-    const elems = Array.from(el.childNodes).filter(isElem)
+    const elems = vkids(el).filter(isElem)
     if (step.index % 2 === 0) {
       let target: Element | undefined = elems[step.index / 2 - 1]
       if (step.id && (!target || elementId(target) !== step.id)) target = findById(doc, step.id) ?? target // id assertion wins
@@ -383,7 +406,7 @@ export function resolvePoint(doc: Document, steps: CfiStep[], offset?: CfiOffset
 
 function chunkPoint(parent: Element, odd: number, char: number): Point {
   const k = (odd - 1) / 2 // elements before the chunk
-  const kids = Array.from(parent.childNodes)
+  const kids = vkids(parent)
   let i = 0
   for (let seen = 0; i < kids.length && seen < k; i++) if (isElem(kids[i])) seen++
   let last: Node | undefined

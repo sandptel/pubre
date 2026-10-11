@@ -96,6 +96,7 @@
         pag.keyHook = e => !!stage?.key(e) || guide!.key(e)
         pag.tapHook = (v, x, y) => guide!.tapWord(v, x, y) || tapAnnotation(v, x, y)
         lenses = new Lenses($state.snapshot(eff), b.metadata.language)
+        lenses.onChange = () => paintLenses()
         pag.onView = v => { stage?.view(v); guide!.view(v); attachHover(v); attachSelection(v); paintAnns(v); paintLenses() }
         listAnnotations(rec.id).then(list => { anns = list; if (pag?.current) paintAnns(pag.current) })
         guide.onArrive = (v, k) => arrive(v, k)
@@ -164,12 +165,12 @@
     if (!v || !lenses || !pag) return
     if (gstate.active) {
       if (focusBlock < 0) focusBlock = lastFocusBlock
-      return lenses.paint(v, focusBlock, focusBlock, focusBlock)
+      return lenses.paint(v, focusBlock, focusBlock)
     }
-    // Only pages near you are painted (keeps WebKit fast; see findings).
+    // Only the spread you're on is painted: one attention budget per screen (and WebKit stays fast).
     const page = pag.currentPage, ws = v.ix.words
     if (!ws.length) return
-    const a = pag.firstWordOnPage(v, Math.max(0, page - 1)), b = page + 2 < v.pages ? pag.firstWordOnPage(v, page + 2) : ws.length - 1
+    const a = pag.firstWordOnPage(v, page), b = page + 1 < v.pages ? pag.firstWordOnPage(v, page + 1) : ws.length - 1
     lenses.paint(v, ws[a].b, ws[b].b)
   }
   async function loadProfile(b: Book) {

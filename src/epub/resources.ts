@@ -259,7 +259,7 @@ export class ResourceLoader {
     head.insertBefore(meta, head.firstChild)
 
     const out = xml ? host.serializeXml(doc) : '<!DOCTYPE html>' + (root.outerHTML ?? host.serializeXml(doc))
-    return URL.createObjectURL(new Blob([out], { type: xml ? (type === 'image/svg+xml' ? type : 'application/xhtml+xml') : 'text/html' }))
+    return URL.createObjectURL(new Blob([out], { type: xml ? 'application/xhtml+xml' : 'text/html' }))
   }
 
   private async rewriteSrcset(value: string, base: string) {

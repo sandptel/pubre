@@ -1,5 +1,16 @@
 # Done (newest first)
 
+## v0.2: design pass + section breaks (2026-10-11)
+
+- `fix(reader)`: section breaks are honored in the multi-column layout (publisher and structural breaks, empty pages avoided)
+- `feat(theme)`: base16 **palette × mode** (ADR 0007), with tests
+- `feat(reader)`: book-like layout (measure about 36em, independent gutter, faded port, margin taps); chapters placed on the progress axis using TOC fragments
+- `feat(ui)`: design tokens (spacing scale, spring, glass, 44px floating buttons)
+- `feat(ui)`: floating reader chrome: close button, menu button, **segmented chapter progress capsule** (tap a wedge to jump, drag to scrub, hover to preview); one menu panel with push/pop views
+- `feat(ui)`: compact Themes & Settings (size capsule, mode swatches, palette strip, Font and Customize disclosures, crossfade on color change)
+- `feat(ui)`: minimal library (+ button, compact continue card, long-press or right-click menu, undo toast, FLIP removal, unread dot)
+- Docs: product & design playbook, ADR 0007, research `content-to-ui.md`, smoke e2e now covers 3 viewports
+
 ## v0.1: first iteration (2026-10-11)
 
 - `ci`: Pages workflow (test, check, build, deploy on push to main) and README

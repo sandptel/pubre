@@ -1,21 +1,60 @@
 // Lenses: the visual grammar's "who" (names, Voices) and "tell me more" (hard words, foreign phrases),
-// plus asides (contrast). Richness without clutter, per plan v3 + reading research:
-//  · attention budget per block, scaled by intensity; hard words ≤ 1 per sentence and ≈ 2% of words
-//  · focus scoping: while guiding only the focus block is rich; otherwise only pages near you are painted
+// plus asides (contrast). Richness without clutter, per plan v3 + reading research + critic pass #1:
+//  · attention budget per painted range (≈ the pages around you), scaled by intensity: names tinted at
+//    first mention, at most 3 character hues (5 at Rich), hard words ≤ 3 (6) and ≤ 1 per sentence, rarest first
+//  · confident only: a quote takes a voice colour only from an explicit speech tag; a hard word is
+//    marked only when it is rare (Zipf < 2.3) and has an offline definition
+//  · focus scoping: while guiding only the focus block is painted
 //  · graceful softening: dialogue-heavy blocks (> 60% speech) get softer Voices ink
 import type { View } from './paginator.ts'
 import type { Settings } from './settings.ts'
 import type { NameInfo } from '../insights/names.ts'
-import { isHard } from './lexicon.ts'
+import { isHard, rarity, onDefs } from './lexicon.ts'
 import { blockRange } from './textindex.ts'
 
 export type TokenKind = 'name' | 'hard' | 'foreign' | 'speech' | 'aside'
 export interface Token { kind: TokenKind; blk: number; a: number; b: number; key: string; slot: number; range?: Range }
 interface Parsed { tokens: Token[]; byBlock: Map<number, Token[]>; share: Map<number, number> }
 
-const SAY = 'said|whispered|cried|repeated|muttered|asked|shouted|rejoined|replied|answered|exclaimed|called|roared|sighed|added'
+const SAY = 'said|says|whispered|cried|repeated|muttered|asked|shouted|rejoined|replied|answered|exclaimed|called|roared|sighed|added|continued|returned|observed'
+const HON = '(?:(?:Mr|Mrs|Miss|Ms|Captain|Capt|Dr|Lady|Sir|Lord)\\.?\\s+)?'
 const QUOTES = /“[^”]*”?|"[^"\n]{1,600}"?/g
-const ASIDES = /\([^)]{2,160}\)|—[^—.!?“”"]{3,120}—/g
+const ASIDES = /\([^)]{2,160}\)/g // parentheses only: dash pairs are often emphasis, not asides
+const SMALL = /^(of|the|a|an|and|in|on|to|for|at|by|or|with)$/
+const RARE = 2.3 // Zipf below which a defined word is worth marking
+/** A short quote whose words are all capitalised ("The Night Before Christmas") is a title, not speech. */
+const isTitle = (q: string) => { const w = q.replace(/[“”"]/g, '').trim().split(/\s+/); return w.length <= 6 && !/[.!?,]$/.test(q.replace(/[“”"]/g, '').trim()) && w.every(x => /^[A-Z0-9]/.test(x) || SMALL.test(x)) }
+
+export interface Quote { a: number; b: number; speaker: string | null }
+/**
+ * Who speaks each quote, confident only: an explicit tag next to the quote ("said Mr. Darcy",
+ * "Ahab cried"), else the paragraph's single tagged speaker, else an unclosed quote carried from a
+ * tagged previous paragraph. Anything else stays unattributed (plain ink). Titles and epigraphs
+ * (a paragraph that is > 80% one untagged quote) are not speech at all.
+ */
+export function attribute(blocks: string[], names: string[]): Quote[][] {
+  const alt = names.map(esc).join('|')
+  const after = alt ? new RegExp(`^[\\s,;—]*(?:(?:${SAY})\\s+${HON}(${alt})\\b|${HON}(${alt})\\s+(?:\\w+\\s+)?(?:${SAY})\\b)`) : null
+  const before = alt ? new RegExp(`(?:(?:${SAY})\\s+${HON}(${alt})|${HON}(${alt})\\s+(?:\\w+\\s+)?(?:${SAY}))[\\s,:—]*$`) : null
+  let carry: string | null = null
+  return blocks.map(text => {
+    const found = [...text.matchAll(QUOTES)].filter(m => !isTitle(m[0]))
+    if (!found.length) { carry = null; return [] }
+    const qs: Quote[] = found.map(m => {
+      const a = m.index!, b = a + m[0].length
+      const t = (after && text.slice(b, b + 60).match(after)) || (before && text.slice(Math.max(0, a - 60), a).match(before))
+      return { a, b, speaker: t ? t[1] ?? t[2] : null }
+    })
+    if (qs.length === 1 && !qs[0].speaker && !carry && qs[0].b - qs[0].a > 0.8 * text.trim().length) { carry = null; return [] }
+    const tagged = new Set(qs.map(q => q.speaker).filter(Boolean))
+    const own = tagged.size === 1 ? [...tagged][0]! : null
+    if (carry && /^\s*[“"]/.test(text) && !qs[0].speaker && (!own || own === carry)) qs[0].speaker = carry
+    for (const q of qs) q.speaker ??= own
+    const last = found[found.length - 1][0]
+    carry = /[”"]$/.test(last) && last.length > 1 ? null : qs[qs.length - 1].speaker
+    return qs
+  })
+}
 const HARDWORD = /(?<![A-Za-z’'-])[a-z][a-z’'-]{3,}(?![A-Za-z])/g
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
@@ -27,7 +66,14 @@ export class Lenses {
   private common = new Set<string>()
   private lang = 'en'
 
-  constructor(s: Settings, lang = 'en') { this.s = s; this.lang = (lang || 'en').slice(0, 2).toLowerCase() }
+  /** Called (debounced) when definitions arrive, so hard words held back while loading can be painted. */
+  onChange?: () => void
+  private changeT = 0
+
+  constructor(s: Settings, lang = 'en') {
+    this.s = s; this.lang = (lang || 'en').slice(0, 2).toLowerCase()
+    onDefs(() => { clearTimeout(this.changeT); this.changeT = setTimeout(() => this.onChange?.(), 60) as unknown as number })
+  }
   setSettings(s: Settings) { this.s = s }
   setCommon(set: Set<string>) { this.common = set; this.cache = new WeakMap() }
   setProfile(names: NameInfo[]) {
@@ -37,55 +83,26 @@ export class Lenses {
     this.cache = new WeakMap()
   }
   invalidate(v: View) { this.cache.delete(v) }
-    person(name: string) { return this.people.find(p => p.name === name) }
+  person(name: string) { return this.people.find(p => p.name === name) }
 
   private parse(v: View): Parsed {
     let p = this.cache.get(v)
     if (p) return p
     p = { tokens: [], byBlock: new Map(), share: new Map() }
     const add = (t: Token) => { p!.tokens.push(t); let l = p!.byBlock.get(t.blk); if (!l) p!.byBlock.set(t.blk, (l = [])); l.push(t) }
-    const names = this.people.map(n => esc(n.name)).join('|')
-    const saidAfter = names ? new RegExp(`^[\\s,;—]*(?:\\w+\\s+){0,2}?(?:${SAY})\\s+(${names})`) : null
-    const saidBefore = names ? new RegExp(`^[\\s,;—]*(${names})\\s+(?:${SAY})`) : null
-    const vocRe = names ? new RegExp(`,\\s*(${names})\\b[?!.,]`) : null
-    let pair: string[] = [], turn = 0, carry: string | null = null
-    v.ix.blocks.forEach((blk, bi) => {
-      if (blk.kind !== 'text') return
-      const text = blk.text
+    const blocks = v.ix.blocks.map(blk => (blk.kind === 'text' ? blk.text : ''))
+    const quotes = attribute(blocks, this.people.map(n => n.name))
+    blocks.forEach((text, bi) => {
+      if (!text) return
       if (this.nameRe) for (const m of text.matchAll(this.nameRe)) {
         const n = this.person(m[1])!
         add({ kind: 'name', blk: bi, a: m.index!, b: m.index! + m[1].length, key: n.name, slot: n.slot })
       }
       if (this.common.size) for (const m of text.matchAll(HARDWORD)) if (isHard(m[0], this.common)) add({ kind: 'hard', blk: bi, a: m.index!, b: m.index! + m[0].length, key: m[0].toLowerCase(), slot: -1 })
       for (const m of text.matchAll(ASIDES)) add({ kind: 'aside', blk: bi, a: m.index!, b: m.index! + m[0].length, key: '', slot: -1 })
-      // Voices: who speaks each quote (explicit "said X" › nobody addresses themselves › an unclosed
-      // quote continues › alternate between the two people last named in narration).
-      const quotes = [...text.matchAll(QUOTES)]
-      const qChars = quotes.reduce((n, m) => n + m[0].length, 0)
-      p!.share.set(bi, qChars / Math.max(1, text.length))
-      if (!quotes.length) {
-        if (this.nameRe) { const ns = [...new Set([...text.matchAll(this.nameRe)].map(m => m[1]))]; if (ns.length) { pair = ns.slice(0, 2); turn = 0 } }
-        carry = null
-        return
-      }
-      const quoteOnly = /^\s*[“"]/.test(text)
-      let speaker: string | null = null
-      for (const m of quotes) {
-        const after = text.slice(m.index! + m[0].length, m.index! + m[0].length + 60)
-        const said = saidAfter && (after.match(saidAfter) || after.match(saidBefore!))
-        if (said) { speaker = said[1]; break }
-      }
-      const voc = vocRe && quotes[0][0].match(vocRe)
-      if (!speaker) {
-        if (quoteOnly && pair.length === 2 && voc && (!carry || carry === voc[1])) speaker = pair.find(n => n !== voc[1]) ?? null
-        else if (carry) speaker = carry
-        else if (quoteOnly && pair.length) speaker = pair[turn++ % pair.length]
-      }
-      if (speaker && pair.length === 2) turn = pair.indexOf(speaker) + 1
-      const last = quotes[quotes.length - 1][0]
-      carry = /[”"]$/.test(last) && last.length > 1 ? null : speaker
-      const slot = speaker ? this.person(speaker)?.slot ?? -1 : -1
-      for (const m of quotes) add({ kind: 'speech', blk: bi, a: m.index!, b: m.index! + m[0].length, key: speaker ?? '', slot })
+      const qs = quotes[bi]
+      p!.share.set(bi, qs.reduce((n, q) => n + q.b - q.a, 0) / Math.max(1, text.length))
+      for (const q of qs) add({ kind: 'speech', blk: bi, a: q.a, b: q.b, key: q.speaker ?? '', slot: q.speaker ? this.person(q.speaker)?.slot ?? -1 : -1 })
     })
     // Foreign phrases: elements whose language differs from the book's.
     for (const el of Array.from(v.doc.querySelectorAll('[lang], [*|lang]'))) {
@@ -100,41 +117,53 @@ export class Lenses {
     return p
   }
 
-  /** Paint marks for blocks in [fromBlock, toBlock]; `focus` = the guide's block (gets a double budget). */
-  paint(v: View, fromBlock: number, toBlock: number, focus = -1) {
+  /** Paint marks for blocks in [fromBlock, toBlock] under one attention budget for the whole range. */
+  paint(v: View, fromBlock: number, toBlock: number, _focus = -1) { // _focus: unused now that the budget is per range
     const m = v.marks, s = this.s
     const out: Record<string, Range[]> = {}
     const put = (name: string, r: Range) => (out[name] ||= []).push(r)
     if (s.intensity !== 'quiet') {
-      const p = this.parse(v)
-      for (let bi = Math.max(0, fromBlock); bi <= toBlock && bi < v.ix.blocks.length; bi++) {
-        const list = p.byBlock.get(bi)
-        if (!list) continue
-        const blk = v.ix.blocks[bi], rich = s.intensity === 'rich', focused = bi === focus
-        const range = (t: Token) => t.range ?? blockRange(v.doc, blk, t.a, t.b)
-        // who: first mention per block (every mention in the focus block); only the main cast is tinted
-        if (s.names) {
-          const seen = new Set<string>()
-          for (const t of list) if (t.kind === 'name' && t.slot >= 0 && (focused || !seen.has(t.key))) { seen.add(t.key); put(`who-${t.slot}`, range(t)) }
-        }
-        // tell me more: hard words, capped (≤ 1 per sentence, ≈ 2% of words), longest first
-        if (s.hardWords && s.hardStyle === 'shown') {
-          const words = blk.b - blk.a + 1, sentences = new Set(v.ix.words.slice(blk.a, blk.b + 1).map(w => w.s)).size
-          let cap = Math.min(sentences, Math.max(1, Math.round(words * 0.02)) * (rich ? 2 : 1)) // ≤ 1 per sentence, always
-          for (const t of list.filter(t => t.kind === 'hard').sort((a, b) => b.key.length - a.key.length)) { if (cap-- <= 0) break; put('hard', range(t)) }
-        }
-        if (s.foreign) list.filter(t => t.kind === 'foreign').slice(0, rich ? 3 : 1).forEach(t => put('foreign', range(t)))
-        // Voices: the speaker's ink (softer when the block is mostly dialogue)
-        if (s.voices !== 'off') for (const t of list.filter(t => t.kind === 'speech')) {
-          const k = t.slot >= 0 ? String(t.slot) : 'x'
-          // Unattributed quotes in blocks that are mostly quotation are citations, not conversation: leave them as ink.
-          if (k === 'x' && (p.share.get(bi) ?? 0) > 0.6) continue
-          if (s.voices === 'ink') put(`${(p.share.get(bi) ?? 0) > 0.6 ? 'v-soft' : 'v-ink'}-${k}`, range(t))
-          else if (s.voices === 'underline') put(`v-under-${k}`, range(t))
-          else { put(`v-marks-${k}`, blockRange(v.doc, blk, t.a, t.a + 1)); if (/[”"]$/.test(blk.text.slice(t.b - 1, t.b))) put(`v-marks-${k}`, blockRange(v.doc, blk, t.b - 1, t.b)) }
-        }
-        if (s.asides) for (const t of list) if (t.kind === 'aside') put('aside', range(t))
+      const p = this.parse(v), rich = s.intensity === 'rich'
+      const from = Math.max(0, fromBlock), to = Math.min(toBlock, v.ix.blocks.length - 1)
+      const inRange: Token[] = []
+      for (let bi = from; bi <= to; bi++) inRange.push(...(p.byBlock.get(bi) ?? []))
+      const range = (t: Token) => t.range ?? blockRange(v.doc, v.ix.blocks[t.blk], t.a, t.b)
+      // Hue budget: only the most present characters here keep their colour (names and Voices alike).
+      const weight = new Map<string, number>()
+      for (const t of inRange) if ((t.kind === 'name' || t.kind === 'speech') && t.slot >= 0) weight.set(t.key, (weight.get(t.key) ?? 0) + 1)
+      const hued = new Set([...weight].sort((a, b) => b[1] - a[1]).slice(0, rich ? 5 : 3).map(([k]) => k))
+      // who: first mention per range only
+      if (s.names) {
+        const seen = new Set<string>()
+        for (const t of inRange) if (t.kind === 'name' && hued.has(t.key) && !seen.has(t.key)) { seen.add(t.key); put(`who-${t.slot}`, range(t)) }
       }
+      // tell me more: rare words with a definition, rarest first, ≤ 1 per sentence
+      if (s.hardWords && s.hardStyle === 'shown') {
+        const sentence = (t: Token) => {
+          const blk = v.ix.blocks[t.blk]
+          for (let i = blk.a; i <= blk.b; i++) { const w = v.ix.words[i]; if (blk.starts[blk.nodes.indexOf(w.sn)] + w.so >= t.a) return w.s }
+          return -1 - t.blk
+        }
+        const cands = inRange.filter(t => t.kind === 'hard').map(t => ({ t, z: rarity(t.key) })).filter((c): c is { t: Token; z: number } => typeof c.z === 'number' && c.z < RARE)
+        const used = new Set<number>()
+        let cap = rich ? 6 : 3
+        for (const { t } of cands.sort((a, b) => a.z - b.z)) {
+          if (cap <= 0) break
+          const sn = sentence(t)
+          if (used.has(sn)) continue
+          used.add(sn); cap--; put('hard', range(t))
+        }
+      }
+      if (s.foreign) inRange.filter(t => t.kind === 'foreign').slice(0, rich ? 4 : 2).forEach(t => put('foreign', range(t)))
+      // Voices: only confidently attributed quotes, by characters inside the hue budget
+      if (s.voices !== 'off') for (const t of inRange) {
+        if (t.kind !== 'speech' || t.slot < 0 || !hued.has(t.key)) continue
+        const blk = v.ix.blocks[t.blk], k = String(t.slot), soft = (p.share.get(t.blk) ?? 0) > 0.6
+        if (s.voices === 'ink') put(`${soft ? 'v-soft' : 'v-ink'}-${k}`, range(t))
+        else if (s.voices === 'underline') put(`v-under-${k}`, range(t))
+        else { put(`v-marks-${k}`, blockRange(v.doc, blk, t.a, t.a + 1)); if (/[”"]$/.test(blk.text.slice(t.b - 1, t.b))) put(`v-marks-${k}`, blockRange(v.doc, blk, t.b - 1, t.b)) }
+      }
+      if (s.asides) for (const t of inRange) if (t.kind === 'aside') put('aside', range(t))
     }
     for (const prefix of ['who-', 'hard', 'foreign', 'v-', 'aside']) m.clear(prefix)
     for (const [name, rs] of Object.entries(out)) m.set(name, rs)

@@ -104,6 +104,8 @@ export class Paginator {
   /** Press-and-hold on book text (no movement for HOLD_MS): return true to take the gesture; then
    *  `move` gets the finger's offset from where it pressed and `end` the release. */
   holdHook?: { start: (v: View, clientX: number, clientY: number) => boolean; move: (dx: number, dy: number) => void; end: () => void }
+  /** Last touches to a chapter's DOM before it is laid out (e.g. chapter openers). */
+  prepareHook?: (doc: Document, index: number) => void
   readonly port: HTMLDivElement // clipped, centered strip the iframes slide in (overlays live here too)
   private host: HTMLElement
   private book: Book
@@ -352,6 +354,7 @@ body > div, body > section, body > p, body > figure { text-align: center !import
     const v: View = { iframe, doc, index, pages: 1, ix: { words: [], sentences: [], blocks: [] }, marks: new Marks(doc) }
     this.inject(v)
     sectionBreaks(doc)
+    this.prepareHook?.(doc, index)
     this.bind(v)
     const timeout = new Promise(r => setTimeout(r, 1500))
     await Promise.race([Promise.allSettled([doc.fonts?.ready, ...Array.from(doc.images, i => i.decode())]), timeout])

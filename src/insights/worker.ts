@@ -1,5 +1,6 @@
 // Book insights off the main thread: strips markup from every chapter and finds the cast.
 import { findNames } from './names.ts'
+import { chapters } from './chapters.ts'
 
 self.onmessage = (e: MessageEvent<{ texts: string[] }>) => {
   const texts = e.data.texts.map(t => t
@@ -7,5 +8,5 @@ self.onmessage = (e: MessageEvent<{ texts: string[] }>) => {
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#8217;|&rsquo;/g, '’').replace(/&#8220;|&ldquo;/g, '“').replace(/&#8221;|&rdquo;/g, '”').replace(/&[a-z#0-9]+;/gi, ' '))
   const words = texts.map(t => (t.match(/[A-Za-z’'-]+/g) || []).length)
-  self.postMessage({ names: findNames(texts), words })
+  self.postMessage({ names: findNames(texts), words, chapters: e.data.texts.flatMap((html, i) => chapters(i, html)) })
 }

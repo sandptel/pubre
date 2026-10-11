@@ -3,6 +3,7 @@
 import { Book } from './epub.ts'
 import type { Settings } from './settings.ts'
 import type { NameInfo } from '../insights/names.ts'
+import type { ChapterInfo } from '../insights/chapters.ts'
 import type { Annotation } from './annotations.ts'
 
 export interface Location { index: number; fraction: number; cfi?: string }
@@ -20,7 +21,7 @@ export interface BookRecord {
   words?: Record<string, string> // your "three words" per chapter
   promptSkips?: number // consecutive dismissals of the chapter-end card
   prefs?: Partial<Settings> // this book's overrides of the global settings
-  profile?: { v: number; names: NameInfo[]; words?: number[] } // on-device insights (cast, words per chapter), computed once
+  profile?: { v: number; names: NameInfo[]; words?: number[]; chapters?: ChapterInfo[] } // on-device insights (cast, words per part, chapter profiles), computed once
   // Your place, kept for the homepage (only what you've read: spoiler-safe)
   readAt?: number // when you last read
   lastLine?: string // the sentence at your place

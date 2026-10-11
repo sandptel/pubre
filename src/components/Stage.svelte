@@ -16,11 +16,14 @@
   import { breath, MAX_WPM, sentenceTime, wordTime, type Breath } from '../lib/pacing.ts'
   import { prevUnit, sectionOf, segments, unitAt, type Decor, type Step } from '../lib/stagetext.ts'
   import Ticker from './Ticker.svelte'
+  import ChapterStrip, { type StripChapter } from './ChapterStrip.svelte'
   import { edgesOnFirstLine, letterRects, typeFrames } from '../lib/typing.ts'
   import type { TextIndex } from '../lib/textindex.ts'
 
-  let { pag, settings, chapter = '', page = 0, pages = 0, pageEl, decorate, explain, onmark, onopen, onstate, onpace, ontoast }: {
+  let { pag, settings, chapter = '', page = 0, pages = 0, book, pageEl, decorate, explain, onmark, onopen, onstate, onpace, ontoast }: {
     pag: Paginator | undefined; settings: Settings; chapter?: string; page?: number; pages?: number; pageEl?: HTMLElement
+    /** The book's chapters, for the strip under the label (the one you're in is magnified). */
+    book?: { chapters: StripChapter[]; cur: number }
     decorate?: (v: View, b: number) => Decor[]; explain?: (key: string) => Promise<string>
     /** Long-press a sentence: keep it (true) or let it go again (false). */
     onmark?: (v: View, s: number) => Promise<boolean | null>
@@ -654,11 +657,15 @@
     <div class="fade bottom-fade" class:on={landed}></div>
     <div class="top" class:on={landed}>
       <span class="where"><span class="ch"><Ticker value={chapter} /></span>{#if pages > 1}<span class="pg">· p. <Ticker value={page + 1} /> of {pages}</span>{/if}</span>
-      <span class="line" aria-hidden="true">
-        <i style:transform="scaleX({progress})"></i>
-        {#each sections as at}<b style:left="{at * 100}%"></b>{/each}
-        {#key chapter}<em></em>{/key}
-      </span>
+      {#if book && book.chapters.length > 1}
+        <span class="strip"><ChapterStrip chapters={book.chapters} cur={book.cur} fill={progress} ticks={sections} /></span>
+      {:else}
+        <span class="line" aria-hidden="true">
+          <i style:transform="scaleX({progress})"></i>
+          {#each sections as at}<b style:left="{at * 100}%"></b>{/each}
+          {#key chapter}<em></em>{/key}
+        </span>
+      {/if}
     </div>
     {#if waiting && breathAt && !waits(waiting)}
       <span class="breath" style:left="{breathAt.x}px" style:top="{breathAt.y}px"><i style:animation-duration="{breathMs}ms"></i></span>
@@ -748,6 +755,7 @@
   .where { display: flex; align-items: baseline; justify-content: center; gap: 6px; max-width: 100%; font: 600 11px system-ui; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
   .ch { min-width: 0; display: inline-grid; }
   .pg { flex: none; font-weight: 500; letter-spacing: .06em; text-transform: none; font-variant-numeric: tabular-nums; }
+  .strip { display: block; width: min(300px, 72vw); }
   .line { position: relative; width: min(240px, 60vw); height: 2px; border-radius: 1px; background: color-mix(in srgb, var(--fg) 10%, transparent); overflow: visible; }
   .line i { position: absolute; inset: 0; border-radius: 1px; background: color-mix(in srgb, var(--accent) 70%, transparent); transform-origin: left; transition: transform .8s cubic-bezier(.22,1,.36,1); }
   .line b { position: absolute; top: -2px; width: 1px; height: 6px; background: color-mix(in srgb, var(--fg) 30%, transparent); }
@@ -756,8 +764,9 @@
   @keyframes sweep { 0% { background-position: -60% 0; opacity: 0; } 15% { opacity: 1; } 100% { background-position: 160% 0; opacity: 0; } }
   .top.on { opacity: 1; }
   @media (prefers-reduced-motion: reduce) { .line em { animation: none; } }
-  .foot { position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 28px); display: grid; place-items: center; font: 12px system-ui; color: var(--muted); pointer-events: none; min-height: 16px; }
-  .foot span { animation: fade .5s ease both; }
+  .foot { position: absolute; left: 190px; right: 190px; bottom: calc(env(safe-area-inset-bottom) + 28px); display: grid; place-items: center; /* clear of the pad + speed chip */ font: 12px system-ui; color: var(--muted); pointer-events: none; min-height: 16px; }
+  .foot span { animation: fade .5s ease both; text-align: center; }
+  @media (max-width: 719px) { .foot { left: 20px; right: 170px; place-items: center start; bottom: calc(env(safe-area-inset-bottom) + 34px); } }
   .breath { position: absolute; width: 56px; height: 2px; border-radius: 1px; background: color-mix(in srgb, var(--fg) 10%, transparent); overflow: hidden; opacity: .4; pointer-events: none; animation: fade .4s ease both; }
   .breath i { display: block; height: 100%; background: var(--accent); transform-origin: left; animation: fill linear both; }
   .x { position: absolute; z-index: 1; top: calc(env(safe-area-inset-top) + 10px); right: calc(env(safe-area-inset-right) + 10px); width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; transition: background-color .2s, color .2s, opacity .3s; opacity: 0; }

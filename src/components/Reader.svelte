@@ -10,6 +10,7 @@
   import { define, loadCommon, rarity } from '../lib/lexicon.ts'
   import { sectionOf, type Decor } from '../lib/stagetext.ts'
   import { colourOf } from '../lib/palette.ts'
+  import { chapterFor, fingerprint, openerOf } from '../insights/chapters.ts'
   import { mix } from '../lib/settings.ts'
   import { blockOffsets } from '../lib/textindex.ts'
   import { whoHue, WHO_SLOTS } from '../lib/marks.ts'
@@ -27,6 +28,7 @@
   import Sheet from './Sheet.svelte'
   import Stage, { type StageState } from './Stage.svelte'
   import Ticker from './Ticker.svelte'
+  import ChapterStrip, { type StripChapter } from './ChapterStrip.svelte'
   import Toc from './Toc.svelte'
 
   let { record, settings = $bindable(), onclose }: { record: BookRecord; settings: Settings; onclose: () => void } = $props()
@@ -119,6 +121,7 @@
         pag.keyHook = e => !!stage?.key(e) || guide!.key(e)
         pag.tapHook = (v, x, y) => guide!.tapWord(v, x, y) || tapAnnotation(v, x, y) || tapLens(v, x, y)
         pag.holdHook = textHold
+        pag.prepareHook = (doc, index) => { if (eff.openers) applyOpeners(doc, index) }
         lenses = new Lenses($state.snapshot(eff), b.metadata.language)
         lenses.onChange = () => paintLenses()
         pag.onView = v => { stage?.view(v); guide!.view(v); attachHover(v); attachSelection(v); paintAnns(v); paintLenses() }
@@ -186,6 +189,37 @@
     panel = false
     chrome = false
     pag?.goTo(href)
+  }
+
+  // ---------- chapter openers: each chapter opens into its own room (from its profile) ----------
+  /** Mark chapter headings (and the first paragraph after each) with their opener; true if anything changed. */
+  function applyOpeners(doc: Document, index: number) {
+    const list = rec.profile?.chapters
+    if (!list?.length) return false
+    let changed = false
+    for (const h of Array.from(doc.querySelectorAll('h1, h2'))) {
+      const c = chapterFor(list, h.textContent ?? '', index)
+      if (!c || !c.title) continue
+      const o = openerOf(c)
+      if (h.getAttribute('data-pubre-opener') === o) continue
+      h.setAttribute('data-pubre-opener', o); changed = true
+      let p = h.nextElementSibling
+      while (p && (p.textContent ?? '').trim().length < 60) p = p.nextElementSibling
+      if (p && /^(p|div)$/i.test(p.localName)) p.setAttribute('data-pubre-first', o)
+    }
+    return changed
+  }
+  // The book's chapters for the strips (Stage label, pointer capsule): length + mood (dark → bright).
+  let profileChapters = $state.raw(untrack(() => rec.profile?.chapters))
+  const moodTint = (m: number) => mix('#5d6d8f', '#d6a248', Math.max(0, Math.min(1, (m + 1) / 2)))
+  const stripChapters = $derived.by((): StripChapter[] => sections.length < 2 ? [] : sections.map((s, i) => {
+    const c = profileChapters && chapterFor(profileChapters, s.label, book?.spineIndex(s.href) ?? -1)
+    return { weight: Math.max(0.0005, (sections[i + 1]?.start ?? 1) - s.start), tint: c?.title ? moodTint(c.mood) : undefined }
+  }))
+  const stripCur = $derived(loc && sections.length ? Math.max(0, sections.findLastIndex(s => s.start <= loc!.top + 1e-6)) : 0)
+  const tocGlyph = (label: string, href: string) => {
+    const list = rec.profile?.chapters, c = list && chapterFor(list, label, book?.spineIndex(href) ?? -1)
+    return c?.title ? fingerprint(c.lens, 22) : ''
   }
 
   // ---------- ambient palette drift: a colourful chapter lends the accent its colour, at the crossing ----------
@@ -382,11 +416,13 @@
     lenses.paint(v, ws[a].b, ws[b].b)
   }
   async function loadProfile(b: Book) {
-    if (rec.profile?.v === 2) { lenses?.setProfile(rec.profile.names); paintLenses(); return }
+    if (rec.profile?.v === 3) { lenses?.setProfile(rec.profile.names); paintLenses(); return }
     const texts = await Promise.all(b.spine.map(s => b.zip.text(s.href).catch(() => '')))
     const worker = new Worker(new URL('../insights/worker.ts', import.meta.url), { type: 'module' })
     worker.onmessage = e => {
-      rec.profile = { v: 2, names: e.data.names, words: e.data.words }
+      rec.profile = { v: 3, names: e.data.names, words: e.data.words, chapters: e.data.chapters }
+      profileChapters = e.data.chapters
+      if (pag?.current && eff.openers && applyOpeners(pag.current.doc, pag.current.index)) pag.refresh()
       lenses?.setProfile(e.data.names); paintLenses(); save(); worker.terminate()
     }
     worker.postMessage({ texts })
@@ -645,7 +681,12 @@
   {#if gstate.active && where && loc}
     <div class="where glass" transition:fly={{ y: -14, duration: 380, easing: cubicOut }} aria-hidden="true">
       <span class="w-ch"><Ticker value={loc.chapter || rec.title} /></span>
-      {#if where.paras.length > 1}
+      {#if stripChapters.length > 1}
+        {@const tot = where.paras.reduce((a, p) => a + p.n, 0) || 1}
+        <span class="w-strip"><ChapterStrip chapters={stripChapters} cur={stripCur}
+          fill={where.cur >= 0 ? (where.paras.slice(0, where.cur).reduce((a, p) => a + p.n, 0) + where.paras[where.cur].n / 2) / tot : 0}
+          ticks={where.paras.slice(1).map((_, i) => where!.paras.slice(0, i + 1).reduce((a, p) => a + p.n, 0) / tot)} /></span>
+      {:else if where.paras.length > 1}
         <span class="w-row">{#each where.paras as p, i (p.b)}<i class:done={i < where.cur} class:cur={i === where.cur} style:flex-grow={Math.max(1, Math.sqrt(p.n))}></i>{/each}</span>
       {/if}
       {#if loc.cpages > 1}<span class="w-pg"><Ticker value={loc.cpage + 1} /><span>/{loc.cpages}</span></span>{/if}
@@ -721,7 +762,7 @@
       </div>
     {/if}
   {/if}
-  <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} page={loc?.cpage ?? 0} pages={loc?.cpages ?? 0} pageEl={paperEl} {decorate} {explain} onmark={markSentence}
+  <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} page={loc?.cpage ?? 0} pages={loc?.cpages ?? 0} pageEl={paperEl} {decorate} {explain} onmark={markSentence} book={{ chapters: stripChapters, cur: stripCur }}
     onopen={o => { staged = o; if (o) { chrome = false; hideCard(); guide?.deactivate() } else paintLenses() }} onstate={st => (sstate = st)}
     onpace={w => (settings.wpm = w)} ontoast={toast} />
   {#if bar}
@@ -828,7 +869,7 @@
             </button>
           </div>
         {:else if view === 'contents' && book}
-          <Toc toc={book.toc} {isCurrent} onpick={jump} />
+          <Toc toc={book.toc} {isCurrent} onpick={jump} glyph={tocGlyph} />
         {:else if view === 'appearance'}
           <Appearance bind:settings />
         {:else if view === 'aids'}
@@ -895,6 +936,7 @@
   }
   .w-ch { display: inline-grid; min-width: 0; max-width: 42%; letter-spacing: .02em; }
   .w-pg { display: inline-flex; flex: none; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .w-strip { display: block; width: min(230px, 42vw); flex: none; }
   .w-row { display: flex; gap: 2px; align-items: center; width: min(200px, 34vw); height: 8px; flex: none; }
   .w-row i { flex-basis: 0; min-width: 2px; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--fg) 14%, transparent); transition: background-color .45s ease, height .35s var(--spring); }
   .w-row i.done { background: color-mix(in srgb, var(--accent) 42%, transparent); }

@@ -64,7 +64,7 @@ const alpha = (hex: string, a: number) => hex + Math.round(a * 255).toString(16)
 export function marksCss(t: Theme): string {
   const fg = t.base[5], accent = t.base[t.accent], muted = t.base[4]
   const voice = (k: string) => whoHue(t, +k)
-  return `
+  return openersCss(t) + `
 @property --bloom { syntax: '<length>'; inherits: true; initial-value: 0px }
 @property --breathe { syntax: '<number>'; inherits: true; initial-value: 0 }
 ::highlight(c-page) { color: ${level(t, 0.72, 3.4)} }
@@ -85,5 +85,22 @@ ${MEANINGS.map(([c]) => `::highlight(u-${c}) { background-color: ${alpha(t.base[
 ::highlight(u-bold) { -webkit-text-stroke-width: .035em; -webkit-text-stroke-color: currentColor; text-shadow: .02em 0 currentColor }
 ::highlight(bloom) { text-shadow: 0 0 var(--bloom) currentColor }
 ::highlight(breathe) { background-color: color-mix(in srgb, ${fg} calc(var(--breathe) * 1%), transparent) }
+`
+}
+
+/** Chapter openers: the room each chapter opens into (set on headings by the Reader, from chapter profiles). */
+export function openersCss(t: Theme): string {
+  const accent = t.base[t.accent], muted = t.base[4], line = t.base[2], gold = t.base[0x0a], bg = t.base[0]
+  const a = (hex: string, alpha: number) => hex + Math.round(alpha * 255).toString(16).padStart(2, '0')
+  return `
+[data-pubre-first="classic"] { text-indent: 0 !important; }
+[data-pubre-first="classic"]::first-letter { float: left; font-size: 3.1em; line-height: .82; margin: .06em .09em 0 0; font-weight: 600; color: ${accent}; }
+[data-pubre-opener="daylight"] { color: ${gold} !important; background: radial-gradient(closest-side, ${a(gold, .16)}, ${a(gold, 0)}); letter-spacing: .01em; }
+[data-pubre-first="daylight"]::first-line { font-variant: small-caps; letter-spacing: .04em; }
+[data-pubre-opener="nocturne"] { font-variant: small-caps; letter-spacing: .12em; font-weight: 500 !important; color: ${muted} !important; background: linear-gradient(${a(muted, .14)}, ${a(bg, 0)}); padding: .6em 0 .4em; border-radius: 6px; }
+[data-pubre-first="nocturne"]::first-line { font-style: italic; }
+[data-pubre-opener="stage"] { text-transform: uppercase; letter-spacing: .16em; font-size: .92em !important; text-align: center !important; border-top: 1px solid ${line}; border-bottom: 1px solid ${line}; padding: .55em 0 !important; }
+[data-pubre-opener="swell"] { font-style: italic; font-weight: 400 !important; text-decoration: underline wavy ${a(accent, .45)} 1px; text-underline-offset: .4em; text-decoration-skip-ink: none; }
+[data-pubre-first="swell"]::first-line { font-style: italic; }
 `
 }

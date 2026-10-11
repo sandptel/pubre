@@ -67,6 +67,7 @@
       </div>
     </div>
     {@render choice('Voices', 'voices', [['ink', 'Ink'], ['underline', 'Line'], ['marks', 'Marks'], ['off', 'Off']], 'Dialogue in the speaker’s colour')}
+    {@render toggle('Chapter openers', 'openers', 'Each chapter opens into its own room')}
     {@render toggle('Chapter colour', 'chapterColour', 'A colourful chapter tints the accent as you enter it')}
     {@render toggle('Asides', 'asides', 'Parentheses and dashes, a step quieter')}
     {@render toggle('Foreign phrases', 'foreign')}

@@ -110,9 +110,12 @@
           saveTimer = window.setTimeout(save, 500)
         }
         pag.onTap = zone => { chrome = zone === 'center' ? !chrome : false }
+        const away = Date.now() - (rec.opened || Date.now())
         rec.opened = Date.now()
         if (rec.location?.cfi) await pag.openCfi(rec.location.cfi)
         else await pag.open(rec.location?.index ?? 0, rec.location?.fraction ?? 0)
+        // "Previously…": after a day or more away, ask first, then recap (retrieval beats rereading).
+        if (away > 24 * 3600 * 1000 && rec.progress > 0.002) prepareRecap()
         setTimeout(() => { if (!panel) chrome = false }, 1400)
       } catch (e) {
         error = (e as Error).message
@@ -221,6 +224,26 @@
     })
     v.doc.addEventListener('mouseleave', hideCard)
   }
+  // ---------- "Previously…" ----------
+  let recap = $state<{ stage: 'ask' | 'show'; chapter: string; lines: string[]; who: string[]; mine: string[] } | null>(null)
+  function prepareRecap() {
+    const v = pag?.current
+    if (!v || !v.ix.words.length) return
+    const k = pag!.firstWordOnPage(v), ix = v.ix, s = ix.words[k]?.s ?? 0
+    const lines: string[] = []
+    for (let i = Math.max(0, s - 3); i < s; i++) {
+      const sp = ix.sentences[i], r = v.doc.createRange()
+      r.setStart(ix.words[sp.a].sn, ix.words[sp.a].so); r.setEnd(ix.words[sp.b].en, ix.words[sp.b].eo)
+      const t = r.toString().replace(/\s+/g, ' ').trim()
+      if (t) lines.push(t.length > 220 ? t.slice(0, 220) + '…' : t)
+    }
+    // Spoiler-safe: only characters named in the text you read just before your place.
+    const b0 = ix.words[k]?.b ?? 0, before = ix.blocks.slice(Math.max(0, b0 - 25), b0 + 1).map(bl => bl.text).join(' ')
+    const who = (rec.profile?.names ?? []).filter(n => n.kind === 'person' && n.slot >= 0 && new RegExp(`(?<![A-Za-z])${n.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z])`).test(before)).slice(0, 4).map(n => n.name)
+    recap = { stage: 'ask', chapter: rec.chapter ?? '', lines, who, mine: [] }
+    listAnnotations(rec.id).then(list => { if (recap) recap = { ...recap, mine: list.filter(a => a.spine === v.index && ['0A', '09'].includes(a.color)).slice(-2).map(a => a.exact.slice(0, 140)) } })
+  }
+
   // ---------- highlights & notes ----------
   let anns = $state.raw<Annotation[]>([]) // raw: the toolbar edits these objects in place, then reassigns
   let ranges = new Map<string, Range>()
@@ -404,6 +427,22 @@
         <input class="hl-note" placeholder="Note… (Enter to save)" bind:value={noteText} onkeydown={e => { if (e.key === 'Enter') saveNote(); if (e.key === 'Escape') bar = null }} />
       {/if}
       {#if bar.ann}<span class="hl-m">{meaning(bar.ann.color)}</span>{/if}
+    </div>
+  {/if}
+  {#if recap}
+    <div class="recap glass" role="dialog" aria-label="Previously">
+      <span class="r-eyebrow">Welcome back</span>
+      <b class="r-title">{rec.title}</b>
+      {#if recap.chapter}<span class="r-ch">{recap.chapter}</span>{/if}
+      {#if recap.stage === 'ask'}
+        <p class="r-q">Before the recap: what happened last? Take a moment to recall it.</p>
+        <div class="r-actions"><button class="pill" onclick={() => recap && (recap = { ...recap, stage: 'show' })}>Show recap</button><button class="r-skip" onclick={() => (recap = null)}>Just read</button></div>
+      {:else}
+        {#if recap.lines.length}<div class="r-lines">{#each recap.lines as l}<p>{l}</p>{/each}</div>{/if}
+        {#if recap.mine.length}<span class="r-label">Your marks</span>{#each recap.mine as m}<p class="r-mine">“{m}”</p>{/each}{/if}
+        {#if recap.who.length}<span class="r-label">With</span><p class="r-who">{recap.who.join(' · ')}</p>{/if}
+        <div class="r-actions"><button class="pill" onclick={() => (recap = null)}>Continue reading</button></div>
+      {/if}
     </div>
   {/if}
   {#if card}
@@ -590,6 +629,19 @@
   @media (hover: hover) and (pointer: fine) { .pad { opacity: .55; } .pad:hover, .pad.held { opacity: 1; } }
   @keyframes padIn { from { opacity: 0; transform: scale(.8); } }
   @keyframes ring { from { transform: scale(.96); opacity: .9; } to { transform: scale(1.15); opacity: 0; } }
+  .recap { position: absolute; z-index: 7; left: 50%; top: 50%; translate: -50% -50%; width: min(440px, calc(100vw - 32px)); max-height: 80dvh; overflow: auto;
+    padding: var(--s5); border-radius: 24px; display: grid; gap: var(--s2); animation: cardIn .35s var(--ease); }
+  .r-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  .r-title { font: 600 20px/1.2 var(--serif); }
+  .r-ch { font: italic 14px var(--serif); color: var(--muted); }
+  .r-q { font: 16px/1.5 var(--serif); margin: var(--s2) 0; }
+  .r-lines p, .r-mine { font: 15px/1.55 var(--serif); margin: 0 0 var(--s2); }
+  .r-lines { border-left: 2px solid var(--line); padding-left: var(--s3); }
+  .r-label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: var(--s2); }
+  .r-mine { font-style: italic; }
+  .r-who { margin: 0; font-size: 14px; }
+  .r-actions { display: flex; gap: var(--s3); align-items: center; margin-top: var(--s3); }
+  .r-skip { border: 0; background: none; color: var(--muted); font-size: 14px; }
   .hl-bar { position: fixed; z-index: 6; width: 300px; padding: 6px; border-radius: 14px; transform: translateY(-100%); animation: cardIn .2s var(--ease); }
   .hl-bar.below { transform: none; }
   .hl-row { display: flex; align-items: center; gap: 2px; }

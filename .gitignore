@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.DS_Store
+*.epub
+# Docs + agent context live on the `docs` branch (worktree at .docs/), see README.
+.docs/
+docs
+CLAUDE.md

@@ -1,0 +1,11 @@
+{
+  "name": "pubre",
+  "short_name": "pubre",
+  "description": "A feature-rich, engaging EPUB reader.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#f7f5f2",
+  "theme_color": "#f7f5f2",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

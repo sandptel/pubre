@@ -1,0 +1,936 @@
+<meta charset="utf-8">
+<title>The Living Book</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,300..800;1,7..72,300..800&display=swap">
+<style>
+/* Layout: one long field guide; a sticky "I'm reading" dial drives every live prototype on the page. */
+:root {
+  /* pubre Paper mode, base16 */
+  --b00:#f3f1ec; --b01:#eae7e0; --b02:#dcd8cf; --b03:#b3ada2; --b04:#7d776d; --b05:#24221f; --b06:#171614;
+  --b08:#b8433a; --b09:#c4572a; --b0A:#a87b12; --b0B:#4f7d3a; --b0C:#3b7f7a; --b0D:#3a65a8; --b0E:#7d529e; --b0F:#8a5a3c;
+  --bg:var(--b00); --surface:var(--b01); --line:var(--b02); --muted:var(--b04); --fg:var(--b05); --accent:var(--b09);
+  --cool:#2f4f86; --warm:#d39b1d; --hair:color-mix(in srgb,var(--fg) 12%,transparent);
+  --serif:"Literata", "Iowan Old Style", Georgia, serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --spring:linear(0,.009,.035 2.1%,.141 4.4%,.723 12.9%,.938 16.7%,1.017 19.4%,1.061 22.2%,1.077 25.3%,1.068 29.4%,1.016 37.9%,.997 45.6%,.994 53.8%,1.001 73.5%,1);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  /* pubre Focus mode */
+  --b00:#1d1b18; --b01:#26231f; --b02:#332f29; --b03:#5c564c; --b04:#9a9183; --b05:#e6dccb; --b06:#f0e8da;
+  --b08:#e8806f; --b09:#f0a066; --b0A:#e6c170; --b0B:#a9c27d; --b0C:#86c0b0; --b0D:#8fb0d8; --b0E:#c8a0d0; --b0F:#c08a60;
+  --cool:#6f8fd0; --warm:#f2c25a; color-scheme:dark; } }
+:root[data-theme="dark"] {
+  --b00:#1d1b18; --b01:#26231f; --b02:#332f29; --b03:#5c564c; --b04:#9a9183; --b05:#e6dccb; --b06:#f0e8da;
+  --b08:#e8806f; --b09:#f0a066; --b0A:#e6c170; --b0B:#a9c27d; --b0C:#86c0b0; --b0D:#8fb0d8; --b0E:#c8a0d0; --b0F:#c08a60;
+  --cool:#6f8fd0; --warm:#f2c25a; color-scheme:dark; }
+* { box-sizing:border-box }
+body { background:var(--bg); color:var(--fg); font:16px/1.6 var(--serif); margin:0; -webkit-font-smoothing:antialiased }
+.wrap { max-width:1080px; margin:0 auto; padding-inline:clamp(16px,4vw,40px); padding-block:24px 96px }
+h1,h2,h3 { font-family:var(--serif); text-wrap:balance; margin:0 }
+h1 { font-size:clamp(40px,7vw,76px); font-weight:300; letter-spacing:-.025em; line-height:1 }
+h1 em { font-weight:600; font-style:italic; color:var(--accent) }
+h2 { font-size:clamp(26px,3.6vw,36px); font-weight:500; letter-spacing:-.01em; line-height:1.15 }
+h3 { font-size:19px; font-weight:600; line-height:1.3 }
+p { margin:0 }
+.lede { font-size:clamp(17px,2vw,20px); color:var(--muted); max-width:62ch; margin-top:16px; font-weight:350 }
+.label { font:600 11px/1 var(--sans); letter-spacing:.12em; text-transform:uppercase; color:var(--muted) }
+.mono { font-variant-numeric:tabular-nums }
+.sans { font-family:var(--sans) }
+a { color:var(--accent) }
+button { font:inherit; color:inherit }
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px }
+
+header.top { display:flex; justify-content:space-between; align-items:center; gap:16px; padding-bottom:28px }
+.brand { font:600 13px var(--sans); letter-spacing:.04em; display:flex; align-items:center; gap:8px }
+.brand i { width:22px; height:22px; border-radius:6px; background:var(--accent); display:inline-block }
+
+/* ---------- dial ---------- */
+.dial { position:sticky; top:env(safe-area-inset-top,0px); z-index:5; margin:28px calc(-1 * clamp(16px,4vw,40px)) 0;
+  padding:12px clamp(16px,4vw,40px); background:color-mix(in srgb,var(--bg) 86%,transparent);
+  backdrop-filter:blur(14px) saturate(1.4); -webkit-backdrop-filter:blur(14px) saturate(1.4); border-bottom:.5px solid var(--hair) }
+.dial-row { display:flex; align-items:center; gap:14px; flex-wrap:wrap; font-family:var(--sans); font-size:13px }
+.dial-row input[type=range] { flex:1; min-width:160px; accent-color:var(--accent) }
+.dial-now { min-width:0; flex:1 1 220px }
+.dial-now b { font:600 15px var(--serif); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.toggle { display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none }
+.toggle input { appearance:none; width:38px; height:22px; border-radius:11px; background:color-mix(in srgb,var(--fg) 18%,transparent); position:relative; margin:0; cursor:pointer; transition:background .25s }
+.toggle input::before { content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgb(0 0 0/.3); transition:transform .4s var(--spring) }
+.toggle input:checked { background:var(--accent) }
+.toggle input:checked::before { transform:translateX(16px) }
+
+/* ---------- hero capsule ---------- */
+.hero-cap { margin-top:28px; padding:22px clamp(14px,2.4vw,24px) 18px; border-radius:26px; background:var(--surface);
+  box-shadow:0 0 0 .5px var(--hair), 0 20px 50px -24px rgb(0 0 0/.35) }
+.cap-meta { display:flex; justify-content:space-between; gap:12px; font:13px var(--sans); margin-bottom:10px }
+.cap-meta b { font-weight:600 }
+.cap-scroll { overflow-x:auto; margin-inline:-4px; padding-inline:4px; scrollbar-width:none }
+.cap-svg { min-width:640px; width:100%; height:auto; display:block; overflow:visible; touch-action:none; cursor:crosshair }
+.legend { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:12px; font:12px var(--sans); color:var(--muted) }
+.legend span { display:inline-flex; align-items:center; gap:6px }
+.legend i { width:18px; height:6px; border-radius:3px; display:inline-block }
+.peek { margin-top:16px; display:grid; grid-template-columns:auto 1fr; gap:18px; align-items:start; min-height:120px }
+.peek svg.fp { width:96px; height:96px }
+.peek h3 { margin-bottom:4px }
+.chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px }
+.chip { font:600 12px var(--sans); padding:4px 10px 4px 4px; border-radius:999px; background:var(--bg); display:inline-flex; align-items:center; gap:6px; border:0; cursor:pointer;
+  transition:transform .35s var(--spring) }
+.chip:hover { transform:translateY(-2px) }
+.chip .av { width:20px; height:20px; border-radius:50%; display:grid; place-items:center; color:#fff; font-size:10px }
+.chip.unknown .av { background:var(--b03) !important }
+.stat { font:12.5px var(--sans); color:var(--muted); display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:6px }
+.stat b { color:var(--fg); font-weight:600 }
+.sw { display:inline-block; width:10px; height:10px; border-radius:3px; vertical-align:-1px; box-shadow:inset 0 0 0 .5px var(--hair) }
+
+/* ---------- sections ---------- */
+section.cat { margin-top:88px }
+.cat-head { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; margin-bottom:28px; max-width:68ch }
+.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:20px }
+.card { background:var(--surface); border-radius:22px; padding:20px; display:flex; flex-direction:column; gap:12px; min-width:0 }
+.card.wide { grid-column:1/-1 }
+.card p.d { font-size:15px; color:color-mix(in srgb,var(--fg) 82%,var(--bg)) }
+.meta { display:flex; flex-wrap:wrap; gap:8px; align-items:center; font:12px var(--sans); color:var(--muted) }
+.dots { display:inline-flex; gap:3px; vertical-align:middle }
+.dots i { width:7px; height:7px; border-radius:50%; background:var(--line) }
+.dots i.on { background:var(--accent) }
+.tag { padding:2px 8px; border-radius:6px; background:var(--bg); font-weight:600; color:var(--fg) }
+.tag.w1 { background:color-mix(in srgb,var(--b0B) 18%,var(--bg)) }
+.tag.w2 { background:color-mix(in srgb,var(--b0D) 16%,var(--bg)) }
+.tag.w3 { background:color-mix(in srgb,var(--b0E) 16%,var(--bg)) }
+.viz { background:var(--bg); border-radius:14px; padding:14px; min-height:120px; position:relative; overflow:hidden }
+.note { font:12px/1.5 var(--sans); color:var(--muted) }
+.replay { align-self:flex-start; border:0; background:var(--bg); border-radius:999px; padding:6px 14px; font:600 12px var(--sans); cursor:pointer; transition:transform .3s var(--spring) }
+.replay:active { transform:scale(.94) }
+
+/* roadmap */
+.waves { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:20px; margin-top:28px }
+.wave { border-radius:22px; padding:20px; background:var(--surface); display:flex; flex-direction:column; gap:12px }
+.wave ol { margin:0; padding:0; list-style:none; display:grid; gap:8px; font:14px var(--sans) }
+.wave li { display:grid; grid-template-columns:1fr auto auto; gap:10px; align-items:center }
+.wave .eff { font:600 11px var(--sans); color:var(--muted); width:16px; text-align:center }
+
+/* fingerprints gallery */
+.fps { display:grid; grid-template-columns:repeat(auto-fill,minmax(34px,1fr)); gap:4px }
+.fps svg { width:100%; aspect-ratio:1; display:block; border-radius:6px; transition:transform .3s var(--spring), opacity .3s }
+.fps svg:hover { transform:scale(1.6); position:relative; z-index:1; background:var(--surface) }
+.fps svg.unread { opacity:.28 }
+.fps svg.cur { box-shadow:0 0 0 2px var(--accent) }
+
+/* opener */
+.page { aspect-ratio:3/4; max-width:320px; margin:0 auto; background:var(--b00); border-radius:6px; padding:28px 26px; box-shadow:0 1px 2px rgb(0 0 0/.08),0 12px 30px -14px rgb(0 0 0/.35); position:relative; overflow:hidden; font-size:12.5px; line-height:1.55; transition:background .8s var(--ease), color .8s var(--ease) }
+.page .num { font:600 10px var(--sans); letter-spacing:.2em; text-transform:uppercase; color:var(--muted) }
+.page h4 { margin:6px 0 14px; font:600 22px/1.15 var(--serif); text-wrap:balance }
+.page .drop::first-letter { float:left; font-size:3.4em; line-height:.85; padding:4px 6px 0 0; font-weight:700; color:var(--accent) }
+.page.nocturne { background:#16151a; color:#d9d3c7 } .page.nocturne h4 { font-style:italic; font-weight:400 }
+.page.nocturne .drop::first-letter { color:#9db4e6 }
+.page.daylight .rule { height:2px; background:linear-gradient(90deg,var(--warm),transparent); margin-bottom:12px }
+.page.stage h4 { font-family:var(--sans); letter-spacing:.06em; text-transform:uppercase; font-size:16px }
+.page.swell { line-height:1.85 }
+.preset { font:600 11px var(--sans); color:var(--accent); letter-spacing:.08em; text-transform:uppercase }
+
+/* kinetic */
+.kin { font:italic 300 clamp(19px,2.2vw,24px)/1.35 var(--serif); min-height:2.8em; display:flex; flex-wrap:wrap; gap:0 .28em; align-content:center; justify-content:center; text-align:center }
+.kin span { display:inline-block }
+
+/* constellation, sparks */
+.const svg { width:100%; height:auto; display:block }
+.spark { display:inline-block; padding:3px 9px; margin:3px; border-radius:999px; font:italic 15px var(--serif); background:color-mix(in srgb,var(--warm) 14%,transparent); animation:glow 2.6s ease-in-out infinite; animation-delay:calc(var(--i)*.35s) }
+@keyframes glow { 50% { box-shadow:0 0 0 1px color-mix(in srgb,var(--warm) 60%,transparent),0 0 18px color-mix(in srgb,var(--warm) 45%,transparent) } }
+.lens p { font-size:15px; line-height:1.7 }
+.nm { border-radius:3px; padding:0 2px; transition:background .4s, box-shadow .4s }
+.lens.on .nm { background:color-mix(in srgb,var(--c) 22%,transparent); box-shadow:inset 0 -2px 0 var(--c) }
+
+/* atmosphere */
+.drift { display:flex; height:28px; border-radius:8px; overflow:hidden }
+.drift i { flex:1; box-shadow:inset 0 0 0 .25px var(--hair) }
+.drift { box-shadow:inset 0 0 0 .5px var(--hair) }
+.mini { height:200px; border-radius:12px; padding:18px; font-size:13px; position:relative; overflow:hidden; background:var(--b00); transition:background 1.2s var(--ease), color 1.2s var(--ease) }
+.mini canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none }
+.mini .ttl { font:600 15px var(--serif); margin-bottom:6px; color:var(--acc,var(--accent)); transition:color 1.2s var(--ease) }
+
+/* memory */
+.prev { border-radius:18px; padding:18px; background:var(--bg); display:grid; gap:10px }
+.prev q { font-style:italic; quotes:none; color:color-mix(in srgb,var(--fg) 85%,var(--bg)) }
+.spiral { width:100%; max-width:340px; aspect-ratio:1; display:block; margin:0 auto }
+
+/* animations */
+.anims { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:16px }
+.anim { background:var(--surface); border-radius:20px; padding:16px; display:grid; gap:10px; align-content:start }
+.stagebox { height:120px; border-radius:12px; background:var(--bg); position:relative; overflow:hidden; display:grid; place-items:center }
+.wedges-demo { display:flex; gap:3px; width:80%; align-items:center }
+.wedges-demo i { flex:1; height:6px; border-radius:3px; background:var(--line) }
+.ink { font:600 26px var(--serif) }
+.tw { font:14px/1.5 "Courier New",monospace; padding:12px; white-space:pre-wrap }
+
+/* build */
+.flow { display:flex; flex-wrap:wrap; align-items:center; gap:10px; font:13px var(--sans) }
+.flow b { padding:10px 14px; border-radius:12px; background:var(--surface); font-weight:600 }
+.flow span { color:var(--muted) }
+footer { margin-top:96px; font:13px var(--sans); color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px }
+
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:1ms!important; transition-duration:1ms!important } }
+
+[hidden] { display:none !important }
+/* ---------- parts nav ---------- */
+.parts { display:flex; flex-wrap:wrap; gap:8px; margin-top:22px }
+.parts a { text-decoration:none; color:var(--fg); background:var(--surface); padding:8px 14px; border-radius:999px; font-size:13px; transition:transform .35s var(--spring), background-color .2s }
+.parts a:hover { transform:translateY(-2px); background:color-mix(in srgb,var(--accent) 12%,var(--surface)) }
+.parts a b { color:var(--accent); margin-right:4px; font-family:var(--serif) }
+ul.plain { margin:0; padding-left:1.1em; display:grid; gap:6px }
+
+/* ---------- reading guide ---------- */
+.guide { gap:16px; position:relative }
+.g-bar { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; font-size:13px }
+.g-spacer { flex:1 }
+.g-start { display:inline-flex; align-items:center; gap:8px; border:0; border-radius:999px; padding:9px 16px; font:600 13px var(--sans); cursor:pointer;
+  background:var(--accent); color:var(--bg); transition:transform .35s var(--spring), filter .2s }
+.g-start:active { transform:scale(.95) }
+.g-start[aria-pressed=true] { background:var(--bg); color:var(--fg); box-shadow:inset 0 0 0 1.5px var(--accent) }
+.g-dot { width:8px; height:8px; border-radius:50%; background:currentColor }
+.g-start[aria-pressed=true] .g-dot { background:var(--accent); animation:breathe 1.6s ease-in-out infinite }
+@keyframes breathe { 50% { transform:scale(1.6); opacity:.5 } }
+.g-pill { padding:4px 10px; border-radius:999px; background:var(--bg); font-size:12px; color:var(--muted) }
+.g-pill.flash { animation:flash .7s var(--ease) }
+@keyframes flash { 30% { background:color-mix(in srgb,var(--accent) 25%,var(--bg)); color:var(--fg) } }
+.g-text { position:relative; font:19px/1.75 var(--serif); max-width:64ch; margin:0 auto; padding:8px 4px; outline:none; border-radius:10px; cursor:text; text-align:justify; hyphens:auto }
+.g-text p { margin:0 0 1em; text-indent:1.5em }
+.g-text:focus-visible { box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 40%,transparent) }
+.g-cursor { position:absolute; left:0; top:0; height:3px; width:0; border-radius:2px; background:var(--accent); opacity:0; pointer-events:none;
+  box-shadow:0 0 10px color-mix(in srgb,var(--accent) 60%,transparent); transition-property:transform,width,opacity; transition-timing-function:var(--spring); transition-duration:.3s; will-change:transform }
+.g-cursor.on { opacity:1 }
+.g-cursor.glide { transition-timing-function:linear }
+::highlight(g-sent) { background-color:color-mix(in srgb,var(--fg) var(--sentA),transparent) }
+::highlight(g-para) { background-color:color-mix(in srgb,var(--fg) 5%,transparent) }
+::highlight(g-read) { color:color-mix(in srgb,var(--fg) 52%,var(--surface)) }
+::highlight(g-word) { color:var(--fg) }
+.g-touch { display:flex; justify-content:center; align-items:center; gap:10px; padding-top:4px }
+.g-btn { width:44px; height:44px; border-radius:50%; border:0; background:var(--bg); display:grid; place-items:center; cursor:pointer; color:var(--fg); transition:transform .35s var(--spring) }
+.g-btn:active { transform:scale(.88) }
+.g-btn svg { width:20px; height:20px }
+.g-hold { position:relative; height:56px; padding:0 26px; border-radius:999px; border:0; background:var(--fg); color:var(--bg); font:600 14px var(--sans); cursor:pointer;
+  touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; transition:transform .35s var(--spring) }
+.g-hold.held { transform:scale(.95) }
+.g-ring { position:absolute; inset:-5px; border-radius:999px; border:2px solid var(--accent); opacity:0; transition:opacity .2s }
+.g-hold.held .g-ring { opacity:1; animation:ring 1.2s ease-out infinite }
+@keyframes ring { from { transform:scale(.96); opacity:.9 } to { transform:scale(1.12); opacity:0 } }
+.g-toast { position:absolute; left:50%; bottom:86px; translate:-50% 0; padding:8px 14px; border-radius:999px; background:var(--fg); color:var(--bg); font-size:13px;
+  opacity:0; transform:translateY(8px); transition:opacity .25s, transform .45s var(--spring); pointer-events:none; white-space:nowrap }
+.g-toast.show { opacity:1; transform:none }
+table.keys { width:100%; border-collapse:collapse; font-size:13px }
+.keys td { padding:6px 0; border-top:.5px solid var(--hair); vertical-align:top }
+.keys tr:first-child td { border-top:0 }
+.keys td:first-child { white-space:nowrap; padding-right:12px }
+kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; background:var(--bg); box-shadow:inset 0 -1.5px 0 var(--hair), 0 0 0 .5px var(--hair); font:600 12px var(--sans); text-align:center; margin:1px 1px }
+
+/* ---------- lenses ---------- */
+.lensdemo { position:relative }
+.l-text { font:18px/1.75 var(--serif); max-width:64ch; margin:0 auto; text-align:justify; hyphens:auto }
+.l-text p { margin:0 0 .9em; text-indent:1.5em }
+::highlight(n-Ahab) { color:var(--b08); text-decoration:underline 2px color-mix(in srgb,var(--b08) 55%,transparent); text-underline-offset:4px }
+::highlight(n-Stubb) { color:var(--b0A); text-decoration:underline 2px color-mix(in srgb,var(--b0A) 55%,transparent); text-underline-offset:4px }
+::highlight(n-Flask) { color:var(--b0C); text-decoration:underline 2px color-mix(in srgb,var(--b0C) 55%,transparent); text-underline-offset:4px }
+::highlight(n-Starbuck) { color:var(--b0D); text-decoration:underline 2px color-mix(in srgb,var(--b0D) 55%,transparent); text-underline-offset:4px }
+::highlight(hard) { text-decoration:underline dotted 2px var(--accent); text-underline-offset:5px }
+::highlight(speech) { color:color-mix(in srgb,var(--fg) 55%,var(--b0C)) }
+::highlight(u-08) { background-color:color-mix(in srgb,var(--b08) 26%,transparent) }
+::highlight(u-09) { background-color:color-mix(in srgb,var(--b09) 26%,transparent) }
+::highlight(u-0A) { background-color:color-mix(in srgb,var(--b0A) 30%,transparent) }
+::highlight(u-0B) { background-color:color-mix(in srgb,var(--b0B) 26%,transparent) }
+::highlight(u-0D) { background-color:color-mix(in srgb,var(--b0D) 24%,transparent) }
+::highlight(u-0E) { background-color:color-mix(in srgb,var(--b0E) 24%,transparent) }
+::highlight(s-u) { text-decoration:underline 2px currentColor; text-underline-offset:4px }
+::highlight(s-w) { text-decoration:underline wavy 1.5px var(--b08); text-underline-offset:4px }
+.l-text .hb { font-weight:700 }
+.l-text .hi { font-style:italic }
+.glassy { position:absolute; z-index:6; background:color-mix(in srgb,var(--surface) 92%,transparent); backdrop-filter:blur(18px) saturate(1.5); -webkit-backdrop-filter:blur(18px) saturate(1.5);
+  border-radius:14px; box-shadow:0 0 0 .5px var(--hair),0 14px 34px -10px rgb(0 0 0/.35); transform-origin:50% 100% }
+.glassy:not([hidden]) { animation:pop .32s var(--spring) }
+@keyframes pop { from { opacity:0; transform:translateY(6px) scale(.9) } }
+.hl-bar { display:flex; align-items:center; gap:4px; padding:6px; flex-wrap:wrap; max-width:calc(100% - 16px) }
+.hl-bar button { width:34px; height:34px; border:0; border-radius:9px; background:none; cursor:pointer; display:grid; place-items:center; font:16px var(--serif); color:var(--fg) }
+.hl-bar button:hover, .hl-bar button.on { background:color-mix(in srgb,var(--fg) 10%,transparent) }
+.hl-bar svg { width:17px; height:17px }
+.hl-colors { display:flex; gap:2px }
+.hl-colors button i { width:18px; height:18px; border-radius:50%; display:block; box-shadow:inset 0 0 0 .5px rgb(0 0 0/.2) }
+.hl-sep { width:.5px; height:22px; background:var(--hair); margin:0 4px }
+.hl-note { flex-basis:100%; border:0; border-radius:9px; padding:8px 10px; background:var(--bg); font:14px var(--sans); color:var(--fg); outline:none }
+.tip { padding:12px 14px; max-width:280px; font:13.5px/1.5 var(--sans); pointer-events:none }
+.tip b.w { font:600 17px var(--serif) }
+.tip .def { margin-top:4px }
+.tip .meta2 { margin-top:6px; font-size:11.5px; color:var(--muted) }
+.tip .av { width:26px; height:26px; border-radius:50%; display:inline-grid; place-items:center; color:#fff; font:600 13px var(--serif); vertical-align:middle; margin-right:6px }
+
+/* ---------- flow ---------- */
+@media (max-width:600px) { .g-text, .l-text { text-align:left; hyphens:manual; font-size:17px } .g-touch { gap:6px } }
+.g-hold { white-space:nowrap }
+.seg { display:inline-flex; background:var(--bg); border-radius:9px; padding:2px }
+.seg button { border:0; background:none; border-radius:7px; padding:5px 10px; font:12.5px var(--sans); cursor:pointer; color:var(--fg); transition:background-color .25s var(--ease) }
+.seg button.on { background:var(--surface); box-shadow:0 1px 3px rgb(0 0 0/.15); font-weight:600 }
+::highlight(g-dim) { color:color-mix(in srgb,var(--fg) 30%,var(--surface)) }
+::highlight(s-b) { -webkit-text-stroke-width:.035em; -webkit-text-stroke-color:currentColor; text-shadow:.02em 0 currentColor }
+.g-cast { display:inline-flex; gap:4px; align-items:center }
+.g-cast .av { width:22px; height:22px; border-radius:50%; display:grid; place-items:center; color:#fff; font:600 11px var(--serif) }
+.g-text .mdot { position:absolute }
+.open-q { box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 45%,transparent) }
+.flow2 { list-style:none; margin:0; padding:0; position:relative; display:grid; gap:14px }
+.flow2::before { content:''; position:absolute; left:23px; top:24px; bottom:24px; width:2px; background:linear-gradient(var(--accent),color-mix(in srgb,var(--accent) 15%,transparent)) }
+.flow2 li { position:relative; display:grid; grid-template-columns:48px 1fr; gap:14px; align-items:start }
+.flow2 .n { width:48px; height:48px; border-radius:50%; display:grid; place-items:center; background:var(--surface); box-shadow:0 0 0 2px var(--accent) inset; font:600 18px var(--serif); color:var(--accent); position:relative; z-index:1; background-clip:padding-box }
+.flow2 li.now .n { background:var(--accent); color:var(--bg) }
+.flow2 .box { background:var(--surface); border-radius:20px; padding:16px 18px; display:grid; gap:8px; min-width:0 }
+.flow2 .top { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 12px }
+.flow2 h3 { font-size:19px }
+.flow2 .eff { font:600 11px var(--sans); color:var(--muted); letter-spacing:.06em; text-transform:uppercase }
+.flow2 .ship { font:14px/1.5 var(--sans); display:flex; flex-wrap:wrap; gap:6px }
+.flow2 .ship span { padding:3px 10px; border-radius:999px; background:var(--bg) }
+.flow2 .you { font-size:15px; color:color-mix(in srgb,var(--fg) 85%,var(--bg)) }
+.flow2 .deps { display:flex; flex-wrap:wrap; gap:6px; font:12px var(--sans); color:var(--muted) }
+.flow2 .deps i { font-style:normal; padding:2px 8px; border-radius:6px; background:color-mix(in srgb,var(--accent) 12%,transparent); color:var(--fg) }
+.flow2 li.side .n { width:34px; height:34px; margin-left:7px; font-size:13px; box-shadow:0 0 0 1.5px var(--muted) inset; color:var(--muted) }
+.flow2 li.side .box { background:transparent; box-shadow:inset 0 0 0 1px var(--hair) }
+/* ---------- grammar ---------- */
+@property --bloom { syntax:'<length>'; inherits:true; initial-value:0px }
+@property --breathe { syntax:'<percentage>'; inherits:true; initial-value:0% }
+@property --sentA { syntax:'<percentage>'; inherits:true; initial-value:7% }
+.gram { background:var(--surface); border-radius:22px; padding:6px 20px; display:grid }
+.gh, .gr { display:grid; grid-template-columns:130px minmax(0,1.2fr) minmax(0,1.3fr) 190px; gap:16px; align-items:center; padding:14px 0 }
+.gh { font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); padding:12px 0 8px }
+.gr { border-top:.5px solid var(--hair); font-size:14.5px }
+.gr > b { font:600 15px var(--serif) }
+.gr .spec { font:17px/1.6 var(--serif) }
+.verb { border:0; border-radius:12px; background:var(--bg); padding:8px 12px; text-align:left; cursor:pointer; font:600 13px var(--sans); color:var(--fg); display:grid; gap:2px; transition:transform .35s var(--spring) }
+.verb small { font-weight:400; font-size:11.5px; color:var(--muted); line-height:1.35 }
+.verb:not(.static):active { transform:scale(.96) }
+.verb:not(.static)::before { content:'▶ '; color:var(--accent); font-size:10px }
+.verb.static { cursor:default; background:transparent }
+.sp-sent { background:color-mix(in srgb,var(--fg) 9%,transparent); border-radius:3px; padding:1px 2px }
+.sp-glide span, .sp-settle span { display:inline-block; position:relative }
+.sp-margin { display:flex; align-items:center; gap:10px; justify-content:space-between; max-width:240px }
+.mdot { width:7px; height:7px; border-radius:50%; background:var(--accent); display:inline-block; flex:none }
+.wash { padding:1px 6px; border-radius:4px; font-size:15px; margin-right:4px; display:inline-block; margin-bottom:3px }
+.legend6 { display:grid; grid-template-columns:1fr 1fr; gap:8px; font:13px var(--sans) }
+.legend6 span { display:flex; align-items:center; gap:8px }
+.legend6 i { width:22px; height:14px; border-radius:4px; display:inline-block }
+.spark { position:absolute; width:6px; height:6px; border-radius:50%; pointer-events:none; z-index:9 }
+::highlight(g-bloom) { text-shadow:0 0 var(--bloom) currentColor }
+::highlight(g-breathe) { background-color:color-mix(in srgb,var(--fg) var(--breathe),transparent) }
+::highlight(n-Ishmael) { color:var(--b0E); text-decoration:underline 2px color-mix(in srgb,var(--b0E) 55%,transparent); text-underline-offset:4px }
+.tip.peek { pointer-events:none; padding:8px 12px; font-size:12.5px; max-width:240px }
+@media (max-width:760px) {
+  .gh { display:none }
+  .gr { grid-template-columns:1fr; gap:6px; padding:16px 0 }
+  .verb { justify-self:start }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <span class="brand"><i></i>pubre · feature proposal</span>
+    <span class="label">Prototyped on real data from Moby-Dick</span>
+  </header>
+
+  <h1>The <em>living</em> book</h1>
+  <p class="lede">This is the working plan for pubre’s next stretch. <b>Part I</b> sets one visual language: what colour, underline, wash, weight, opacity and motion each mean. Every later feature speaks it. <b>Part II</b> is the reading guide, a finger that only moves when you tell it to. <b>Part III</b> is words that explain themselves, plus your highlights. <b>Part IV</b> is the build order, and <b>Part V</b> is the idea bank. Demos run on real text from <i>Moby-Dick</i>. Comment on anything; I’ll address all comments in one pass.</p>
+  <nav class="parts sans" aria-label="Parts">
+    <a href="#grammar"><b>I</b> Visual language</a><a href="#guide"><b>II</b> Reading guide</a><a href="#lenses"><b>III</b> Word lenses</a><a href="#flow"><b>IV</b> Build order</a><a href="#ideas"><b>V</b> Idea bank</a>
+  </nav>
+
+  <!-- ============ PART I: VISUAL GRAMMAR ============ -->
+  <section class="cat" id="grammar">
+    <div class="cat-head"><span class="label">Part I · One visual language</span>
+      <h2>Every mark means one thing, everywhere</h2>
+      <p class="lede" style="margin:0">Before adding features, pubre needs a grammar. Each typographic channel carries exactly one kind of meaning, the same in the guide, the lenses, your highlights and the capsule. Learn it once and the page explains itself. Motion follows the same rule: each meaning has one verb, and it only plays where your cursor is.</p></div>
+    <div class="gram" id="gram">
+      <div class="gh sans"><span>Channel</span><span>Means</span><span>Looks like</span><span>Motion at the cursor</span></div>
+      <div class="gr" data-verb="bloom"><b>Ink colour</b><span><b>Who.</b> A person or a speaking voice. Each character keeps one base16 hue for the whole book.</span>
+        <span class="spec"><span class="sp" style="color:var(--b08)">Ahab</span>, <span class="sp" style="color:var(--b0D)">Starbuck</span>, <span class="sp" style="color:var(--b0A)">Stubb</span> · <span style="color:color-mix(in srgb,var(--fg) 55%,var(--b0C))">“Sing out for him!”</span></span>
+        <button class="verb sans">Bloom<small>a soft glow in their colour; a first mention throws a spark</small></button></div>
+      <div class="gr" data-verb="draw"><b>Underline</b><span><b>Tell me more.</b> Hover or tap for help. The line’s style says what kind.</span>
+        <span class="spec"><span class="sp" style="text-decoration:underline dotted 2px var(--accent);text-underline-offset:5px">spleen</span> definition · <span class="sp" style="text-decoration:underline dashed 1.5px var(--muted);text-underline-offset:5px">Nantucket</span> term or place · <span class="sp" style="text-decoration:underline double 1.5px var(--muted);text-underline-offset:4px">rope-yarn</span> note</span>
+        <button class="verb sans">Draw<small>the line draws in and a peek card rises, only while guiding</small></button></div>
+      <div class="gr" data-verb="breathe"><b>Coloured wash</b><span><b>Yours.</b> Highlights, one colour per meaning (renamable). The system never uses a coloured wash.</span>
+        <span class="spec" id="washes"></span>
+        <button class="verb sans">Breathe<small>the wash brightens once as the cursor passes; a note peeks</small></button></div>
+      <div class="gr" data-verb="glide"><b>Neutral wash</b><span><b>Where you are.</b> The sentence (or line) you’re reading, plus the cursor bar.</span>
+        <span class="spec"><span class="sp-sent">Call me Ishmael.</span> <span class="sp-glide"><span>Some</span> <span>years</span> <span>ago</span></span></span>
+        <button class="verb sans">Glide<small>the wash slides to the next sentence; the bar follows words</small></button></div>
+      <div class="gr" data-verb="none"><b>Weight &amp; slant</b><span><b>Your emphasis.</b> Bold and italic are only ever yours. The author’s own italics are never changed.</span>
+        <span class="spec"><span style="-webkit-text-stroke:.035em currentColor">bold</span> (a stroke, no reflow) · <i>italic</i></span>
+        <span class="verb sans static">Still<small>emphasis never moves</small></span></div>
+      <div class="gr" data-verb="settle"><b>Opacity</b><span><b>Time.</b> Faded = already read (optional). Hidden = ahead of you; spoiler-gated things show shape only.</span>
+        <span class="spec"><span class="sp-settle"><span>the</span> <span>watery</span> <span>part</span> <span>of</span> <span>the</span> <span>world</span></span></span>
+        <button class="verb sans">Settle<small>words fade gently behind the cursor</small></button></div>
+      <div class="gr" data-verb="spark"><b>Margin mark</b><span><b>Notes &amp; structure.</b> A dot for a note, a tick at a chapter end, a ribbon for a bookmark.</span>
+        <span class="spec sp-margin"><span>Call me Ishmael.</span><i class="mdot"></i></span>
+        <button class="verb sans">Spark<small>a dot appears with a spark; chapter ends pulse the capsule</small></button></div>
+    </div>
+    <div class="cards" style="margin-top:20px">
+      <article class="card"><h3>Rules</h3><ul class="d plain">
+        <li><b>One channel, one meaning.</b> A word can carry several channels (a name inside your highlight, under the cursor), but no channel ever means two things.</li>
+        <li><b>The system never takes your channels.</b> Coloured washes, bold and italic are reserved for you.</li>
+        <li><b>Motion only at the cursor, or where you just acted.</b> Nothing else on the page moves. Each animation plays once, under 450 ms, and reduced motion gets a still equivalent.</li>
+        <li><b>All colour comes from base16 slots</b>, so every palette and mode keeps the same grammar.</li></ul></article>
+      <article class="card"><h3>Highlight meanings</h3><p class="d">Six colours, matching the W3C annotation vocabulary so exports stay portable. Rename them freely; the colour keeps its slot.</p><div class="legend6" id="legend6"></div></article>
+      <article class="card"><h3>One intensity control</h3><p class="d">Instead of a dozen toggles, one setting in Themes &amp; Settings:</p><ul class="d plain">
+        <li><b>Quiet</b>: only yours and where you are.</li>
+        <li><b>Guided</b>: adds who and tell-me-more. This is the default.</li>
+        <li><b>Rich</b>: adds every motion verb, sparks and the living capsule.</li></ul></article>
+    </div>
+  </section>
+
+  <!-- ============ PART II: READING GUIDE ============ -->
+  <section class="cat" id="guide">
+    <div class="cat-head"><span class="label">Part II · The reading guide</span>
+      <h2>A finger that waits for you</h2>
+      <p class="lede" style="margin:0">A soft cursor rides under the word you’re on, and the sentence around it glows faintly. It never runs away. <b>Hold Space</b> and it glides at your pace; <b>let go</b> and it stops. <b>Tap</b> to step one word; <b>double-tap</b> to jump back to the start of the sentence. Arrow keys and vim motions move by word, sentence and paragraph. Try it: click the passage, then use the keys.</p></div>
+
+    <div class="card wide guide" id="g">
+      <div class="g-bar sans">
+        <button class="g-start" id="gStart" aria-pressed="false"><span class="g-dot"></span><span id="gStartL">Start guide</span></button>
+        <span class="g-pill mono" id="gSpeed" title="Your pace">238 wpm</span>
+        <span class="g-pill" id="gLearn" hidden>learning from your taps</span>
+        <span class="g-cast" id="gCast" aria-label="Characters met"></span>
+        <span class="g-spacer"></span>
+        <div class="seg" role="radiogroup" aria-label="Focus" id="gFocus"><button role="radio" aria-checked="true" data-v="sent" class="on">Sentence</button><button role="radio" aria-checked="false" data-v="line">Line focus</button><button role="radio" aria-checked="false" data-v="para">Paragraph</button></div>
+        <div class="seg" role="radiogroup" aria-label="Step" id="gUnit"><button role="radio" aria-checked="true" data-v="word" class="on">Word</button><button role="radio" aria-checked="false" data-v="phrase">Phrase</button></div>
+        <label class="toggle"><input type="checkbox" id="gRead"> Dim what’s read</label>
+      </div>
+      <div class="g-text" id="gText" tabindex="0" aria-label="Reading guide demo passage. Press Space to step, hold to glide.">
+        <div class="g-cursor" id="gCursor" aria-hidden="true"></div>
+      </div>
+      <div class="g-touch sans" aria-label="On-screen guide controls">
+        <button class="g-btn" id="gBackS" aria-label="Back to sentence start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg></button>
+        <button class="g-btn" id="gPrevW" aria-label="Previous word"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button class="g-hold" id="gHold"><span class="g-ring"></span><span>Hold to read</span></button>
+        <button class="g-btn" id="gNextW" aria-label="Next word"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="g-btn" id="gNextS" aria-label="Next sentence"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/></svg></button>
+      </div>
+      <div class="g-toast sans" id="gToast" role="status"></div>
+    </div>
+
+    <div class="cards" style="margin-top:20px">
+      <article class="card">
+        <h3>Controls</h3>
+        <table class="keys sans">
+          <tr><td><kbd>G</kbd></td><td>Guide on / off. While it’s on, Space belongs to the guide, not page turns.</td></tr>
+          <tr><td><kbd>Space</kbd> hold</td><td>Glide at your pace; stops on release, if you switch window, or if you switch tab</td></tr>
+          <tr><td><kbd>Space</kbd> tap · <kbd>→</kbd> <kbd>w</kbd></td><td>Next word (or phrase)</td></tr>
+          <tr><td><kbd>⇧ Space</kbd> · <kbd>←</kbd> <kbd>b</kbd></td><td>Back one word</td></tr>
+          <tr><td><kbd>Space</kbd><kbd>Space</kbd> · <kbd>(</kbd></td><td>Back to sentence start</td></tr>
+          <tr><td><kbd>)</kbd></td><td>Next sentence</td></tr>
+          <tr><td><kbd>↓</kbd> <kbd>↑</kbd> · <kbd>j</kbd> <kbd>k</kbd></td><td>Next / previous line</td></tr>
+          <tr><td><kbd>}</kbd> <kbd>{</kbd> · <kbd>⌃↓</kbd> <kbd>⌃↑</kbd></td><td>Next / previous paragraph</td></tr>
+          <tr><td><kbd>0</kbd> <kbd>$</kbd></td><td>Line start / end</td></tr>
+          <tr><td><kbd>p</kbd></td><td>Step by word ↔ phrase</td></tr>
+          <tr><td><kbd>[</kbd> <kbd>]</kbd> · <kbd>⌥←</kbd> <kbd>⌥→</kbd></td><td>Glide 10% slower / faster</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Leave the guide; your exact word is kept</td></tr>
+        </table>
+        <p class="note">Bindings follow Vimium’s caret mode and editor conventions. On phones, a thumb pad does the same: hold to glide, tap to step, double-tap for the sentence start, swipe for sentences and paragraphs.</p>
+      </article>
+      <article class="card">
+        <h3>Why it won’t run away</h3>
+        <p class="d">Auto-scrolling pacers fail because they keep going while your mind wanders, and getting back costs more than reading slower. Here motion needs your input. Holding is a dead-man’s switch, so the moment you look away and lift your thumb, it waits.</p>
+        <p class="d">Speed isn’t a setting you hunt for. Your taps teach it: the gap between taps, weighted by word length and punctuation, becomes your pace, and glide uses it. The same pace powers every “min left” in pubre.</p>
+      </article>
+      <article class="card open-q">
+        <h3>Open questions for you</h3>
+        <ul class="d plain">
+          <li><b>Double-tap vs. fast tapping.</b> At about 240 wpm a word lasts about 250 ms, so quick stepping taps can look like a double-tap. The demo steps immediately and, if a second tap lands within 260 ms, undoes that step and jumps to the sentence start, so there’s no wait. Alternatives: keep only <kbd>(</kbd> for this and turn double-tap off, or only count a double-tap when it’s clearly faster than your learned tap rhythm.</li>
+          <li><b>Step unit and focus style:</b> both are switchable in the demo above (Word / Phrase; Sentence / Line focus / Paragraph). Which should be the default?</li>
+          <li><b>Space while reading normally</b> turns the page. Is a <kbd>G</kbd> toggle for guide mode right, or would you rather hold a different key (for example <kbd>F</kbd>) so Space keeps paging?</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h3>What the research says</h3>
+        <ul class="d plain">
+          <li>Adults read fiction at about <b>260 wpm</b> (most between 175 and 300). That is the guide’s starting pace before it learns yours. <a href="https://www.gwern.net/doc/psychology/linguistics/2019-brysbaert.pdf">Brysbaert 2019</a></li>
+          <li>Blocking look-backs <b>hurts comprehension</b>, which is why RSVP speed-readers fail. Going back has to stay one keypress away. <a href="https://journals.sagepub.com/doi/abs/10.1177/0956797614531148">Schotter et al. 2014</a></li>
+          <li>Short lines raised dyslexic readers’ speed <b>27%</b>, halved regressions and kept comprehension the same. That supports <b>Line focus</b>. <a href="https://doi.org/10.1371/journal.pone.0071161">Schneps et al. 2013</a></li>
+          <li>No adult study shows a moving pointer improves comprehension. So the guide is a <b>focus and place-keeping aid</b>, not a speed-reading trick, and “dim what’s read” is off by default.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h3>In the real reader</h3>
+        <ul class="d plain">
+          <li>When the cursor reaches the last word on the page, the page turns and the cursor carries on.</li>
+          <li>Leaving the guide keeps your exact word (stored as a CFI) as your reading position.</li>
+          <li>The cursor is drawn over the page, not inside the book’s text, and tints are 1–3 ranges at a time, so it stays fast even with Safari’s highlight slowdown bug.</li>
+          <li>Pauses at commas, full stops and paragraph ends feel like breathing.</li>
+          <li>With reduced motion, the cursor jumps between words instead of sliding.</li>
+          <li>Later: with text-to-speech or a book’s own narration, the cursor follows the voice.</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============ PART II: LENSES ============ -->
+  <section class="cat" id="lenses">
+    <div class="cat-head"><span class="label">Part III · Word lenses &amp; highlights</span>
+      <h2>Words that explain themselves</h2>
+      <p class="lede" style="margin:0">Lenses are toggles that tint certain words and give them a tooltip on hover or tap. <b>Names</b> get their character colour and a spoiler-safe card. <b>Hard words</b> get a dotted underline and a definition. <b>Select any text</b> to highlight it in a colour that carries a meaning, add your own bold or italic, and attach a note that shows on hover. All of it follows the grammar in Part I.</p></div>
+    <div class="card wide lensdemo" id="ld">
+      <div class="g-bar sans">
+        <span class="label" id="ldCh"></span>
+        <span class="g-spacer"></span>
+        <label class="toggle"><input type="checkbox" id="lnNames" checked> Names</label>
+        <label class="toggle"><input type="checkbox" id="lnHard" checked> Hard words</label>
+        <label class="toggle"><input type="checkbox" id="lnSpeech"> Speech</label>
+      </div>
+      <div class="l-text" id="lText"></div>
+      <p class="note">Try it: hover <i>Ahab</i>, <i>Stubb</i> or a dotted word. Select a phrase to highlight it; each colour has a meaning (Key, Beautiful, Idea, Feeling, Question, Revisit).</p>
+      <div class="hl-bar glassy" id="hlBar" hidden>
+        <div class="hl-colors"></div>
+        <span class="hl-sep"></span>
+        <button data-style="b" aria-label="Bold"><b>B</b></button><button data-style="i" aria-label="Italic"><i>I</i></button>
+        <span class="hl-sep"></span>
+        <button data-act="note" aria-label="Add note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16z"/></svg></button>
+        <button data-act="del" aria-label="Remove highlight"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        <input class="hl-note" id="hlNote" placeholder="Note… (Enter to save)" hidden>
+      </div>
+      <div class="tip glassy" id="tip" role="tooltip" hidden></div>
+    </div>
+    <div class="cards" style="margin-top:20px">
+      <article class="card"><h3>How it renders</h3><p class="d">Colour washes, ink and underlines use the CSS Custom Highlight API: the book’s DOM is never touched, so pagination and CFIs stay stable. Bold is drawn as a hairline text stroke, so nothing reflows. Italic changes glyph shapes, so it wraps the text in a marked span that CFI generation skips (as epub.js does) and the page re-measures. Exports use the W3C/Readium annotation format: the 6 colours map to pink, orange, yellow, green, blue and purple, plus pubre’s own styles.</p></article>
+      <article class="card"><h3>Hard words, offline</h3><p class="d">A word is “hard” when its English frequency is below Zipf 3 (once per million words, from wordfreq) and it isn’t a name. Definitions come from Open English WordNet (CC-BY), sharded by first letters and loaded only when you hover. An online lookup is opt-in and labelled as leaving the device. The definitions in this demo are hand-written samples.</p></article>
+      <article class="card"><h3>Lenses compose</h3><p class="d">The guide, lenses and your highlights stack: the cursor rides under a tinted name inside your yellow highlight, and none of them fight. Each lens is one toggle in the menu, remembered per book. A later lens, <b>Parts of speech</b> (Immersive Reader style), loads a ~1 MB tagger only when switched on.</p></article>
+    </div>
+  </section>
+
+  <!-- ============ PART III: FLOW ============ -->
+  <section class="cat" id="flow">
+    <div class="cat-head"><span class="label">Part IV · Build order</span>
+      <h2>What I’d build, in this order</h2>
+      <p class="lede" style="margin:0">Every phase ships something you can use, and each one feeds the next. The guide’s word index and your pace feed the lenses, the capsule’s time-left and the recap card. The tooltip built for lenses is reused for character cards.</p></div>
+    <ol class="flow2" id="flow2"></ol>
+  </section>
+
+  <!-- ============ PART IV: IDEA BANK ============ -->
+  <section class="cat" id="ideas" style="margin-top:96px">
+    <div class="cat-head"><span class="label">Part V · Idea bank</span>
+      <h2>The living book</h2>
+      <p class="lede" style="margin:0">The ideas Phase 4 onward draws from. The dial below drives every prototype in this part: tell it which chapter you’re on, and it shows only what you’ve already read.</p></div>
+  </section>
+
+
+  <div class="part4">
+  <div class="dial" role="group" aria-label="Reading position">
+    <div class="dial-row">
+      <div class="dial-now"><span class="label">I’m reading</span><b id="nowTitle">—</b></div>
+      <input id="pos" type="range" min="0" max="137" value="44" aria-label="Chapter you are reading">
+      <label class="toggle"><input id="gate" type="checkbox" checked> Spoiler gate</label>
+    </div>
+  </div>
+
+  <!-- HERO: living capsule -->
+  <div class="hero-cap">
+    <div class="cap-meta"><span><b id="capChapter">—</b></span><span class="mono" id="capLeft">—</span></div>
+    <div class="cap-scroll"><svg id="cap" class="cap-svg" viewBox="0 0 1000 150" preserveAspectRatio="xMidYMid meet" aria-label="Living progress capsule"></svg></div>
+    <div class="legend">
+      <span><i style="background:linear-gradient(90deg,var(--cool),var(--line),var(--warm))"></i>chapter mood, dark → bright</span>
+      <span><i style="background:repeating-linear-gradient(90deg,var(--fg) 0 2px,transparent 2px 4px);opacity:.5"></i>dialogue texture</span>
+      <span><i style="background:var(--fg);height:2px"></i>story-shape skyline</span>
+      <span><i style="background:var(--b08)"></i>character strips</span>
+    </div>
+    <div class="peek" id="peek"></div>
+  </div>
+
+  <!-- A: capsule -->
+  <section class="cat">
+    <div class="cat-head"><span class="label">A · The capsule comes alive</span>
+      <h2>The progress bar becomes a map of the book</h2>
+      <p class="lede" style="margin:0">The wedges you already tap to jump now carry the chapter’s character. You see the shape of the story in your peripheral vision without opening a single panel.</p></div>
+    <div class="cards" id="catA"></div>
+  </section>
+
+  <!-- B: characters -->
+  <section class="cat">
+    <div class="cat-head"><span class="label">B · Meet the cast</span>
+      <h2>People, without the spoilers</h2>
+      <p class="lede" style="margin:0">Kindle’s X-Ray lives in a separate screen and only exists for store books. pubre computes the cast for any EPUB and keeps it bounded by your position: a character you haven’t met doesn’t exist yet.</p></div>
+    <div class="cards">
+      <article class="card">
+        <h3>Character card</h3><p class="d">Tap a name in the text. You get when they first appeared, how often they’re around, who they’re seen with, and nothing past your page.</p>
+        <div class="meta"><span class="tag w2">Wave 2</span><span>Impact <span class="dots" data-n="5"></span></span><span>Effort M</span></div>
+        <div class="viz" id="cardViz"></div>
+      </article>
+      <article class="card">
+        <h3>Constellation</h3><p class="d">Characters become stars, and every chapter they share draws a thread. The sky grows as you read. New stars are born when a name first appears.</p>
+        <div class="meta"><span class="tag w3">Wave 3</span><span>Impact <span class="dots" data-n="4"></span></span><span>Effort M</span></div>
+        <div class="viz const"><svg id="constel" viewBox="0 0 320 240"></svg></div>
+      </article>
+      <article class="card">
+        <h3>Name lens</h3><p class="d">One toggle tints every known name in its character colour, a lifesaver for Russian novels. Uses the CSS Custom Highlight API, so the book’s DOM is never touched.</p>
+        <div class="meta"><span class="tag w2">Wave 2</span><span>Impact <span class="dots" data-n="4"></span></span><span>Effort S</span></div>
+        <div class="viz lens" id="lens"><p>“Who’s over me? <span class="nm" style="--c:var(--b08)">Ahab</span> forbid that I should sail with such a captain,” muttered <span class="nm" style="--c:var(--b0D)">Starbuck</span>, while <span class="nm" style="--c:var(--b0A)">Stubb</span> laughed and <span class="nm" style="--c:var(--b0B)">Queequeg</span> sharpened his harpoon, and <span class="nm" style="--c:var(--b0E)">Ishmael</span> watched it all from the masthead.</p></div>
+        <label class="toggle sans" style="font-size:13px"><input type="checkbox" id="lensT" checked> Name lens</label>
+      </article>
+    </div>
+  </section>
+
+  <!-- C: chapter as stage -->
+  <section class="cat">
+    <div class="cat-head"><span class="label">C · Every chapter gets its own stage</span>
+      <h2>Section presenters that read the room</h2>
+      <p class="lede" style="margin:0">Each chapter is classified from its own numbers: mood, dialogue, sentence length. It then opens with a matching treatment. A stage-play chapter looks like a script. A dark one opens like a nocturne.</p></div>
+    <div class="cards">
+      <article class="card">
+        <h3>Semantic chapter openers</h3><p class="d">Five presets chosen automatically, all overridable: Classic, Daylight, Nocturne, Stage, Long Swell.</p>
+        <div class="meta"><span class="tag w1">Wave 1</span><span>Impact <span class="dots" data-n="5"></span></span><span>Effort M</span></div>
+        <div class="viz"><div class="page" id="opener"></div></div>
+        <p class="note" id="openerWhy"></p>
+      </article>
+
+      <article class="card">
+        <h3>First-line staging</h3><p class="d">Epigraphs and famous openings arrive word by word, paced by their own punctuation, and then settle into ordinary text. It plays once, never on body text.</p>
+        <div class="meta"><span class="tag w1">Wave 1</span><span>Impact <span class="dots" data-n="4"></span></span><span>Effort S</span></div>
+        <div class="viz" style="display:grid;place-items:center"><div class="kin" id="kin"></div></div>
+        <button class="replay" data-replay="kin">Replay</button>
+      </article>
+      <article class="card wide">
+        <h3>Chapter fingerprints</h3><p class="d">Stefanie Posavec’s sentence drawing, computed per chapter. The line turns right after every sentence, with each segment as long as the sentence. Long, winding chapters spiral; terse ones knot. The shape is safe to show for unread chapters because it’s structure, not story.</p>
+        <div class="meta"><span class="tag w1">Wave 1</span><span>Impact <span class="dots" data-n="4"></span></span><span>Effort S</span></div>
+        <div class="viz"><div class="fps" id="fps"></div></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- D: atmosphere -->
+  <section class="cat">
+    <div class="cat-head"><span class="label">D · Atmosphere</span>
+      <h2>The page takes on the weather of the prose</h2>
+      <p class="lede" style="margin:0">The base16 theme stays yours, and the book nudges it. Colour words tint the accent. Storms, fog and night leave a faint trace on the page. You can switch it off with one toggle.</p></div>
+    <div class="cards">
+      <article class="card">
+        <h3>Ambient palette drift</h3><p class="d">Each chapter’s dominant colour word pulls the accent toward it over a few seconds. The strip below is the whole book. Chapter 42, “The Whiteness of the Whale”, uses “white” 72 times and blazes.</p>
+        <div class="meta"><span class="tag w2">Wave 2</span><span>Impact <span class="dots" data-n="4"></span></span><span>Effort S</span></div>
+        <div class="drift" id="drift"></div>
+        <p class="note" id="driftNote"></p>
+      </article>
+      <article class="card">
+        <h3>Weather &amp; time of day</h3><p class="d">Storm words bring a whisper of rain, fog softens the edges, and night dims the paper. The effect is about 5% opacity and never in the way.</p>
+        <div class="meta"><span class="tag w3">Wave 3</span><span>Impact <span class="dots" data-n="4"></span></span><span>Effort M</span></div>
+        <div class="mini" id="mini"><canvas id="wx"></canvas><div class="ttl" id="miniT"></div><div id="miniP"></div></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- E: language -->
+  <section class="cat">
+    <div class="cat-head"><span class="label">E · Words</span><h2>Rare words glow, talky chapters look talky</h2></div>
+    <div class="cards">
+      <article class="card">
+        <h3>Rare-word sparks</h3><p class="d">Words Melville used exactly once in the whole book. They softly glow in the text, a long-press defines them, and the chapter-end card collects them.</p>
+        <div class="meta"><span class="tag w3">Wave 3</span><span>Impact <span class="dots" data-n="3"></span></span><span>Effort S</span></div>
+        <div class="viz" id="sparks"></div>
+      </article>
+      <article class="card">
+        <h3>Dialogue texture</h3><p class="d">The share of each chapter spoken aloud becomes hatching on its wedge. You can see at a glance where the book turns into a stage play (chapters 36–40, 119–122).</p>
+        <div class="meta"><span class="tag w1">Wave 1</span><span>Impact <span class="dots" data-n="3"></span></span><span>Effort S</span></div>
+        <div class="viz"><svg id="dlg" viewBox="0 0 300 90" style="width:100%;height:auto"></svg></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- F: memory -->
+  <section class="cat">
+    <div class="cat-head"><span class="label">F · Rituals</span><h2>Coming back, and finishing</h2></div>
+    <div class="cards">
+      <article class="card">
+        <h3>“Previously…”</h3><p class="d">After a few days away, the book greets you with where you were, who was there, and how the last chapters opened. It is extractive, has no AI, and covers only what you’ve read.</p>
+        <div class="meta"><span class="tag w2">Wave 2</span><span>Impact <span class="dots" data-n="4"></span></span><span>Effort M</span></div>
+        <div class="prev" id="prev"></div>
+      </article>
+      <article class="card">
+        <h3>Finish keepsake</h3><p class="d">When you finish, pubre draws your copy: every punctuation mark of chapter 1 in a spiral (after Nicholas Rougeux), ringed by the book’s mood. It becomes the cover of the book on your shelf.</p>
+        <div class="meta"><span class="tag w3">Wave 3</span><span>Impact <span class="dots" data-n="4"></span></span><span>Effort M</span></div>
+        <canvas class="spiral" id="spiral" width="680" height="680"></canvas>
+      </article>
+    </div>
+  </section>
+
+  <!-- ANIMATIONS -->
+  <section class="cat">
+    <div class="cat-head"><span class="label">Cherry on top</span><h2>Motion with a reason</h2>
+      <p class="lede" style="margin:0">Each animation explains a change: where you crossed into, what just appeared, what the chapter is like. Tap each to play.</p></div>
+    <div class="anims">
+      <div class="anim"><div class="stagebox"><div class="wedges-demo" id="pulse"></div></div><b class="sans" style="font-size:14px">Chapter crossing pulse</b><p class="note">The wedge you just entered springs and fills with its mood colour.</p><button class="replay" data-replay="pulse">Play</button></div>
+      <div class="anim"><div class="stagebox"><svg viewBox="0 0 240 60" style="width:86%"><defs><filter id="inkf"><feTurbulence id="turb" type="fractalNoise" baseFrequency=".035" numOctaves="2" seed="3"/><feDisplacementMap id="disp" in="SourceGraphic" scale="40"/></filter></defs><text id="inkT" x="120" y="40" text-anchor="middle" font-family="Literata, Georgia, serif" font-size="30" font-weight="600" fill="currentColor" filter="url(#inkf)">Loomings</text></svg></div><b class="sans" style="font-size:14px">Ink-bleed title</b><p class="note">Chapter titles soak into the paper with SVG turbulence that settles to crisp type.</p><button class="replay" data-replay="ink">Play</button></div>
+      <div class="anim"><div class="stagebox" id="starBox"><span id="starName" style="font:600 18px var(--serif);position:absolute;left:18%;top:32%">Queequeg</span><div style="position:absolute;left:10%;right:10%;bottom:22px;height:4px;border-radius:2px;background:var(--line)"><i id="starStrip" style="display:block;height:100%;width:0;border-radius:2px;background:var(--b0B);transition:width .6s var(--ease)"></i></div></div><b class="sans" style="font-size:14px">Character star-birth</b><p class="note">On a first mention, a spark flies from the name to its new strip on the capsule.</p><button class="replay" data-replay="star">Play</button></div>
+      <div class="anim"><div class="stagebox" style="place-items:start"><div class="tw" id="tw"></div></div><b class="sans" style="font-size:14px">Letters type themselves</b><p class="note">Epistolary sections (“Dear…”, “Yours,”) arrive like a typewriter, once.</p><button class="replay" data-replay="tw">Play</button></div>
+      <div class="anim"><div class="stagebox"><svg viewBox="0 0 240 80" style="width:90%"><path id="arcP" fill="none" stroke="currentColor" stroke-width="2"/></svg></div><b class="sans" style="font-size:14px">Arc reveal</b><p class="note">After each session, the story-shape skyline grows to show how far you climbed.</p><button class="replay" data-replay="arc">Play</button></div>
+      <div class="anim"><div class="stagebox" id="driftBox" style="transition:background 1.6s var(--ease)"><span id="driftWord" style="font:italic 600 26px var(--serif);transition:color 1.6s var(--ease)">white</span></div><b class="sans" style="font-size:14px">Palette drift</b><p class="note">base16 slots registered with <code>@property</code> interpolate smoothly between chapter tints.</p><button class="replay" data-replay="drift">Play</button></div>
+    </div>
+  </section>
+
+  <!-- BUILD -->
+  <section class="cat">
+    <div class="cat-head"><span class="label">How it’s built</span><h2>One insights engine, one rule</h2>
+      <p class="lede" style="margin:0">A new <code>src/insights/</code> module, UI-free like the EPUB protocol layer. It reads chapter text once in a Web Worker, writes a <code>BookProfile</code> to IndexedDB, and answers every query with a position. Anything past your high-water mark comes back as shape only: length, fingerprint, time. Never names, moods or words.</p></div>
+    <div class="flow"><b>EPUB text</b><span>→ worker · Intl.Segmenter</span><b>signals</b><span>mood · dialogue · names · colours · weather · rhythm · rarity</span><b>BookProfile (IDB)</b><span>→ spoiler gate(position)</span><b>capsule · openers · cards · atmosphere</b></div>
+    <p class="note" style="margin-top:14px">A whole novel takes roughly 0.1–3 s and adds 0 KB of dependencies (native <code>Intl.Segmenter</code> and a small sentiment lexicon). Optional “Enhance” later: transformers.js NER on WebGPU, about 100 MB, opt-in.</p>
+  </section>
+
+  </div>
+  <footer><span>pubre · proposal · <span id="today"></span></span><span>Data: Project Gutenberg #2701, computed locally. The mood lexicon is a rough demo list.</span></footer>
+</div>
+
+<script>/*DATA*/</script>
+<script>/*LENS*/</script>
+<script>/*GRAMMAR*/</script>
+<script>/*PARTS*/</script>
+<script>
+(() => {
+const C = DATA.chapters, N = C.length, WPM = 238
+const $ = id => document.getElementById(id)
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim()
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+document.getElementById('today').textContent = new Date().toISOString().slice(0, 10)
+const CAST = [['Ahab', '--b08'], ['Moby Dick', '--b05'], ['Starbuck', '--b0D'], ['Stubb', '--b0A'], ['Queequeg', '--b0B'], ['Ishmael', '--b0E'], ['Flask', '--b0C'], ['Pip', '--b0F']]
+const colOf = name => (CAST.find(c => c[0] === name) || [, '--b04'])[1]
+const total = C.reduce((a, c) => a + c.words, 0)
+let acc = 0; const X = C.map(c => { const x = acc / total; acc += c.words; return x })
+const SPAN = 905 // capsule drawing width in viewBox units; labels sit to the right
+const W = c => c.words / total
+const moodMax = Math.max(...C.map(c => Math.abs(c.mood)))
+const mix = (a, b, t) => `color-mix(in srgb, ${a} ${Math.round((1 - t) * 100)}%, ${b})`
+const moodColor = m => m < 0 ? mix('var(--line)', 'var(--cool)', Math.min(1, -m / 14)) : mix('var(--line)', 'var(--warm)', Math.min(1, m / 11))
+const mins = w => Math.max(1, Math.round(w / WPM))
+let pos = Math.max(0, C.findIndex(c => c.title.startsWith('42 ·'))), gate = true, hover = null
+const known = i => !gate || i <= pos
+
+// ---------- fingerprint ----------
+function fingerprint(c, size = 96, stroke) {
+  let x = 0, y = 0, d = 0, pts = [[0, 0]]
+  for (const s of c.sentences) { const [dx, dy] = [[1, 0], [0, 1], [-1, 0], [0, -1]][d]; x += dx * s; y += dy * s; pts.push([x, y]); d = (d + 1) % 4 }
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1])
+  const minX = Math.min(...xs), minY = Math.min(...ys), span = Math.max(Math.max(...xs) - minX, Math.max(...ys) - minY, 1)
+  const pad = size * .1, k = (size - 2 * pad) / span
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${(pad + (p[0] - minX) * k).toFixed(1)} ${(pad + (p[1] - minY) * k).toFixed(1)}`).join('')
+  return `<svg class="fp" viewBox="0 0 ${size} ${size}"><path d="${path}" fill="none" stroke="${stroke || moodColorSolid(c.mood)}" stroke-width="${size > 60 ? 1.2 : 1}" stroke-linejoin="round"/></svg>`
+}
+const moodColorSolid = m => m < -3 ? 'var(--cool)' : m > 4 ? 'var(--warm)' : 'var(--fg)'
+
+// ---------- hero capsule ----------
+const cap = $('cap')
+function drawCap() {
+  const H = 150, top = 18, sky = 46, wy = 66, wh = 14, sy = 92
+  let s = ''
+  // skyline: smoothed mood
+  const sm = C.map((c, i) => { let t = 0, n = 0; for (let j = Math.max(0, i - 3); j <= Math.min(N - 1, i + 3); j++) { t += C[j].mood; n++ } return t / n })
+  const yOf = m => top + sky / 2 - (m / moodMax) * (sky / 2) * 1.6
+  let read = '', future = ''
+  C.forEach((c, i) => { const px = (X[i] + W(c) / 2) * SPAN; const seg = `${(read || future) && (known(i) ? read : future) ? 'L' : 'M'}${px.toFixed(1)} ${yOf(sm[i]).toFixed(1)}`; if (known(i)) read += (read ? 'L' : 'M') + px.toFixed(1) + ' ' + yOf(sm[i]).toFixed(1); })
+  const lastKnown = Math.min(N - 1, gate ? pos : N - 1)
+  const fx = (X[lastKnown] + W(C[lastKnown]) / 2) * SPAN
+  s += `<line x1="0" x2="${SPAN}" y1="${top + sky / 2}" y2="${top + sky / 2}" stroke="var(--hair)" stroke-dasharray="2 4"/>`
+  s += `<path d="${read}" fill="none" stroke="var(--fg)" stroke-width="1.6" stroke-linejoin="round" class="skyline"/>`
+  if (gate && pos < N - 1) s += `<path d="M${fx} ${yOf(sm[lastKnown])} L${SPAN} ${top + sky / 2}" stroke="var(--muted)" stroke-dasharray="1 5" fill="none"/>`
+  // wedges
+  C.forEach((c, i) => {
+    const x = X[i] * SPAN + .6, w = Math.max(.6, W(c) * SPAN - 1.2), k = known(i), cur = i === pos, hv = i === hover
+    const h = cur ? wh + 6 : hv ? wh + 4 : wh, y = wy + (wh - h) / 2
+    s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="${k ? moodColor(c.mood) : 'var(--line)'}" opacity="${k ? 1 : .55}"/>`
+    if (k && c.dialogue > .25) s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="url(#hatch)" opacity="${Math.min(.9, c.dialogue + .1)}"/>`
+  })
+  // playhead
+  const px = (X[pos] + W(C[pos]) * .5) * SPAN
+  s = `<defs><pattern id="hatch" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1" height="3" fill="var(--fg)" opacity=".55"/></pattern></defs>` + s
+  s += `<line x1="${px}" x2="${px}" y1="${top}" y2="${wy + wh + 4}" stroke="var(--accent)" stroke-width="2"/><circle cx="${px}" cy="${wy - 6}" r="4" fill="var(--accent)"/>`
+  // character strips
+  CAST.forEach(([name, v], r) => {
+    const y = sy + r * 7
+    C.forEach((c, i) => {
+      if (!known(i)) return
+      const n = (c.people[name] || 0) / c.words * SPAN
+      if (n > 0) s += `<rect x="${X[i] * SPAN}" y="${y}" width="${Math.max(.8, W(c) * SPAN)}" height="4" fill="var(${v})" opacity="${Math.min(1, .25 + n / 6)}"/>`
+    })
+  })
+  CAST.forEach(([name, v], r) => { if (!gate || C.slice(0, pos + 1).some(c => c.people[name])) s += `<text x="${SPAN + 10}" y="${sy + r * 7 + 4.5}" font-size="8.5" font-family="system-ui" fill="var(--muted)">${name}</text>` })
+  // hover highlight
+  if (hover !== null) s += `<rect x="${X[hover] * SPAN}" y="${top - 6}" width="${W(C[hover]) * SPAN}" height="${H - top}" fill="var(--fg)" opacity=".05" pointer-events="none"/>`
+  cap.innerHTML = s
+}
+function idxAt(evt) { const r = cap.getBoundingClientRect(); const x = (evt.clientX - r.left) / r.width * 1000 / SPAN; let i = X.findIndex((s, j) => x >= s && x < s + W(C[j])); return i < 0 ? (x < 0 ? 0 : N - 1) : i }
+cap.addEventListener('pointermove', e => { hover = idxAt(e); drawCap(); peek(hover) })
+cap.addEventListener('pointerleave', () => { hover = null; drawCap(); peek(pos) })
+cap.addEventListener('click', e => { setPos(idxAt(e)) })
+
+function chips(c, i) {
+  return CAST.filter(([n]) => c.people[n]).sort((a, b) => c.people[b[0]] - c.people[a[0]]).slice(0, 5).map(([n, v]) =>
+    known(i) ? `<button class="chip" data-char="${n}"><span class="av" style="background:var(${v})">${n[0]}</span>${n}</button>` : `<span class="chip unknown"><span class="av">?</span>someone</span>`).join('')
+}
+function peek(i) {
+  const c = C[i], k = known(i)
+  const colors = Object.entries(c.colors).sort((a, b) => b[1] - a[1]).slice(0, 3)
+  $('peek').innerHTML = `${fingerprint(c, 96, k ? undefined : 'var(--muted)')}<div style="min-width:0">
+    <span class="label">${i === pos ? 'You are here' : k ? 'Already read' : 'Ahead · shape only'}</span>
+    <h3>${c.title}</h3>
+    <div class="stat"><span><b>${mins(c.words)} min</b> to read</span><span>${c.words.toLocaleString()} words</span>
+    ${k ? `<span>mood <b>${c.mood > 4 ? 'bright' : c.mood < -4 ? 'dark' : 'even'}</b></span><span><b>${Math.round(c.dialogue * 100)}%</b> spoken</span><span>sentences avg <b>${c.avgSentence}</b> words</span>${colors.length ? `<span>${colors.map(([k2, n]) => `<i class="sw" style="background:${swatch[k2]}"></i> ${k2}`).join(' ')}</span>` : ''}` : '<span>spoiler gate on</span>'}</div>
+    <div class="chips">${chips(c, i)}</div></div>`
+}
+const swatch = { white: '#ece6d6', black: '#1a1a1a', red: '#a8322b', green: '#4f7d3a', blue: '#2f5f9e', gold: '#c99a1d', grey: '#8a8a8a' }
+
+// ---------- roadmap ----------
+const waves = [
+  ['Wave 1 · The capsule comes alive', '≈ 3 days', 'w1', [['Mood-tinted wedges', 5, 'S'], ['Story-shape skyline', 4, 'S'], ['Time left per wedge, at your pace', 4, 'S'], ['Chapter fingerprints', 4, 'S'], ['Dialogue texture', 3, 'S'], ['Semantic chapter openers', 5, 'M'], ['First-line & epigraph staging', 4, 'S'], ['Crossing pulse + ink-bleed titles', 4, 'S']]],
+  ['Wave 2 · Meet the cast', '≈ 1 week', 'w2', [['Character heat strips', 5, 'M'], ['Who’s-here chips on wedges', 4, 'S'], ['Spoiler-safe character card', 5, 'M'], ['Name lens', 4, 'S'], ['“Previously…” resume card', 4, 'M'], ['Ambient palette drift', 4, 'S']]],
+  ['Wave 3 · Atmosphere & keepsakes', '≈ 1–2 weeks', 'w3', [['Weather & time-of-day layer', 4, 'M'], ['Constellation of characters', 4, 'M'], ['Rare-word sparks + chapter vocabulary', 3, 'S'], ['Finish keepsake poster', 4, 'M'], ['Book “tasting” card before you start', 3, 'S'], ['Optional: on-device ML (NER on WebGPU)', 3, 'L']]],
+]
+const dots = n => `<span class="dots">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`
+if ($('waves')) $('waves').innerHTML = waves.map(([t, d, cls, items]) => `<div class="wave"><div class="meta"><span class="tag ${cls}">${t.split(' · ')[0]}</span><span>${d}</span></div><h3>${t.split(' · ')[1]}</h3><ol>${items.map(([n, imp, e]) => `<li><span>${n}</span>${dots(imp)}<span class="eff">${e}</span></li>`).join('')}</ol></div>`).join('')
+document.querySelectorAll('.dots[data-n]').forEach(el => el.outerHTML = dots(+el.dataset.n))
+
+// ---------- A cards ----------
+$('catA').innerHTML = [
+  ['Mood-tinted wedges', 'Each wedge’s colour comes from the chapter’s emotional temperature: cool indigo when it darkens, gold when it warms. “Breakfast” glows; “The Whale Watch” goes deep blue.', 'w1', 5, 'S'],
+  ['Story-shape skyline', 'The capsule’s top edge traces Vonnegut’s shape of the story (smoothed sentiment), drawn only up to where you are. The future is a flat dotted line.', 'w1', 4, 'S'],
+  ['Character strips + who’s here', 'Thin strips under the track show when each character is around. Hovering a wedge shows faces, or “someone” if you haven’t met them yet.', 'w2', 5, 'M'],
+  ['Time left, at your pace', 'Every wedge knows its length. With your measured pace it answers the real question: “12 min to finish this chapter”.', 'w1', 4, 'S'],
+].map(([t, d, w, imp, e]) => `<article class="card"><h3>${t}</h3><p class="d">${d}</p><div class="meta"><span class="tag ${w}">${w.replace('w', 'Wave ')}</span><span>Impact ${dots(imp)}</span><span>Effort ${e}</span></div></article>`).join('') +
+  `<article class="card wide"><p class="note">All four live in the capsule above. Hover or tap a wedge to peek, then drag the dial to move. With the spoiler gate on, chapters ahead keep their length and fingerprint, but lose their mood, cast and words.</p></article>`
+
+// ---------- B: character card ----------
+let picked = 'Queequeg'
+function charCard() {
+  const v = colOf(picked)
+  const seen = C.map((c, i) => known(i) ? (c.people[picked] || 0) : null)
+  const first = seen.findIndex(n => n > 0)
+  if (first < 0) { $('cardViz').innerHTML = `<p class="note">You haven’t met <b>${picked}</b> yet. Keep reading.</p>${pickers()}`; return }
+  const last = seen.reduce((a, n, i) => n > 0 ? i : a, -1)
+  const max = Math.max(...seen.filter(n => n !== null), 1)
+  const co = {}; C.forEach((c, i) => { if (!known(i) || !c.people[picked]) return; for (const n in c.people) if (n !== picked && CAST.some(x => x[0] === n)) co[n] = (co[n] || 0) + 1 })
+  const top = Object.entries(co).sort((a, b) => b[1] - a[1]).slice(0, 3)
+  const spark = seen.map((n, i) => n === null ? '' : `<rect x="${i * 2}" y="${30 - (n / max) * 28}" width="1.5" height="${Math.max(.5, (n / max) * 28)}" fill="var(${v})"/>`).join('')
+  $('cardViz').innerHTML = `<div style="display:flex;gap:12px;align-items:center"><span class="av" style="width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(${v});color:#fff;font:600 18px var(--serif)">${picked[0]}</span>
+    <div><b style="font-size:18px">${picked}</b><div class="note">First seen in ${C[first].title} · last seen ${C[last].title}</div></div></div>
+    <svg viewBox="0 0 ${N * 2} 30" style="width:100%;height:46px;margin-top:10px" preserveAspectRatio="none">${spark}</svg>
+    <div class="note">Mentions per chapter, up to your position.</div>
+    <div class="chips">${top.map(([n, k]) => `<span class="chip"><span class="av" style="background:var(${colOf(n)})">${n[0]}</span>${n} · ${k} chapters together</span>`).join('')}</div>${pickers()}`
+}
+const pickers = () => `<div class="chips" style="margin-top:14px">${CAST.map(([n, v]) => `<button class="chip" data-char="${n}" ${n === picked ? 'style="outline:2px solid var(--accent)"' : ''}><span class="av" style="background:var(${v})">${n[0]}</span>${n}</button>`).join('')}</div>`
+document.addEventListener('click', e => { const b = e.target.closest('[data-char]'); if (b) { picked = b.dataset.char; charCard(); $('cardViz').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' }) } })
+
+// constellation
+function constel() {
+  const svg = $('constel'), seen = {}, links = {}
+  C.forEach((c, i) => { if (!known(i)) return; const here = CAST.map(x => x[0]).filter(n => c.people[n]); here.forEach(n => seen[n] = (seen[n] || 0) + c.people[n]); here.forEach((a, j) => here.slice(j + 1).forEach(b => { const k = a + '|' + b; links[k] = (links[k] || 0) + 1 })) })
+  const names = CAST.map(x => x[0]), P = {}
+  names.forEach((n, i) => { const a = i / names.length * Math.PI * 2 - Math.PI / 2; P[n] = [160 + Math.cos(a) * 92, 120 + Math.sin(a) * 92] })
+  const maxL = Math.max(1, ...Object.values(links)), maxS = Math.max(1, ...Object.values(seen))
+  let s = Object.entries(links).map(([k, v]) => { const [a, b] = k.split('|'); const [x1, y1] = P[a], [x2, y2] = P[b]; return `<path d="M${x1} ${y1} Q160 120 ${x2} ${y2}" fill="none" stroke="var(--fg)" stroke-opacity="${.08 + .5 * v / maxL}" stroke-width="${.6 + 2.4 * v / maxL}"/>` }).join('')
+  s += names.map(n => { const [x, y] = P[n]; const on = seen[n]; const r = on ? 5 + 9 * Math.sqrt(seen[n] / maxS) : 3
+    return `<g style="transition:opacity .6s"><circle cx="${x}" cy="${y}" r="${r}" fill="${on ? `var(${colOf(n)})` : 'var(--line)'}" ${on ? '' : 'opacity=".6"'}/><text x="${x}" y="${y + r + 11}" text-anchor="middle" font-size="10" font-family="system-ui" fill="${on ? 'var(--fg)' : 'var(--muted)'}">${on ? n : '?'}</text></g>` }).join('')
+  svg.innerHTML = s
+}
+$('lensT').addEventListener('change', e => $('lens').classList.toggle('on', e.target.checked)); $('lens').classList.add('on')
+
+// ---------- C ----------
+function preset(c) { return c.dialogue > .45 ? ['stage', 'Stage', 'over 45% of this chapter is spoken'] : c.mood < -6 ? ['nocturne', 'Nocturne', 'the chapter’s mood runs dark'] : c.mood > 6 ? ['daylight', 'Daylight', 'the chapter’s mood runs bright'] : c.avgSentence > 30 ? ['swell', 'Long Swell', `sentences average ${c.avgSentence} words`] : ['classic', 'Classic', 'nothing unusual, so the classic opener'] }
+function opener() {
+  const c = C[pos], [cls, name, why] = preset(c), m = c.title.match(/^(\d+) · (.*)$/)
+  $('opener').className = 'page ' + cls
+  $('opener').innerHTML = `<div class="rule"></div><div class="num">${m ? 'Chapter ' + m[1] : 'Front matter'}</div><h4>${m ? m[2] : c.title}</h4><p class="drop">${c.first}</p>`
+  $('openerWhy').innerHTML = `<span class="preset">${name}</span> · chosen because ${why}.`
+}
+function fps() { $('fps').innerHTML = C.map((c, i) => fingerprint(c, 40, known(i) ? undefined : 'var(--muted)').replace('class="fp"', `class="fp ${known(i) ? '' : 'unread'} ${i === pos ? 'cur' : ''}"`).replace('<svg', `<svg data-i="${i}" role="img" aria-label="${c.title}"><title>${c.title}</title`).replace('><title', '><title').replace('</title', '</title>')).join('') }
+$('fps').addEventListener('click', e => { const s = e.target.closest('svg[data-i]'); if (s) setPos(+s.dataset.i) })
+
+function kinetic() {
+  const text = 'Call me Ishmael. Some years ago—never mind how long precisely—having little or no money in my purse,'
+  const el = $('kin'); el.innerHTML = text.split(' ').map(w => `<span>${w}</span>`).join(' ')
+  if (reduce) return
+  let t = 0
+  el.querySelectorAll('span').forEach(s => { s.animate([{ opacity: 0, filter: 'blur(6px)', transform: 'translateY(8px)' }, { opacity: 1, filter: 'blur(0)', transform: 'none' }], { duration: 600, delay: t, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'backwards' }); t += /[.]$/.test(s.textContent) ? 520 : /[,—]/.test(s.textContent) ? 300 : 120 })
+}
+
+// ---------- D ----------
+function dominant(c) { const e = Object.entries(c.colors).sort((a, b) => b[1] - a[1])[0]; return e && e[1] >= 3 ? e[0] : null }
+function drift() {
+  $('drift').innerHTML = C.map((c, i) => { const d = dominant(c); return `<i title="${c.title}${d ? ' · ' + d : ''}" style="background:${known(i) && d ? swatch[d] : 'var(--line)'};opacity:${known(i) ? 1 : .5}${i === pos ? ';box-shadow:inset 0 -3px 0 var(--accent)' : ''}"></i>` }).join('')
+  const d = dominant(C[pos])
+  $('driftNote').innerHTML = known(pos) ? (d ? `Now in ${C[pos].title}, the accent leans <b>${d}</b> <i class="sw" style="background:${swatch[d]}"></i>` : `Now in ${C[pos].title}, no strong colour, so your theme’s accent stays.`) : ''
+}
+let wxRaf = 0
+function weather() {
+  const c = C[pos], w = Object.entries(c.weather).sort((a, b) => b[1] - a[1])[0], kind = w && w[1] >= 3 ? w[0] : 'calm'
+  const mini = $('mini'), d = dominant(c)
+  mini.style.background = kind === 'night' ? 'color-mix(in srgb,var(--b00) 70%,#0b1020)' : kind === 'fog' ? 'color-mix(in srgb,var(--b00) 80%,#9aa3ad)' : kind === 'sun' ? 'color-mix(in srgb,var(--b00) 88%,var(--warm))' : 'var(--b00)'
+  mini.style.color = kind === 'night' ? '#d8d6e4' : ''
+  mini.style.setProperty('--acc', d ? swatch[d] === '#f6f3ea' ? 'var(--muted)' : swatch[d] : 'var(--accent)')
+  $('miniT').textContent = c.title
+  $('miniP').innerHTML = `<span class="note">${kind === 'calm' ? 'Calm water, so no weather.' : `Leaning <b>${kind}</b> (${w[1]} mentions).`}</span><p style="margin-top:8px;filter:${kind === 'fog' ? 'blur(.6px)' : 'none'}">${c.first}</p>`
+  cancelAnimationFrame(wxRaf)
+  const cv = $('wx'), ctx = cv.getContext('2d'), r = cv.getBoundingClientRect(); cv.width = r.width * 2; cv.height = r.height * 2
+  const P = Array.from({ length: kind === 'storm' ? 90 : kind === 'night' ? 40 : kind === 'fog' ? 14 : 0 }, () => ({ x: Math.random() * cv.width, y: Math.random() * cv.height, v: .5 + Math.random() }))
+  const fg = getComputedStyle(mini).color
+  const tick = () => {
+    ctx.clearRect(0, 0, cv.width, cv.height); ctx.strokeStyle = fg; ctx.fillStyle = fg
+    for (const p of P) {
+      if (kind === 'storm') { ctx.globalAlpha = .18; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - 6, p.y + 22); ctx.stroke(); p.y += 14 * p.v; p.x -= 3 * p.v; if (p.y > cv.height) { p.y = -20; p.x = Math.random() * cv.width * 1.2 } }
+      else if (kind === 'night') { ctx.globalAlpha = .25 + .25 * Math.sin(Date.now() / 600 + p.x); ctx.beginPath(); ctx.arc(p.x, p.y * .5, 1.4, 0, 7); ctx.fill() }
+      else if (kind === 'fog') { ctx.globalAlpha = .05; ctx.beginPath(); ctx.arc(p.x, p.y, 90, 0, 7); ctx.fill(); p.x += .3 * p.v; if (p.x > cv.width + 90) p.x = -90 }
+    }
+    if (!reduce && P.length) wxRaf = requestAnimationFrame(tick)
+  }
+  tick()
+}
+
+// ---------- E ----------
+function sparks() { const c = C[pos]; $('sparks').innerHTML = known(pos) && c.hapax.length ? `<div class="note" style="margin-bottom:8px">Once-in-the-book words in ${c.title}</div>` + c.hapax.map((w, i) => `<span class="spark" style="--i:${i}">${w}</span>`).join('') : '<p class="note">No rare words here.</p>' }
+function dialogue() {
+  const s = C.map((c, i) => `<rect x="${X[i] * 300}" y="${80 - c.dialogue * 76}" width="${Math.max(.6, W(c) * 300 - .4)}" height="${c.dialogue * 76}" fill="${known(i) ? 'var(--b0C)' : 'var(--line)'}" opacity="${i === pos ? 1 : .75}"/>`).join('')
+  $('dlg').innerHTML = s + `<line x1="0" x2="300" y1="80.5" y2="80.5" stroke="var(--hair)"/><text x="0" y="89" font-size="7" font-family="system-ui" fill="var(--muted)">share of each chapter spoken aloud · width = length</text>`
+}
+
+// ---------- F ----------
+function previously() {
+  const i = pos, a = C[Math.max(0, i - 2)], b = C[Math.max(0, i - 1)], c = C[i]
+  const who = CAST.filter(([n]) => (a.people[n] || 0) + (b.people[n] || 0) > 0).slice(0, 4)
+  $('prev').innerHTML = `<span class="label">Welcome back · 4 days away</span><b style="font-size:17px">You were in ${c.title}</b>
+   <div class="note">Before that:</div><div><b>${b.title}</b><br><q>${b.first.slice(0, 140)}…</q></div>
+   <div class="chips">${who.map(([n, v]) => `<span class="chip"><span class="av" style="background:var(${v})">${n[0]}</span>${n}</span>`).join('') || '<span class="note">No named characters yet.</span>'}</div>`
+}
+function spiral() {
+  const cv = $('spiral'), ctx = cv.getContext('2d'), w = cv.width, cx = w / 2
+  ctx.clearRect(0, 0, w, w)
+  ctx.font = '600 15px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+  const fg = css('--b05'), cols = { '.': css('--b05'), ',': css('--b04'), ';': css('--b0D'), ':': css('--b0D'), '—': css('--b09'), '!': css('--b08'), '?': css('--b0E'), '“': css('--b0B'), '”': css('--b0B') }
+  // Archimedean spiral r = b·θ with character spacing ≈ ring spacing, sized to fill the ring.
+  const chars = [...DATA.punct], R = w / 2 - 44, step = R * Math.sqrt(Math.PI / (chars.length + 40)), b = step / (2 * Math.PI)
+  chars.forEach((ch, i) => { const th = Math.sqrt(2 * step * (i + 40) / b), r = b * th, x = cx + Math.cos(th) * r, y = cx + Math.sin(th) * r; ctx.fillStyle = cols[ch] || fg; ctx.fillText(ch, x, y) })
+  C.forEach((c, i) => { const a0 = X[i] * Math.PI * 2 - Math.PI / 2, a1 = (X[i] + W(c)) * Math.PI * 2 - Math.PI / 2; ctx.beginPath(); ctx.arc(cx, cx, w / 2 - 10, a0, a1); ctx.strokeStyle = c.mood < 0 ? css('--cool') : c.mood > 3 ? css('--warm') : css('--b03'); ctx.lineWidth = 10; ctx.stroke() })
+}
+
+// ---------- animation demos ----------
+const demos = {
+  kin: kinetic,
+  pulse() { const el = $('pulse'); el.innerHTML = Array.from({ length: 12 }, () => '<i></i>').join(''); const k = el.children[6]; [...el.children].slice(0, 6).forEach(i => i.style.background = 'var(--warm)'); if (reduce) { k.style.background = 'var(--cool)'; return }
+    k.animate([{ transform: 'scaleY(1)', background: 'var(--line)' }, { transform: 'scaleY(2.6)', background: 'var(--cool)', offset: .35 }, { transform: 'scaleY(1.4)', background: 'var(--cool)' }], { duration: 900, easing: css('--spring') || 'ease-out', fill: 'forwards' }) },
+  ink() { const disp = $('disp'); if (reduce) { disp.setAttribute('scale', 0); return } let t0 = performance.now(); const f = now => { const p = Math.min(1, (now - t0) / 1400); disp.setAttribute('scale', (1 - p) ** 2 * 60); $('inkT').style.opacity = Math.min(1, p * 2.2); if (p < 1) requestAnimationFrame(f) }; requestAnimationFrame(f) },
+  star() { const strip = $('starStrip'), box = $('starBox'), name = $('starName'); strip.style.width = '0'; const s = document.createElement('i'); s.style.cssText = 'position:absolute;width:8px;height:8px;border-radius:50%;background:var(--b0B);box-shadow:0 0 12px var(--b0B)'; box.append(s)
+    const a = name.getBoundingClientRect(), b = box.getBoundingClientRect(); const sx = a.left - b.left + a.width / 2, sy = a.top - b.top + a.height, ex = b.width * .1 + 4, ey = b.height - 24
+    s.animate([{ transform: `translate(${sx}px,${sy}px) scale(.4)` }, { transform: `translate(${(sx + ex) / 2}px,${sy - 30}px) scale(1.4)` }, { transform: `translate(${ex}px,${ey}px) scale(.6)`, opacity: .2 }], { duration: reduce ? 1 : 900, easing: 'cubic-bezier(.3,.6,.3,1)' }).finished.then(() => { s.remove(); strip.style.width = '34%' }) },
+  tw() { const txt = 'Dear Sir,\nThe Pequod sails at noon.\nYours, Peleg'; const el = $('tw'); if (reduce) { el.textContent = txt; return } el.textContent = ''; let i = 0; const f = () => { el.textContent = txt.slice(0, ++i) + (i < txt.length ? '▍' : ''); if (i < txt.length) setTimeout(f, txt[i - 1] === '\n' ? 260 : 42) }; f() },
+  arc() { const p = $('arcP'); const sm = C.map((c, i) => { let t = 0, n = 0; for (let j = Math.max(0, i - 4); j <= Math.min(N - 1, i + 4); j++) { t += C[j].mood; n++ } return t / n }); p.setAttribute('d', sm.map((m, i) => `${i ? 'L' : 'M'}${(X[i] * 240).toFixed(1)} ${(40 - m * 3).toFixed(1)}`).join('')); const L = p.getTotalLength(); p.style.strokeDasharray = L; p.animate([{ strokeDashoffset: L }, { strokeDashoffset: L * (1 - (pos + 1) / N) }], { duration: reduce ? 1 : 1600, easing: 'cubic-bezier(.3,.7,.2,1)', fill: 'forwards' }) },
+  drift() { const words = [['white', '#f6f3ea', '#3a3a3a'], ['blood', '#a8322b', '#fff'], ['gold', '#c99a1d', '#2a2010'], ['black', '#161616', '#e6e1d6'], ['blue', '#2f5f9e', '#fff']]; let i = 0; const box = $('driftBox'), w = $('driftWord'); const step = () => { const [t, bg, fg] = words[i++ % words.length]; w.textContent = t; box.style.background = `color-mix(in srgb, var(--bg) 55%, ${bg})`; w.style.color = fg === '#fff' ? bg : 'var(--fg)'; if (i < words.length) setTimeout(step, 1600) }; step() },
+}
+document.querySelectorAll('[data-replay]').forEach(b => b.addEventListener('click', () => demos[b.dataset.replay]()))
+
+// ---------- wiring ----------
+function setPos(i) { pos = Math.max(0, Math.min(N - 1, i)); $('pos').value = pos; render() }
+function render() {
+  const c = C[pos]
+  $('nowTitle').textContent = c.title
+  $('capChapter').textContent = c.title
+  const left = C.slice(pos).reduce((a, x) => a + x.words, 0)
+  $('capLeft').textContent = `${Math.round(X[pos] * 100)}% · ${Math.round(left / WPM / 60)} h left in book`
+  drawCap(); peek(hover ?? pos); charCard(); constel(); opener(); fps(); drift(); weather(); sparks(); dialogue(); previously()
+}
+$('pos').addEventListener('input', e => setPos(+e.target.value))
+$('gate').addEventListener('change', e => { gate = e.target.checked; render() })
+$('pos').value = pos; $('pos').max = N - 1; render(); spiral(); kinetic(); demos.pulse(); demos.ink(); demos.tw(); demos.arc(); demos.drift()
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { spiral(); render() })
+})()
+</script>

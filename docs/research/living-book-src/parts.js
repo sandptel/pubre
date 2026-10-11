@@ -7,7 +7,7 @@ const HL = window.CSS && CSS.highlights
 // highlights overlap, so it is never used; contrast levels are disjoint ranges.)
 const PR = {}
 const ORDER = ['f-page', 'f-para', 'f-read', 'f-readpara', 'aside', 'f-readfocus', 'f-focus',
-  ...['Ahab', 'Stubb', 'Flask', 'Starbuck', 'Ishmael', 'Queequeg', 'voice'].flatMap(n => ['sp-' + n, 'q-' + n]),
+  ...['Ahab', 'Stubb', 'Flask', 'Starbuck', 'Ishmael', 'Queequeg', 'voice'].flatMap(n => ['sps-' + n, 'sp-' + n, 'spu-' + n, 'q-' + n]),
   'hard', 'foreign', ...['Ahab', 'Stubb', 'Flask', 'Starbuck', 'Ishmael', 'Queequeg'].map(n => 'n-' + n),
   ...['0A', '0B', '0D', '08', '09', '0E'].map(c => 'u-' + c), 's-b', 'bloom', 'breathe']
 if (HL) for (const n of ORDER) HL.set(n, new Highlight())
@@ -205,7 +205,7 @@ const NAME_RE = new RegExp(`\\b(${Object.keys(NAMES).join('|')})\\b`, 'g')
 const SAY = 'said|whispered|cried|repeated|muttered|asked|shouted|rejoined|replied|answered'
 const isForeign = w => (LENS.zipf[w] ?? 9) === 0 && /(em|am|is|que|um|us|ae|tem|ege)$/.test(w) // demo heuristic; pubre uses lang attributes / foreign italics
 const on = id => $(id).checked
-let passage = 'calm', tokens = [], counts = { shown: 0, held: 0 }
+let passage = 'calm', tokens = [], counts = { shown: 0, held: 0 }, voices = 'ink' // Voices: ink | underline | marks | off
 
 function loadPassage(key) {
   passage = key
@@ -272,7 +272,7 @@ function budgetFor(para, focused) {
 function paintLenses() {
   counts = { shown: 0, held: 0 }
   const count = (t, k) => { if (t.para.root === lText) counts[k]++ }
-  const shown = { name: {}, hard: [], foreign: [], speech: {}, quote: {}, aside: [] }
+  const shown = { name: {}, hard: [], foreign: [], speech: {}, soft: {}, under: {}, marks: {}, aside: [] }
   const byPara = new Map()
   for (const t of tokens) { if (!byPara.has(t.para.el)) byPara.set(t.para.el, []); byPara.get(t.para.el).push(t) }
   for (const [el, list] of byPara) {
@@ -296,23 +296,26 @@ function paintLenses() {
       if (t.kind === 'name') (shown.name[t.key] ||= []).push(tokRange(t))
       else shown[t.kind].push(tokRange(t))
     })
-    // Speech: full voice ink normally; on dialogue-heavy paragraphs (>60%) collapse to tinted quote marks only.
-    if (on('lnSpeech') && intensity !== 'quiet') for (const t of list.filter(t => t.kind === 'speech')) {
+    // Speech: the whole quote takes the speaker's ink (it reads as authentic voice). On dialogue-heavy
+    // paragraphs (>60% speech) the ink is softer, so a page of dialogue never turns into a colour wash.
+    // Voices styles: ink = whole quote in the speaker's colour; underline = speaker-colour hairline;
+    // marks = only the quote marks. Hover any of them to see who is speaking.
+    if (voices !== 'off' && intensity !== 'quiet') for (const t of list.filter(t => t.kind === 'speech')) {
       const key = t.key && NAMES[t.key] ? t.key : 'voice'
-      if (t.para.speechShare > 0.6) {
-        const q = shown.quote[key] ||= []
-        q.push(rng(t.node, t.a, t.node, t.a + 1)); if (t.node.data[t.b - 1] === '”') q.push(rng(t.node, t.b - 1, t.node, t.b))
-      } else (shown.speech[key] ||= []).push(tokRange(t))
+      if (voices === 'ink') (t.para.speechShare > 0.6 ? (shown.soft[key] ||= []) : (shown.speech[key] ||= [])).push(tokRange(t))
+      else if (voices === 'underline') (shown.under[key] ||= []).push(tokRange(t))
+      else { const q = shown.marks[key] ||= []; q.push(rng(t.node, t.a, t.node, t.a + 1)); if (t.node.data[t.b - 1] === '”') q.push(rng(t.node, t.b - 1, t.node, t.b)) }
       count(t, 'shown')
     }
     if (on('lnAsides') && intensity !== 'quiet') for (const t of list.filter(t => t.kind === 'aside')) { shown.aside.push(tokRange(t)); count(t, 'shown') }
   }
   for (const n of Object.keys(NAMES)) setHL('n-' + n, shown.name[n], PR.name)
-  for (const k of [...Object.keys(NAMES), 'voice']) { setHL('sp-' + k, shown.speech[k], PR.speech); setHL('q-' + k, shown.quote[k], PR.quote) }
+  for (const k of [...Object.keys(NAMES), 'voice']) { setHL('sp-' + k, shown.speech[k]); setHL('sps-' + k, shown.soft[k]); setHL('spu-' + k, shown.under[k]); setHL('q-' + k, shown.marks[k]) }
   setHL('hard', shown.hard, PR.hard); setHL('foreign', shown.foreign, PR.foreign); setHL('aside', shown.aside, PR.aside)
   $('ldCount').textContent = `${counts.shown} marks shown · ${counts.held} held back`
 }
-;['lnNames', 'lnHard', 'lnSpeech', 'lnAsides', 'lnForeign'].forEach(id => $(id).addEventListener('change', paintLenses))
+;['lnNames', 'lnHard', 'lnAsides', 'lnForeign'].forEach(id => $(id).addEventListener('change', paintLenses))
+seg('ldVoices', v => { voices = v; mark('ldVoices', v); paintLenses() })
 seg('ldPass', v => { mark('ldPass', v); loadPassage(v) })
 seg('ldInt', v => { intensity = v; mark('ldInt', v); paintLenses() })
 
@@ -382,13 +385,15 @@ function hideTip() { tip.hidden = true; tipKey = '' }
 const tipFor = t => {
   if (t.kind === 'name') { const n = LENS.names[t.key] || {}; return `<span class="av" style="background:var(${NAMES[t.key]})">${t.key[0]}</span><b class="w">${t.key}</b><div class="def">${n.before ? `First seen in <b>${n.first}</b>. Mentioned ${n.before} times across ${n.chapters} chapters so far.` : n.first ? 'You’re meeting them now: this is their first appearance.' : 'A character in this passage.'}</div><div class="meta2">Spoiler-safe: counts stop at your page</div>` }
   if (t.kind === 'hard') { const d = LENS.words[t.key]; return `<b class="w">${t.key}</b><div class="def">${d ? d.def : 'In pubre, the definition comes from Open English WordNet, offline.'}</div><div class="meta2">Zipf ${t.zipf} · ${t.zipf < 2 ? 'very rare' : 'rare'} in English${d ? ' · sample definition' : ''}</div>` }
+  if (t.kind === 'speech') return t.key && NAMES[t.key] ? `<span class="av" style="background:var(${NAMES[t.key]})">${t.key[0]}</span><b class="w">${t.key}</b><div class="def">is speaking. Voices colours each speaker’s words in their own ink.</div><div class="meta2">Attribution is a best guess from “said …”, who’s addressed, and turn-taking</div>` : `<b class="w">A voice</b><div class="def">Quoted words with no speaker named nearby.</div>`
   if (t.kind === 'foreign') return `<b class="w">${t.key}</b><div class="def">Latin. pubre offers a translation for foreign phrases (marked by the book’s language tags).</div>`
   return ''
 }
 let tipKey = ''
 function hover(e) {
   const c = caretAt(e.clientX, e.clientY); if (!c) return hideTip()
-  const t = tokens.find(t => t.node === c.node && c.offset >= t.a && c.offset < t.b && ['name', 'hard', 'foreign'].includes(t.kind))
+  const at = t => t.node === c.node && c.offset >= t.a && c.offset < t.b
+  const t = tokens.find(t => at(t) && ['name', 'hard', 'foreign'].includes(t.kind)) || (voices !== 'off' && intensity !== 'quiet' ? tokens.find(t => at(t) && t.kind === 'speech') : null)
   const h = !t && hlAt(c.node, c.offset)
   const key = t ? t.kind + t.key : h ? 'hl' + hls.indexOf(h) : ''
   if (key === tipKey) return

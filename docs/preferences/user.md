@@ -39,3 +39,4 @@ Collected 2026-10-11. Add new entries with dates.
   - "Dim what's read" should be on by default.
   - Use contrast levels for focus: sentence, then paragraph, then page.
   - Names, hard words and especially speech separation ("genius") are liked. Add more writing patterns, but **richness must never look cluttered**; the implementation must control intensity across edge cases.
+- **Voices (2026-10-11):** the speech lens is named **Voices**. Colouring the whole quote in the speaker's ink (style **Ink**, the default) "looks authentic" and is preferred over tinting only the quote marks. Styles offered: Ink / Underline (speaker-colour hairline) / Marks / Off. On dense dialogue (more than 60%), Ink softens instead of collapsing. Hover shows who is speaking.

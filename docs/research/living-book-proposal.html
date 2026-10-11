@@ -342,13 +342,21 @@ kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; 
 ::highlight(aside) { color:color-mix(in srgb,var(--fg) 60%,var(--surface)) }
 ::highlight(foreign) { text-decoration:underline dashed 1.5px var(--muted); text-underline-offset:5px }
 ::highlight(n-Queequeg) { color:var(--b0B); text-decoration:underline 2px color-mix(in srgb,var(--b0B) 55%,transparent); text-underline-offset:4px }
-::highlight(sp-Ahab) { color:color-mix(in srgb,var(--fg) 45%,var(--b08)) } ::highlight(q-Ahab) { color:var(--b08) }
-::highlight(sp-Stubb) { color:color-mix(in srgb,var(--fg) 45%,var(--b0A)) } ::highlight(q-Stubb) { color:var(--b0A) }
-::highlight(sp-Flask) { color:color-mix(in srgb,var(--fg) 45%,var(--b0C)) } ::highlight(q-Flask) { color:var(--b0C) }
-::highlight(sp-Starbuck) { color:color-mix(in srgb,var(--fg) 45%,var(--b0D)) } ::highlight(q-Starbuck) { color:var(--b0D) }
-::highlight(sp-Ishmael) { color:color-mix(in srgb,var(--fg) 45%,var(--b0E)) } ::highlight(q-Ishmael) { color:var(--b0E) }
-::highlight(sp-Queequeg) { color:color-mix(in srgb,var(--fg) 45%,var(--b0B)) } ::highlight(q-Queequeg) { color:var(--b0B) }
-::highlight(sp-voice) { color:color-mix(in srgb,var(--fg) 55%,var(--b0C)) } ::highlight(q-voice) { color:var(--b0C) }
+::highlight(sp-Ahab) { color:color-mix(in srgb,var(--fg) 45%,var(--b08)) } ::highlight(sps-Ahab) { color:color-mix(in srgb,var(--fg) 54%,var(--b08)) }
+::highlight(sp-Stubb) { color:color-mix(in srgb,var(--fg) 45%,var(--b0A)) } ::highlight(sps-Stubb) { color:color-mix(in srgb,var(--fg) 54%,var(--b0A)) }
+::highlight(sp-Flask) { color:color-mix(in srgb,var(--fg) 45%,var(--b0C)) } ::highlight(sps-Flask) { color:color-mix(in srgb,var(--fg) 54%,var(--b0C)) }
+::highlight(sp-Starbuck) { color:color-mix(in srgb,var(--fg) 45%,var(--b0D)) } ::highlight(sps-Starbuck) { color:color-mix(in srgb,var(--fg) 54%,var(--b0D)) }
+::highlight(sp-Ishmael) { color:color-mix(in srgb,var(--fg) 45%,var(--b0E)) } ::highlight(sps-Ishmael) { color:color-mix(in srgb,var(--fg) 54%,var(--b0E)) }
+::highlight(sp-Queequeg) { color:color-mix(in srgb,var(--fg) 45%,var(--b0B)) } ::highlight(sps-Queequeg) { color:color-mix(in srgb,var(--fg) 54%,var(--b0B)) }
+::highlight(sp-voice) { color:color-mix(in srgb,var(--fg) 55%,var(--b0C)) } ::highlight(sps-voice) { color:color-mix(in srgb,var(--fg) 54%,var(--b0C)) }
+/* Voices: underline + marks styles */
+::highlight(spu-Ahab) { text-decoration:underline 1.5px color-mix(in srgb,var(--b08) 50%,transparent); text-underline-offset:6px } ::highlight(q-Ahab) { color:var(--b08) }
+::highlight(spu-Stubb) { text-decoration:underline 1.5px color-mix(in srgb,var(--b0A) 50%,transparent); text-underline-offset:6px } ::highlight(q-Stubb) { color:var(--b0A) }
+::highlight(spu-Flask) { text-decoration:underline 1.5px color-mix(in srgb,var(--b0C) 50%,transparent); text-underline-offset:6px } ::highlight(q-Flask) { color:var(--b0C) }
+::highlight(spu-Starbuck) { text-decoration:underline 1.5px color-mix(in srgb,var(--b0D) 50%,transparent); text-underline-offset:6px } ::highlight(q-Starbuck) { color:var(--b0D) }
+::highlight(spu-Ishmael) { text-decoration:underline 1.5px color-mix(in srgb,var(--b0E) 50%,transparent); text-underline-offset:6px } ::highlight(q-Ishmael) { color:var(--b0E) }
+::highlight(spu-Queequeg) { text-decoration:underline 1.5px color-mix(in srgb,var(--b0B) 50%,transparent); text-underline-offset:6px } ::highlight(q-Queequeg) { color:var(--b0B) }
+::highlight(spu-voice) { text-decoration:underline 1.5px color-mix(in srgb,var(--b0C) 50%,transparent); text-underline-offset:6px } ::highlight(q-voice) { color:var(--b0C) }
 .lv { color:color-mix(in srgb,var(--fg) var(--k),var(--surface)) }
 .edge td:first-child { white-space:normal; width:38%; font-weight:600 }
 .lensdemo .g-bar { justify-content:center }
@@ -373,7 +381,7 @@ kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; 
       <p class="lede" style="margin:0">Before adding features, pubre needs a grammar. Each typographic channel carries exactly one kind of meaning, the same in the guide, the lenses, your highlights and the capsule. Learn it once and the page explains itself. Motion follows the same rule: each meaning has one verb, and it only plays where your cursor is.</p></div>
     <div class="gram" id="gram">
       <div class="gh sans"><span>Channel</span><span>Means</span><span>Looks like</span><span>Motion at the cursor</span></div>
-      <div class="gr" data-verb="bloom"><b>Ink colour</b><span><b>Who.</b> A person or a speaking voice. Each character keeps one base16 hue for the whole book.</span>
+      <div class="gr" data-verb="bloom"><b>Ink colour</b><span><b>Who.</b> A person, or their voice (<b>Voices</b>). Each character keeps one base16 hue for the whole book.</span>
         <span class="spec"><span class="sp" style="color:var(--b08)">Ahab</span>, <span class="sp" style="color:var(--b0D)">Starbuck</span>, <span class="sp" style="color:var(--b0A)">Stubb</span> · <span style="color:color-mix(in srgb,var(--fg) 55%,var(--b0C))">“Sing out for him!”</span></span>
         <button class="verb sans">Bloom<small>a soft glow in their colour; a first mention throws a spark</small></button></div>
       <div class="gr" data-verb="draw"><b>Underline</b><span><b>Tell me more.</b> Hover or tap for help. The line’s style says what kind.</span>
@@ -501,7 +509,7 @@ kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; 
   <section class="cat" id="lenses">
     <div class="cat-head"><span class="label">Part III · Word lenses &amp; highlights</span>
       <h2>Words that explain themselves</h2>
-      <p class="lede" style="margin:0">Lenses tint certain words and explain them on hover or tap. <b>Names</b> get their character colour. <b>Hard words</b> (rare in English, Zipf below 3) get a dotted underline. <b>Speech</b> takes the speaker’s colour. <b>Asides</b> whisper a step quieter. <b>Foreign</b> phrases get a dashed underline. <b>Select any text</b> to highlight it in a colour that carries a meaning, add your own bold or italic, and attach a note that shows on hover. All of it follows the grammar in Part I.</p></div>
+      <p class="lede" style="margin:0">Lenses tint certain words and explain them on hover or tap. <b>Names</b> get their character colour. <b>Hard words</b> (rare in English, Zipf below 3) get a dotted underline. <b>Voices</b> gives each speaker’s words their own colour, as ink, an underline or tinted quote marks. <b>Asides</b> whisper a step quieter. <b>Foreign</b> phrases get a dashed underline. <b>Select any text</b> to highlight it in a colour that carries a meaning, add your own bold or italic, and attach a note that shows on hover. All of it follows the grammar in Part I.</p></div>
     <div class="card wide lensdemo" id="ld">
       <div class="g-bar sans">
         <span class="optl">Passage</span><div class="seg" role="radiogroup" aria-label="Passage" id="ldPass"><button role="radio" aria-checked="true" data-v="calm" class="on">Ch 36 · calm</button><button role="radio" aria-checked="false" data-v="mab">Ch 31 · all dialogue</button><button role="radio" aria-checked="false" data-v="ceto">Ch 32 · dense words</button></div>
@@ -510,7 +518,7 @@ kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; 
       <div class="g-bar sans g-opts">
         <label class="toggle"><input type="checkbox" id="lnNames" checked> Names</label>
         <label class="toggle"><input type="checkbox" id="lnHard" checked> Hard words</label>
-        <label class="toggle"><input type="checkbox" id="lnSpeech" checked> Speech</label>
+        <span class="optl">Voices</span><div class="seg" role="radiogroup" aria-label="Voices" id="ldVoices"><button role="radio" aria-checked="true" data-v="ink" class="on">Ink</button><button role="radio" aria-checked="false" data-v="underline">Underline</button><button role="radio" aria-checked="false" data-v="marks">Marks</button><button role="radio" aria-checked="false" data-v="off">Off</button></div>
         <label class="toggle"><input type="checkbox" id="lnAsides" checked> Asides</label>
         <label class="toggle"><input type="checkbox" id="lnForeign" checked> Foreign</label>
         <span class="g-spacer"></span><span class="g-pill mono" id="ldCount"></span>
@@ -539,11 +547,11 @@ kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; 
   <section class="cat" id="clutter" style="margin-top:56px">
     <div class="cat-head"><span class="label">Part III · continued</span>
       <h2>Richness without clutter</h2>
-      <p class="lede" style="margin:0">Marks should add richness, never noise. Three mechanisms keep it that way. An <b>attention budget</b> allows each intensity a number of marks per 100 words, and the most valuable win. <b>Focus scoping</b> makes the paragraph you’re reading rich and keeps everything else calm. <b>Graceful collapse</b> means a dense pattern shrinks to its minimal form instead of flooding the page.</p></div>
+      <p class="lede" style="margin:0">Marks should add richness, never noise. Three mechanisms keep it that way. An <b>attention budget</b> allows each intensity a number of marks per 100 words, and the most valuable win. <b>Focus scoping</b> makes the paragraph you’re reading rich and keeps everything else calm. <b>Graceful softening</b> means a dense pattern quiets down (softer ink, fewer marks) instead of flooding the page.</p></div>
     <div class="cards">
       <article class="card wide"><h3>Edge cases and what pubre does</h3>
         <table class="keys sans edge">
-          <tr><td>Dialogue-heavy page (more than 60% of a paragraph is speech, e.g. ch. 31)</td><td>Speech collapses to tinted quote marks “ ” in the speaker’s colour. The separation stays visible and the words stay ink.</td></tr>
+          <tr><td>Dialogue-heavy page (more than 60% of a paragraph is speech, e.g. ch. 31)</td><td>Voices keeps the whole quote in the speaker’s ink, which reads as an authentic voice, but at a softer strength, so a page of dialogue never becomes a colour wash. If you prefer even less, switch Voices to Underline or Marks.</td></tr>
           <tr><td>Name-dense text (cast lists, Russian novels, the Extracts)</td><td>Only the first mention per paragraph is tinted; the rest are held. The guide reveals each one as it reaches it.</td></tr>
           <tr><td>Archaic or technical prose (ch. 32: Latin, cetology)</td><td>Only the rarest words (lowest Zipf) within the budget are underlined, and at most one foreign phrase per paragraph. Everything else reveals on hover.</td></tr>
           <tr><td>One word carries many meanings (a name, inside your highlight, under the pointer, in a quote)</td><td>Channels never collide (ink, underline, wash and pointer are separate layers). At most two system marks per word, in the order yours › pointer › who › tell-me-more › pattern.</td></tr>
@@ -557,7 +565,7 @@ kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; 
         </table></article>
       <article class="card"><h3>Writing patterns</h3>
         <ul class="d plain">
-          <li><b>Speech</b>: the speaker’s ink. Attribution from “said Stubb” / “Stubb whispered”, otherwise inherited from the previous speaker or the narration.</li>
+          <li><b>Voices</b> (speech): each speaker’s words in their own colour. There are three styles. <b>Ink</b> (default) colours the whole quote, which reads as authentic voice. <b>Underline</b> puts a speaker-colour hairline under the quote and leaves the text plain. <b>Marks</b> tints only the quote marks. Hover shows who’s speaking. Attribution comes from “said Stubb” / “Stubb whispered”, who is addressed, and turn-taking.</li>
           <li><b>Asides</b> (parentheses, paired dashes): one contrast step quieter, like a lowered voice.</li>
           <li><b>Foreign phrases</b>: a dashed underline, with a translation on dwell.</li>
           <li><b>Letters, verse, songs, epigraphs</b>: block-level, handled by chapter stages (Part V).</li>
@@ -568,7 +576,7 @@ kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; 
           <li><b>Quiet</b>: 0. Only yours and the pointer.</li>
           <li><b>Guided</b>: about 2.5 (at least 1 per paragraph), doubled in the paragraph you’re guiding.</li>
           <li><b>Rich</b>: about 5, up to 3 foreign phrases, and every motion verb.</li>
-        </ul><p class="note">Value order: first mention of a name, then the rarest hard word, then foreign phrases. Speech and asides don’t spend the budget: they recolour existing ink rather than adding marks.</p></article>
+        </ul><p class="note">Value order: first mention of a name, then the rarest hard word, then foreign phrases. Speech and asides don’t spend the budget: they recolour existing ink rather than adding marks. Dense dialogue softens its ink instead of shrinking.</p></article>
     </div>
   </section>
 
@@ -813,7 +821,7 @@ const HL = window.CSS && CSS.highlights
 // highlights overlap, so it is never used; contrast levels are disjoint ranges.)
 const PR = {}
 const ORDER = ['f-page', 'f-para', 'f-read', 'f-readpara', 'aside', 'f-readfocus', 'f-focus',
-  ...['Ahab', 'Stubb', 'Flask', 'Starbuck', 'Ishmael', 'Queequeg', 'voice'].flatMap(n => ['sp-' + n, 'q-' + n]),
+  ...['Ahab', 'Stubb', 'Flask', 'Starbuck', 'Ishmael', 'Queequeg', 'voice'].flatMap(n => ['sps-' + n, 'sp-' + n, 'spu-' + n, 'q-' + n]),
   'hard', 'foreign', ...['Ahab', 'Stubb', 'Flask', 'Starbuck', 'Ishmael', 'Queequeg'].map(n => 'n-' + n),
   ...['0A', '0B', '0D', '08', '09', '0E'].map(c => 'u-' + c), 's-b', 'bloom', 'breathe']
 if (HL) for (const n of ORDER) HL.set(n, new Highlight())
@@ -1011,7 +1019,7 @@ const NAME_RE = new RegExp(`\\b(${Object.keys(NAMES).join('|')})\\b`, 'g')
 const SAY = 'said|whispered|cried|repeated|muttered|asked|shouted|rejoined|replied|answered'
 const isForeign = w => (LENS.zipf[w] ?? 9) === 0 && /(em|am|is|que|um|us|ae|tem|ege)$/.test(w) // demo heuristic; pubre uses lang attributes / foreign italics
 const on = id => $(id).checked
-let passage = 'calm', tokens = [], counts = { shown: 0, held: 0 }
+let passage = 'calm', tokens = [], counts = { shown: 0, held: 0 }, voices = 'ink' // Voices: ink | underline | marks | off
 
 function loadPassage(key) {
   passage = key
@@ -1078,7 +1086,7 @@ function budgetFor(para, focused) {
 function paintLenses() {
   counts = { shown: 0, held: 0 }
   const count = (t, k) => { if (t.para.root === lText) counts[k]++ }
-  const shown = { name: {}, hard: [], foreign: [], speech: {}, quote: {}, aside: [] }
+  const shown = { name: {}, hard: [], foreign: [], speech: {}, soft: {}, under: {}, marks: {}, aside: [] }
   const byPara = new Map()
   for (const t of tokens) { if (!byPara.has(t.para.el)) byPara.set(t.para.el, []); byPara.get(t.para.el).push(t) }
   for (const [el, list] of byPara) {
@@ -1102,23 +1110,26 @@ function paintLenses() {
       if (t.kind === 'name') (shown.name[t.key] ||= []).push(tokRange(t))
       else shown[t.kind].push(tokRange(t))
     })
-    // Speech: full voice ink normally; on dialogue-heavy paragraphs (>60%) collapse to tinted quote marks only.
-    if (on('lnSpeech') && intensity !== 'quiet') for (const t of list.filter(t => t.kind === 'speech')) {
+    // Speech: the whole quote takes the speaker's ink (it reads as authentic voice). On dialogue-heavy
+    // paragraphs (>60% speech) the ink is softer, so a page of dialogue never turns into a colour wash.
+    // Voices styles: ink = whole quote in the speaker's colour; underline = speaker-colour hairline;
+    // marks = only the quote marks. Hover any of them to see who is speaking.
+    if (voices !== 'off' && intensity !== 'quiet') for (const t of list.filter(t => t.kind === 'speech')) {
       const key = t.key && NAMES[t.key] ? t.key : 'voice'
-      if (t.para.speechShare > 0.6) {
-        const q = shown.quote[key] ||= []
-        q.push(rng(t.node, t.a, t.node, t.a + 1)); if (t.node.data[t.b - 1] === '”') q.push(rng(t.node, t.b - 1, t.node, t.b))
-      } else (shown.speech[key] ||= []).push(tokRange(t))
+      if (voices === 'ink') (t.para.speechShare > 0.6 ? (shown.soft[key] ||= []) : (shown.speech[key] ||= [])).push(tokRange(t))
+      else if (voices === 'underline') (shown.under[key] ||= []).push(tokRange(t))
+      else { const q = shown.marks[key] ||= []; q.push(rng(t.node, t.a, t.node, t.a + 1)); if (t.node.data[t.b - 1] === '”') q.push(rng(t.node, t.b - 1, t.node, t.b)) }
       count(t, 'shown')
     }
     if (on('lnAsides') && intensity !== 'quiet') for (const t of list.filter(t => t.kind === 'aside')) { shown.aside.push(tokRange(t)); count(t, 'shown') }
   }
   for (const n of Object.keys(NAMES)) setHL('n-' + n, shown.name[n], PR.name)
-  for (const k of [...Object.keys(NAMES), 'voice']) { setHL('sp-' + k, shown.speech[k], PR.speech); setHL('q-' + k, shown.quote[k], PR.quote) }
+  for (const k of [...Object.keys(NAMES), 'voice']) { setHL('sp-' + k, shown.speech[k]); setHL('sps-' + k, shown.soft[k]); setHL('spu-' + k, shown.under[k]); setHL('q-' + k, shown.marks[k]) }
   setHL('hard', shown.hard, PR.hard); setHL('foreign', shown.foreign, PR.foreign); setHL('aside', shown.aside, PR.aside)
   $('ldCount').textContent = `${counts.shown} marks shown · ${counts.held} held back`
 }
-;['lnNames', 'lnHard', 'lnSpeech', 'lnAsides', 'lnForeign'].forEach(id => $(id).addEventListener('change', paintLenses))
+;['lnNames', 'lnHard', 'lnAsides', 'lnForeign'].forEach(id => $(id).addEventListener('change', paintLenses))
+seg('ldVoices', v => { voices = v; mark('ldVoices', v); paintLenses() })
 seg('ldPass', v => { mark('ldPass', v); loadPassage(v) })
 seg('ldInt', v => { intensity = v; mark('ldInt', v); paintLenses() })
 
@@ -1188,13 +1199,15 @@ function hideTip() { tip.hidden = true; tipKey = '' }
 const tipFor = t => {
   if (t.kind === 'name') { const n = LENS.names[t.key] || {}; return `<span class="av" style="background:var(${NAMES[t.key]})">${t.key[0]}</span><b class="w">${t.key}</b><div class="def">${n.before ? `First seen in <b>${n.first}</b>. Mentioned ${n.before} times across ${n.chapters} chapters so far.` : n.first ? 'You’re meeting them now: this is their first appearance.' : 'A character in this passage.'}</div><div class="meta2">Spoiler-safe: counts stop at your page</div>` }
   if (t.kind === 'hard') { const d = LENS.words[t.key]; return `<b class="w">${t.key}</b><div class="def">${d ? d.def : 'In pubre, the definition comes from Open English WordNet, offline.'}</div><div class="meta2">Zipf ${t.zipf} · ${t.zipf < 2 ? 'very rare' : 'rare'} in English${d ? ' · sample definition' : ''}</div>` }
+  if (t.kind === 'speech') return t.key && NAMES[t.key] ? `<span class="av" style="background:var(${NAMES[t.key]})">${t.key[0]}</span><b class="w">${t.key}</b><div class="def">is speaking. Voices colours each speaker’s words in their own ink.</div><div class="meta2">Attribution is a best guess from “said …”, who’s addressed, and turn-taking</div>` : `<b class="w">A voice</b><div class="def">Quoted words with no speaker named nearby.</div>`
   if (t.kind === 'foreign') return `<b class="w">${t.key}</b><div class="def">Latin. pubre offers a translation for foreign phrases (marked by the book’s language tags).</div>`
   return ''
 }
 let tipKey = ''
 function hover(e) {
   const c = caretAt(e.clientX, e.clientY); if (!c) return hideTip()
-  const t = tokens.find(t => t.node === c.node && c.offset >= t.a && c.offset < t.b && ['name', 'hard', 'foreign'].includes(t.kind))
+  const at = t => t.node === c.node && c.offset >= t.a && c.offset < t.b
+  const t = tokens.find(t => at(t) && ['name', 'hard', 'foreign'].includes(t.kind)) || (voices !== 'off' && intensity !== 'quiet' ? tokens.find(t => at(t) && t.kind === 'speech') : null)
   const h = !t && hlAt(c.node, c.offset)
   const key = t ? t.kind + t.key : h ? 'hl' + hls.indexOf(h) : ''
   if (key === tipKey) return

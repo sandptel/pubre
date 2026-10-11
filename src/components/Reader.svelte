@@ -305,6 +305,17 @@
     }
     return out
   }
+  /** Long-press a sentence in the Stage: highlight it as Key, or remove that highlight again. */
+  async function markSentence(v: BookView, s: number): Promise<boolean | null> {
+    if (!book) return null
+    const sp = v.ix.sentences[s], ws = v.ix.words, r = v.doc.createRange()
+    r.setStart(ws[sp.a].sn, ws[sp.a].so); r.setEnd(ws[sp.b].en, ws[sp.b].eo)
+    const cfi = book.cfi(v.index, r), old = anns.find(a => a.spine === v.index && a.cfi === cfi)
+    if (old) { anns = anns.filter(a => a !== old); await deleteAnnotation(old.id); paintAnns(v); return false }
+    const a: Annotation = { id: crypto.randomUUID(), book: rec.id, spine: v.index, cfi, ...quoteOf(r), color: '0A', bold: false, italic: false, note: '', chapter: loc?.chapter ?? '', created: Date.now() }
+    anns = [...anns, a]; await saveAnnotation(a); paintAnns(v)
+    return true
+  }
   async function explain(key: string): Promise<string> {
     const i = key.indexOf(':'), kind = key.slice(0, i), val = key.slice(i + 1)
     if (kind === 'hard') { const d = await define(val); return `<b>${escape(val)}</b>${d ? `<i>${escape(d.pos)}</i>${escape(d.text)}` : 'A rare word.'}` }
@@ -648,7 +659,7 @@
       </div>
     {/if}
   {/if}
-  <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} pageEl={paperEl} {decorate} {explain}
+  <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} pageEl={paperEl} {decorate} {explain} onmark={markSentence}
     onopen={o => { staged = o; if (o) { chrome = false; hideCard(); guide?.deactivate() } else paintLenses() }} onstate={st => (sstate = st)}
     onpace={w => (settings.wpm = w)} ontoast={toast} />
   {#if bar}

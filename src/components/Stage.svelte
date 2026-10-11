@@ -16,9 +16,11 @@
   import { breath, MAX_WPM, sentenceTime, wordTime, type Breath } from '../lib/pacing.ts'
   import { prevUnit, segments, unitAt, type Decor, type Step } from '../lib/stagetext.ts'
 
-  let { pag, settings, chapter = '', pageEl, decorate, explain, onopen, onstate, onpace, ontoast }: {
+  let { pag, settings, chapter = '', pageEl, decorate, explain, onmark, onopen, onstate, onpace, ontoast }: {
     pag: Paginator | undefined; settings: Settings; chapter?: string; pageEl?: HTMLElement
     decorate?: (v: View, b: number) => Decor[]; explain?: (key: string) => Promise<string>
+    /** Long-press a sentence: keep it (true) or let it go again (false). */
+    onmark?: (v: View, s: number) => Promise<boolean | null>
     onopen?: (open: boolean) => void; onstate?: (s: StageState) => void
     onpace?: (wpm: number) => void; ontoast?: (m: string) => void
   } = $props()
@@ -345,8 +347,10 @@
     schedule()
   }
   function toggle() {
-    if (waiting) return onward()
-    playing ? stop() : play()
+    if (waiting && waits(waiting)) return onward() // it was waiting for you: go on
+    if (playing) return stop() // a pause, even mid-breath
+    if (waiting) { playing = true; return onward() } // paused during a breath: carry on past it
+    play()
   }
 
   // ---------- the page underneath ----------
@@ -553,10 +557,29 @@
     return true
   }
 
-  // ---------- touch on the text: tap = pause / play, swipe = a sentence ----------
-  let downY = 0, downAt = 0, wheelLock = 0
-  function down(e: PointerEvent) { downY = e.clientY; downAt = e.timeStamp }
+  // ---------- touch on the text: tap = pause / play, swipe = a sentence, long-press = keep the sentence ----------
+  let downY = 0, downX = 0, downAt = 0, wheelLock = 0, markT = 0, marked = false
+  function down(e: PointerEvent) {
+    downY = e.clientY; downX = e.clientX; downAt = e.timeStamp; marked = false
+    clearTimeout(markT)
+    const sp = (e.target as HTMLElement).closest<HTMLElement>('.flow [data-s]')
+    if (sp && onmark && landed) markT = window.setTimeout(() => mark(+sp.dataset.s!), 520)
+  }
+  function drag(e: PointerEvent) { if (markT && Math.hypot(e.clientX - downX, e.clientY - downY) > 10) { clearTimeout(markT); markT = 0 } }
+  async function mark(s: number) {
+    markT = 0; marked = true
+    navigator.vibrate?.(10)
+    const on = await onmark!(v!, s)
+    if (on === null) return
+    for (const sp of sentEls.get(s) ?? []) {
+      sp.classList.toggle('lx-yours', on)
+      if (on) { sp.style.setProperty('--hl', 'var(--base0A)'); sp.classList.add('lx-stamp'); setTimeout(() => sp.classList.remove('lx-stamp'), 700) }
+    }
+    ontoast?.(on ? 'Kept as Key · long-press again to let go' : 'Highlight removed')
+  }
   function up(e: PointerEvent) {
+    clearTimeout(markT); markT = 0
+    if (marked) { marked = false; return }
     if ((e.target as HTMLElement).closest('button, .gloss')) return
     const dy = e.clientY - downY
     if (Math.abs(dy) > 40) return sentence(dy < 0 ? 1 : -1)
@@ -582,7 +605,7 @@
 </script>
 
 {#if open}
-  <div class="stage" bind:this={root} role="dialog" tabindex="-1" aria-label="Stage reading" onpointerdown={down} onpointerup={up} onpointerover={over} onwheel={wheel}>
+  <div class="stage" bind:this={root} role="dialog" tabindex="-1" aria-label="Stage reading" onpointerdown={down} onpointermove={drag} onpointerup={up} onpointerover={over} onwheel={wheel}>
     <div class="veil" bind:this={veil}></div>
     <div class="win" style:font-family={font} style:--size="{settings.fontScale / 100}">
       <div class="lift" bind:this={lift}>
@@ -603,7 +626,7 @@
         {#if waiting === 'end' && waits(waiting)}<span>End of chapter · {go_} to go on</span>
         {:else if waiting === 'chapter' && waits(waiting)}<span>{go_ === 'tap' ? 'Tap' : 'Space'} for the next chapter</span>
         {:else if waiting === 'paragraph' && waits(waiting)}<span>{go_ === 'tap' ? 'Tap' : 'Space'} for the next paragraph</span>
-        {:else if !waiting && !playing && !holdPlay}<span>Paused · {go_} to go on</span>{/if}
+        {:else if !playing && !holdPlay}<span>Paused · {go_} to go on</span>{/if}
       {/if}
     </div>
     <button class="x" class:on={landed} aria-label="Back to the page (Esc)" onclick={close}>
@@ -655,6 +678,8 @@
   .flow :global(.lx-yours[data-st="read"]), .flow :global(.lx-yours[data-st="later"]) { background: color-mix(in srgb, var(--hl) 12%, transparent); }
   .flow :global(.lx-bold) { -webkit-text-stroke: .022em currentColor; }
   .flow :global(.lx-ital) { font-style: italic; }
+  .flow :global(.lx-stamp) { animation: stamp .7s cubic-bezier(.22,1,.36,1); }
+  @keyframes stamp { from { background-color: color-mix(in srgb, var(--hl) 60%, transparent); } }
   @keyframes chip { from { background-color: color-mix(in srgb, var(--who) 38%, transparent); box-shadow: 0 0 0 .32em color-mix(in srgb, var(--who) 10%, transparent); } }
   .gloss {
     position: absolute; z-index: 2; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 92px); translate: -50% 0; width: max-content; max-width: min(460px, calc(100vw - 32px));

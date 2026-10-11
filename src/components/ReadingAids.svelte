@@ -32,7 +32,7 @@
   {#if value.guide}
     <label class="line"><span>Pace<small>{value.wpm} words a minute · the speed chip by the pad changes it while you read</small></span>
       <input class="pace" type="range" min="120" max="350" step="5" bind:value={value.wpm} aria-label="Words a minute" /></label>
-    {@render toggle('Hold the page to read', 'holdToRead', 'Off: holding selects text to highlight')}
+    {@render toggle('Hold the page to read', 'holdToRead', 'Off: holding selects text. In the Stage, long-press a sentence to highlight it')}
     {@render choice('Style', 'guideStyle', [['stage', 'Stage'], ['pointer', 'Pointer']], value.guideStyle === 'stage' ? 'Space lifts the paragraph toward you' : 'A marker moves on the page')}
   {/if}
   {#if value.guide && value.guideStyle === 'stage'}
@@ -42,7 +42,7 @@
     {/if}
     {@render toggle('Lenses in Stage', 'stageLenses', 'Names, voices, rare words, your highlights')}
     {@render choice('Paragraph end', 'paraEnd', [['breathe', 'Breathe'], ['wait', 'Wait']], value.paraEnd === 'breathe' ? 'A pause, then the next rises' : 'Waits for a tap')}
-    <p class="hint">Tap the round pad (or Space) to start and pause. Hold it to read only while you hold; let go and it goes back to the page. While holding, slide right for faster, left for slower and then backwards, up to lock. ← → step, ↑ ↓ paragraph, [ ] pace ({value.wpm} wpm).</p>
+    <p class="hint">Tap the round pad (or Space) to start and pause. Hold it to read only while you hold; let go and it goes back to the page. In the Stage, long-press a sentence to keep it as a highlight. While holding, slide right for faster, left for slower and then backwards, up to lock. ← → step, ↑ ↓ paragraph, [ ] pace ({value.wpm} wpm).</p>
   {/if}
   {#if value.guide && value.guideStyle === 'pointer'}
     {@render choice('Pointer', 'pointer', [['word', 'Word'], ['underline', 'Line'], ['dot', 'Dot'], ['outline', 'Ring']])}

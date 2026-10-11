@@ -32,7 +32,7 @@
     onopen?: (open: boolean) => void; onstate?: (s: StageState) => void
     onpace?: (wpm: number) => void; ontoast?: (m: string) => void
     /** The quick switcher changed a reading setting (pointer, step). */
-    onsetting?: (key: 'stagePointer' | 'stageStep', value: string) => void
+    onsetting?: (key: 'stagePointer' | 'stageStep' | 'inkRead' | 'inkNow' | 'inkAhead', value: string | number) => void
   } = $props()
 
   let open = $state(false)
@@ -572,6 +572,8 @@
     toggle()
   }
   export const isOpen = () => open
+  /** Open or close the quick switcher (pointer, step, contrast) — from the reading bar. */
+  export function toggleQuick() { quick = !quick }
   /** One unit back or forward (the ‹ button). */
   export function nudge(dir: 1 | -1) { if (open && landed) unit(dir) }
 
@@ -708,14 +710,16 @@
         {:else if !playing && !holdPlay && !touch}<span>Paused · {go_} to go on</span>{/if}
       {/if}
     </div>
-    <button class="qbtn" class:on={landed} class:open={quick} aria-label="Pointer and step" aria-expanded={quick} onclick={() => (quick = !quick)}>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" /><path d="M6 13.5l3-7.5 3 7.5M7.2 11h3.6M14.5 13.5V6.5h2.4a1.8 1.8 0 010 3.6h-2.4 2.8a1.7 1.7 0 010 3.4h-2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
-    </button>
     {#if quick && landed}
       <div class="quick" role="dialog" aria-label="Pointer and step">
         <div class="q-seg" role="radiogroup" aria-label="Move by">
           {#each [['sentence', 'Sentence'], ['phrase', 'Phrase'], ['word', 'Word']] as [v, l]}
             <button role="radio" aria-checked={step === v} class:on={step === v} onclick={() => onsetting?.('stageStep', v)}>{l}</button>
+          {/each}
+        </div>
+        <div class="q-ink" aria-label="Contrast">
+          {#each [['inkRead', 'Read', 8, 70, settings.inkRead ?? 22], ['inkNow', 'Now', 60, 100, settings.inkNow ?? 100], ['inkAhead', 'Ahead', 12, 90, settings.inkAhead ?? 46]] as [k, l, lo, hi, val]}
+            <label><span>{l}<b>{val}%</b></span><input type="range" min={lo} max={hi} step="2" value={val} oninput={e => onsetting?.(k as 'inkRead', +e.currentTarget.value)} /></label>
           {/each}
         </div>
         {#if step !== 'sentence'}
@@ -828,12 +832,13 @@
   .breath i { display: block; height: 100%; background: var(--accent); transform-origin: left; animation: fill linear both; }
   .x { position: absolute; z-index: 1; top: calc(env(safe-area-inset-top) + 10px); right: calc(env(safe-area-inset-right) + 10px); width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; transition: background-color .2s, color .2s, opacity .3s; opacity: 0; }
   .x.on { opacity: 1; }
-  .qbtn { position: absolute; z-index: 3; top: calc(env(safe-area-inset-top) + 10px); left: calc(env(safe-area-inset-left) + 10px); width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); display: grid; place-items: center; opacity: 0; transition: opacity .3s, background-color .2s, color .2s; }
-  .qbtn.on { opacity: 1; }
-  .qbtn.open, .qbtn:hover { background: var(--hover); color: var(--fg); }
-  .qbtn svg { width: 22px; height: 22px; }
-  .quick { position: absolute; z-index: 3; top: calc(env(safe-area-inset-top) + 60px); left: 12px; right: 12px; margin-inline: auto; max-width: 560px; padding: 10px; border-radius: 22px; display: grid; gap: 10px;
+  .quick { position: absolute; z-index: 9; bottom: calc(env(safe-area-inset-bottom) + 86px); left: 12px; right: 12px; margin-inline: auto; max-width: 560px; padding: 10px; border-radius: 22px; display: grid; gap: 10px;
     background: color-mix(in srgb, var(--accent) 8%, var(--surface)); box-shadow: 0 0 0 1px var(--hairline), 0 18px 40px -18px rgb(0 0 0 / .35); animation: glossIn .3s cubic-bezier(.22,1,.36,1); }
+  .q-ink { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 2px 4px; }
+  .q-ink label { display: grid; gap: 4px; }
+  .q-ink span { display: flex; justify-content: space-between; font: 600 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .q-ink b { color: var(--fg); font-weight: 600; }
+  .q-ink input { width: 100%; accent-color: var(--accent); margin: 0; }
   .q-seg { display: flex; padding: 3px; border-radius: 999px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 18%, transparent); }
   .q-seg button { flex: 1; min-height: 36px; border: 0; border-radius: 999px; background: none; color: var(--fg); font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
   .q-seg button.on { background: var(--ink); color: var(--on-ink); }

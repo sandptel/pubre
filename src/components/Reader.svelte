@@ -890,6 +890,11 @@
 
   {#if eff.guide && loc && !error}
     <div class="padgroup transport glass" class:up={press ? pressUp : showChrome && !staged} class:reading={staged || gstate.active} class:solo={!speedChip && !(staged || (gstate.active && !showChrome))}>
+      {#if staged}
+        <button class="ptrbtn" aria-label="Pointer and contrast" onclick={() => stage?.toggleQuick()}>
+          <span class="ptr-mini"><span>Aa</span><i class="ptr" data-p={eff.stageStep === 'sentence' ? 'underline' : eff.stagePointer === 'ink' ? 'underline' : eff.stagePointer}></i></span>
+        </button>
+      {/if}
       {#if speedChip}
         <button class="speed" class:on={speedOpen} aria-label="Reading speed, {eff.wpm} words a minute" aria-expanded={speedOpen}
           onclick={() => { speedOpen = !speedOpen; clearTimeout(speedT); if (speedOpen) speedT = window.setTimeout(() => (speedOpen = false), 5000) }}>
@@ -1282,6 +1287,15 @@
   .transport .speed.on { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--fg); }
   .transport .speed.on small { color: var(--muted); }
   .transport .speed { position: relative; margin-right: 4px; }
+  .ptrbtn { width: 46px; height: 48px; border: 0; border-radius: 999px; background: none; color: var(--fg); display: grid; place-items: center; }
+  .ptrbtn:active { background: var(--hover); }
+  .ptr-mini { position: relative; isolation: isolate; font: 600 16px var(--serif); padding: 2px 3px; }
+  .ptr-mini i { position: absolute; z-index: -1; left: -1px; right: -1px; }
+  .ptr-mini i[data-p="underline"], .ptr-mini i[data-p="dot"] { top: auto; bottom: -2px; height: 2.5px; left: 2px; right: 2px; }
+  .ptr-mini i[data-p="dot"] { width: 5px; height: 5px; left: calc(50% - 2.5px); }
+  .ptr-mini i[data-p="highlighter"] { top: 55%; bottom: 0; }
+  .ptr-mini i[data-p="caret"] { left: -3px; right: auto; width: 2px; top: 3px; bottom: 3px; }
+  .ptr-mini i:not([data-p="underline"]):not([data-p="dot"]):not([data-p="highlighter"]):not([data-p="caret"]) { top: -1px; bottom: -1px; }
   .transport .speed::after { content: ''; position: absolute; right: -3px; top: 12px; bottom: 12px; width: 1px; background: var(--hairline); }
   .transport .steps { display: contents; }
   .transport .back { width: 44px; height: 48px; border-radius: 999px; margin: 0; color: var(--fg); transition: background-color .15s, transform .25s var(--spring); }

@@ -21,6 +21,7 @@
   import Cover from './Cover.svelte'
   import Progress from './Progress.svelte'
   import Sheet from './Sheet.svelte'
+  import Stage from './Stage.svelte'
   import Toc from './Toc.svelte'
 
   let { record, settings = $bindable(), onclose }: { record: BookRecord; settings: Settings; onclose: () => void } = $props()
@@ -31,7 +32,7 @@
   const rec: BookRecord = untrack(() => $state.snapshot(record)) // local copy we persist
   let host: HTMLDivElement
   let book = $state.raw<Book>()
-  let pag: Paginator | undefined
+  let pag = $state.raw<Paginator>()
   let loc = $state<Relocation>()
   let sections = $state.raw<Section[]>([])
   let chrome = $state(true)
@@ -42,6 +43,8 @@
   let saveTimer = 0
   let padT = 0, padDown = 0
   let guide: Guide | undefined
+  let stage = $state<ReturnType<typeof Stage>>()
+  let staged = $state(false)
   let lenses: Lenses | undefined
   let card = $state<{ x: number; y: number; below: boolean; html: string } | null>(null)
   let cardKey = '', dwellT = 0, hoverT = 0
@@ -87,13 +90,13 @@
         book = b
         pag = new Paginator(host, b, $state.snapshot(eff))
         guide = new Guide(pag, $state.snapshot(eff))
-        guide.onState = s => { if (s.active !== gstate.active) { pag?.setReserve(s.active ? 44 : 0); lastFocusBlock = -1; if (!s.active) paintLenses() } gstate = s; if (s.active) chrome = false; if (s.gliding) hideCard() }
+        guide.onState = s => { const was = gstate.active; gstate = s; if (s.active !== was) { lastFocusBlock = -1; if (!s.active) paintLenses() } if (s.active) chrome = false; if (s.gliding) hideCard() }
         guide.onPace = wpm => (settings.wpm = wpm)
         guide.onToast = toast
-        pag.keyHook = e => guide!.key(e)
+        pag.keyHook = e => !!stage?.key(e) || guide!.key(e)
         pag.tapHook = (v, x, y) => guide!.tapWord(v, x, y) || tapAnnotation(v, x, y)
         lenses = new Lenses($state.snapshot(eff), b.metadata.language)
-        pag.onView = v => { guide!.view(v); attachHover(v); attachSelection(v); paintAnns(v); paintLenses() }
+        pag.onView = v => { stage?.view(v); guide!.view(v); attachHover(v); attachSelection(v); paintAnns(v); paintLenses() }
         listAnnotations(rec.id).then(list => { anns = list; if (pag?.current) paintAnns(pag.current) })
         guide.onArrive = (v, k) => arrive(v, k)
         loadCommon().then(set => { lenses?.setCommon(set); paintLenses() })
@@ -392,7 +395,7 @@
   const isCurrent = (t: TocItem) => !!loc && t.label === loc.chapter
 </script>
 
-<svelte:window onkeydown={e => { if (e.key === 'Escape' && !panel) chrome = !chrome }} />
+<svelte:window onkeydown={e => { if (e.key === 'Escape' && !panel && !gstate.active && !staged) chrome = !chrome }} />
 
 <div class="reader" class:chrome>
   <div class="paper" style:view-transition-name="cover">
@@ -419,8 +422,8 @@
       </div>
     {/if}
     {#if eff.guide}
-      <button class="fab glass guide-btn" class:on={gstate.active} aria-label={gstate.active ? 'Leave reading guide (G)' : 'Reading guide (G)'} aria-pressed={gstate.active}
-        onclick={() => { guide?.toggle(); chrome = false }}>
+      <button class="fab glass guide-btn" class:on={gstate.active} aria-label={eff.guideStyle === 'stage' ? 'Stage (Space)' : gstate.active ? 'Leave reading guide (G)' : 'Reading guide (G)'} aria-pressed={gstate.active}
+        onclick={() => { if (eff.guideStyle === 'stage') stage?.start(); else guide?.toggle(); chrome = false }}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="9" width="9" height="6" rx="2" fill="currentColor" opacity=".35" stroke="none" /><path d="M3 18h18M15 12h6" /></svg>
       </button>
     {/if}
@@ -438,6 +441,8 @@
       <span class="pad-ring"></span><span class="pad-l">{gstate.gliding ? `${gstate.wpm} wpm` : 'Hold'}</span>
     </button>
   {/if}
+  <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title}
+    onopen={o => { staged = o; if (o) { chrome = false; hideCard(); guide?.deactivate() } }} onpace={w => (settings.wpm = w)} ontoast={toast} />
   {#if bar}
     <div class="hl-bar glass" class:below={bar.below} style:left="{bar.x}px" style:top="{bar.y}px" role="toolbar" aria-label="Highlight">
       <div class="hl-row">
@@ -586,7 +591,7 @@
     position: absolute; overflow: hidden;
     inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
-  .stage :global(.pubre-view) { will-change: transform; color-scheme: normal; }
+  .stage :global(.pubre-view) { will-change: transform; } /* inherits the theme's color-scheme, matching the book's (else an opaque canvas hides what's behind) */
 
   .running {
     position: absolute; left: 50%; translate: -50% 0; max-width: 60vw; pointer-events: none;
@@ -665,6 +670,7 @@
     transition: transform .3s var(--ease), opacity .3s; animation: padIn .4s var(--ease);
   }
   .pad.held { transform: scale(.94); }
+  .reader.chrome .pad { opacity: 0; pointer-events: none; }
   .pad-l { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .pad-ring { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; }
   .pad.held .pad-ring { opacity: 1; animation: ring 1.2s ease-out infinite; }

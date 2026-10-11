@@ -30,6 +30,13 @@
 <div class="group">
   {@render toggle('Reading guide', 'guide', 'Press G, or the guide button')}
   {#if value.guide}
+    {@render choice('Style', 'guideStyle', [['stage', 'Stage'], ['pointer', 'Pointer']], value.guideStyle === 'stage' ? 'Space lifts the paragraph toward you' : 'A marker moves on the page')}
+  {/if}
+  {#if value.guide && value.guideStyle === 'stage'}
+    {@render choice('Paragraph end', 'paraEnd', [['breathe', 'Breathe'], ['wait', 'Wait']], value.paraEnd === 'breathe' ? 'A pause, then the next rises' : 'Waits for Space')}
+    <p class="hint">Space to start and pause, ← → sentence, ↑ ↓ paragraph, [ ] pace ({value.wpm} wpm), Esc back to the page. On touch: tap to pause, swipe up for the next sentence.</p>
+  {/if}
+  {#if value.guide && value.guideStyle === 'pointer'}
     {@render choice('Pointer', 'pointer', [['word', 'Word'], ['underline', 'Line'], ['dot', 'Dot'], ['outline', 'Ring']])}
     {@render choice('Focus', 'focus', [['sentence', 'Sentence'], ['line', 'Line'], ['paragraph', 'Para']])}
     {@render choice('Step', 'step', [['word', 'Word'], ['phrase', 'Phrase']])}

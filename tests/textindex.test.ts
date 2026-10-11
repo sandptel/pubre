@@ -36,3 +36,9 @@ test('code and tables are indexed as skip blocks', () => {
   const ix = indexDocument(doc('<p>Text.</p><pre>let x = 1</pre>'))
   assert.equal(ix.blocks[1].kind, 'skip')
 })
+
+test('source line breaks inside a paragraph do not end sentences', () => {
+  const ix = indexDocument(doc('<p>“The Whale-ship Globe, on board of which vessel occurred the horrid\n        transactions we are about to relate.” Next one.</p>'))
+  assert.equal(ix.sentences.length, 2)
+  assert.equal(ix.words.find(w => w.text === 'horrid')!.pause, 0)
+})

@@ -113,6 +113,7 @@ export class Guide {
   // ---------- keys (called for keydown and keyup, from the app and the book) ----------
   key(e: KeyboardEvent): boolean {
     if ((e.target as HTMLElement)?.closest?.('input, textarea, select, dialog[open]')) return false
+    if (this.s.guideStyle === 'stage' && !this.active) return false
     if (e.metaKey || e.ctrlKey && !['ArrowUp', 'ArrowDown'].includes(e.key)) return false
     if (e.type === 'keyup') {
       if (e.key !== ' ' || !this.spaceDown) return false
@@ -160,6 +161,8 @@ export class Guide {
     if (!node) return false
     const k = v.ix.words.findIndex(w => (w.sn === node && off >= w.so && off <= (w.en === node ? w.eo : Infinity)) || (w.en === node && w.sn !== node && off <= w.eo))
     if (k < 0) return false
+    const wr = this.rect(k) // a tap in the margin (no word within a line) is not a pointer move: it shows the controls
+    if (Math.abs(y - (wr.top + wr.height / 2)) > wr.height || x < wr.left - wr.height * 2 || x > wr.right + wr.height * 2) return false
     this.stopGlide(); this.go(k)
     return true
   }

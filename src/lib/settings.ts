@@ -113,7 +113,9 @@ export interface Settings {
   letterSpacing: number // em; accessibility (0–0.12)
   measure: 'normal' | 'short' // short ≈ 40 characters per line (helps some dyslexic readers)
   // Reading guide
-  guide: boolean // guide available (dock button, G key)
+  guide: boolean // guide available (dock button, G key, Space)
+  guideStyle: 'stage' | 'pointer' // stage: the paragraph lifts toward you, a sentence at a time; pointer: a marker on the page
+  paraEnd: 'breathe' | 'wait' // stage: at a paragraph's end, breathe then go on, or wait for Space
   pointer: Pointer
   focus: Focus
   step: 'word' | 'phrase'
@@ -134,7 +136,7 @@ export interface Settings {
 
 export const defaults: Settings = {
   palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto', letterSpacing: 0, measure: 'normal',
-  guide: true, pointer: 'word', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
+  guide: true, guideStyle: 'stage', paraEnd: 'breathe', pointer: 'word', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
   intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'ink', asides: true, foreign: true, motion: 'full', onlineDefinitions: false, chapterPrompts: true,
 }
 

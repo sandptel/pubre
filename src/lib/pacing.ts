@@ -45,3 +45,23 @@ export function wordTime(ix: TextIndex, k: number, wpm: number): number {
   if (/^\d/.test(w.text)) base *= 1.2             // numbers take longer to read
   return base + pauseAfter(ix, k)
 }
+
+// ---------- Stage (sentence at a time) ----------
+
+/** Time on sentence s (ms): its words at your pace, plus a beat for the sentence to rise into place. */
+export function sentenceTime(ix: TextIndex, s: number, wpm: number): number {
+  const { a, b } = ix.sentences[s]
+  let ms = 200
+  for (let k = a; k <= b; k++) ms += wordTime(ix, k, wpm)
+  return ms
+}
+
+/** The breath after a block before the next one rises (on top of its last word's pause):
+ *  'section' before a heading, 'paragraph' otherwise; 'end' when the chapter is over (wait for the reader). */
+export function breath(ix: TextIndex, blk: number): { kind: 'paragraph' | 'section' | 'end'; ms: number } {
+  const next = ix.blocks.slice(blk + 1).findIndex(b => b.kind !== 'skip' && b.b >= b.a)
+  if (next < 0) return { kind: 'end', ms: Infinity }
+  const nb = ix.blocks[blk + 1 + next], here = ix.blocks[blk]
+  if (nb.kind === 'heading' || here.kind === 'heading') return { kind: 'section', ms: 1200 }
+  return { kind: 'paragraph', ms: 500 }
+}

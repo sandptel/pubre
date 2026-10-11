@@ -110,6 +110,8 @@ export class Paginator {
   private starts: number[] = [] // cumulative spine weights, for whole-book progress
   private marks: { label: string; at: number }[] = [] // every TOC entry on the progress axis
   private wheelLock = 0
+  private queued: 0 | 1 | -1 = 0 // one turn asked for while another was still moving
+  private reduce = matchMedia('(prefers-reduced-motion: reduce)')
   private wheelAcc = 0
   private ro: ResizeObserver
   private resizeTimer = 0
@@ -205,6 +207,7 @@ export class Paginator {
 
   async next() {
     const v = this.view
+    if (v && this.busy) this.queued = 1
     if (!v || this.busy) return
     if (this.page < v.pages - 1) return this.slide(this.page + 1)
     if (v.index < this.book.spine.length - 1) return this.turnChapter(1)
@@ -213,6 +216,7 @@ export class Paginator {
 
   async prev() {
     const v = this.view
+    if (v && this.busy) this.queued = -1
     if (!v || this.busy) return
     if (this.page > 0) return this.slide(this.page - 1)
     if (v.index > 0) return this.turnChapter(-1)
@@ -377,6 +381,7 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
   private async move(v: View, to: number, ms = TURN_MS) {
     const from = this.currentX(v)
     this.setX(v, to)
+    if (this.reduce.matches) return
     await v.iframe.animate(
       [{ transform: `translate3d(${from}px,0,0)` }, { transform: `translate3d(${to}px,0,0)` }],
       { duration: ms, easing: EASE },
@@ -388,7 +393,7 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
     this.busy = true
     this.page = page
     this.emit()
-    try { await this.move(v, -page * this.L.step) } finally { this.busy = false }
+    try { await this.move(v, -page * this.L.step) } finally { this.busy = false; this.flush() }
   }
 
   private async turnChapter(dir: 1 | -1) {
@@ -409,8 +414,11 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
       this.onView?.(v)
     } finally {
       this.busy = false
+      this.flush()
     }
   }
+
+  private flush() { const d = this.queued; this.queued = 0; if (d > 0) this.next(); else if (d < 0) this.prev() }
 
   private pageIndexOf(v: View) {
     return Math.round(-new DOMMatrix(v.iframe.style.transform).m41 / this.L.step)

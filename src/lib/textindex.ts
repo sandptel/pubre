@@ -74,7 +74,9 @@ export function indexDocument(doc: Document, lang = 'en'): TextIndex {
     const ba = words.length
     // Sentences, with abbreviation merge.
     const sents: { i: number; t: string }[] = []
-    for (const s of sseg.segment(text)) {
+    // Source line breaks inside a paragraph are just spaces; Intl.Segmenter would end a sentence at
+    // every LF (UAX #29). Same length, so offsets still match the DOM text.
+    for (const s of sseg.segment(text.replace(/[\n\r\v\f\u0085\u2028\u2029]/g, ' '))) {
       const prev = sents[sents.length - 1]
       if (prev && ABBREV.test(prev.t)) prev.t += s.segment
       else sents.push({ i: s.index, t: s.segment })

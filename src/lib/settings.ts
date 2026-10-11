@@ -94,7 +94,13 @@ export const fonts: Record<string, { name: string; stack: string }> = {
   seravek: { name: 'Seravek', stack: 'Seravek, "Gill Sans Nova", Ubuntu, Calibri, "DejaVu Sans", sans-serif' },
 }
 
+export type Pointer = 'word' | 'underline' | 'dot' | 'outline'
+export type Focus = 'sentence' | 'line' | 'paragraph'
+export type Intensity = 'quiet' | 'guided' | 'rich'
+export type VoicesStyle = 'ink' | 'underline' | 'marks' | 'off'
+
 export interface Settings {
+  // Appearance
   palette: string
   mode: string
   font: string
@@ -104,9 +110,32 @@ export interface Settings {
   justify: boolean
   bold: boolean
   spread: 'auto' | 'single'
+  // Reading guide
+  guide: boolean // guide available (dock button, G key)
+  pointer: Pointer
+  focus: Focus
+  step: 'word' | 'phrase'
+  dimRead: boolean
+  wpm: number // learned from your taps
+  // Lenses (the visual grammar's "who" and "tell me more")
+  intensity: Intensity
+  names: boolean
+  hardWords: boolean
+  voices: VoicesStyle
+  asides: boolean
+  foreign: boolean
+  motion: 'full' | 'calm' // calm = no bloom/spark/breathe; the OS reduced-motion setting always wins
+  onlineDefinitions: boolean // off: definitions only from the offline dictionary
 }
 
-const defaults: Settings = { palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto' }
+export const defaults: Settings = {
+  palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto',
+  guide: true, pointer: 'word', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
+  intensity: 'guided', names: true, hardWords: true, voices: 'ink', asides: true, foreign: true, motion: 'full', onlineDefinitions: false,
+}
+
+/** Global settings with a book's own overrides layered on top. */
+export const effective = (global: Settings, book?: Partial<Settings>): Settings => ({ ...global, ...(book ?? {}) })
 
 export function loadSettings(): Settings {
   try {

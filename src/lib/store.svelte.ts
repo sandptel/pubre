@@ -1,8 +1,9 @@
 // Library persistence: book metadata + EPUB files in IndexedDB.
 // Binary data is stored as ArrayBuffer, not Blob: WebKit (Safari private mode, Playwright) rejects Blobs in IDB.
 import { Book } from './epub.ts'
+import type { Settings } from './settings.ts'
 
-export interface Location { index: number; fraction: number }
+export interface Location { index: number; fraction: number; cfi?: string }
 export interface BookRecord {
   id: string
   title: string
@@ -13,6 +14,7 @@ export interface BookRecord {
   opened: number
   progress: number // 0..1 across the whole book
   location?: Location
+  prefs?: Partial<Settings> // this book's overrides of the global settings
 }
 
 let dbp: Promise<IDBDatabase> | undefined

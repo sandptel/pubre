@@ -13,13 +13,14 @@ src/
 │   ├── Sheet.svelte        <dialog> panel: floating bottom sheet (phone) / popover above the menu button (≥720px), back/close, animated height
 │   ├── Toc.svelte          recursive TOC, highlights current
 │   └── Appearance.svelte   themes (pubre + base16), fonts, size, spacing, margins, toggles
-└── lib/                    framework-agnostic core
-    ├── zip.ts              central-directory ZIP reader, DecompressionStream('deflate-raw')
-    ├── epub.ts             Book: OPF/spine/nav/NCX/cover/encryption parse; blob-URL resource loader
+├── epub/                   EPUB protocol layer, UI-free: Epub aggregate + zip, container, package, nav, ncx,
+│                           encryption, smil, cfi, semantics, resources, xml, errors (see src/epub/README.md)
+└── lib/                    framework-agnostic reader core
+    ├── epub.ts             thin adapter: re-exports Epub as Book (+ types) for the app
     ├── paginator.ts        multi-column iframe pagination, animation, input, relocation events
     ├── settings.ts         palettes × modes → resolveTheme(), fonts, Settings, bookCss() override stylesheet
     └── store.svelte.ts     IndexedDB: books (metadata) + files (ArrayBuffer)
-tests/zip.test.ts           node --test (native TS type stripping)
+tests/**/*.test.ts          node --test (native TS type stripping); tests/epub/* use @xmldom/xmldom as the DOM
 ```
 
 ## Opening a book

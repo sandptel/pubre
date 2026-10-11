@@ -3,7 +3,8 @@
 1. **Footnote popovers**: `epub:type=noteref`, plus a heuristic for superscript `#id` links. Animate from the reference.
 2. **Content → UI features**: see the proposal artifact and `research/content-to-ui.md`. The user picks which.
 3. **CFI locations**: robust positions, plus highlights and notes (base16 highlight palette), plus a quote-share link.
-2b. **Merge the `src/epub/` protocol module** (built in parallel by an agent on its own branch) and switch the app to it.
+2b. **Use the protocol module's new data in the UI**: CFI for positions and highlights (replaces `{index, fraction}`), page-list → print page numbers, landmarks → open at `bodymatter`, series shelves, a11y badges, SMIL read-along.
+2c. Protocol gaps (see `src/epub/README.md`): OPF `<collection>`, per-item `rendition:viewport`, CFI filter for injected highlight nodes, CFI indirection into iframes.
 4. **Section Presenters v1**: chapter opener, epigraph, verse, and image presenters (see `features.md` §2).
 5. **Open at `bodymatter`** via landmarks/guide instead of the cover.
 6. **Full-text search** (worker).

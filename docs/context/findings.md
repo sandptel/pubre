@@ -14,3 +14,4 @@ Each entry: date · finding · evidence · where handled.
 - **2026-10-11 · Section-class heuristics must apply to containers only.** Gutenberg marks *every TOC line* as `p.toc`, which briefly made each line its own page.
 - **2026-10-11 · Headless Playwright WebKit renders `backdrop-filter` wrongly:** content behind looks barely covered. With the filter disabled, the 94%-opaque surface renders correctly. Don't chase this as an app bug. Check in real Safari.
 - **2026-10-11 · `showModal()` focuses the first button**, and WebKit then shows a focus ring on it. Handled by focusing the dialog itself (`tabindex=-1`).
+- **2026-10-11 · Protocol tests run on `@xmldom/xmldom`, which tolerates more broken XML than browsers do.** Always verify parser changes in a real browser too (smoke e2e in Chrome and WebKit). The XML repair step is only unit-tested.

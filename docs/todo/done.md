@@ -2,6 +2,8 @@
 
 ## v0.2: design pass + section breaks (2026-10-11)
 
+- `merge`: **standalone EPUB protocol module `src/epub/`** (13 commits, built in parallel). ZIP (ZIP64, data descriptors, CRC), OCF container, OPF (full EPUB 2/3 metadata, refines, series, a11y, rendition), nav (toc, page-list, landmarks, all navs), NCX, encryption (IDPF/Adobe deobfuscation, typed DRM errors), SMIL timelines, **CFI** (parse/stringify/compare/generate/resolve), semantics, resources (srcset, fallbacks, sanitized loader). 68 tests. `src/lib/epub.ts` is now an adapter. Verified in Chrome and WebKit.
+
 - `fix(reader)`: section breaks are honored in the multi-column layout (publisher and structural breaks, empty pages avoided)
 - `feat(theme)`: base16 **palette × mode** (ADR 0007), with tests
 - `feat(reader)`: book-like layout (measure about 36em, independent gutter, faded port, margin taps); chapters placed on the progress axis using TOC fragments

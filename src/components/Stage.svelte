@@ -13,7 +13,7 @@
   import { tick, untrack } from 'svelte'
   import type { Paginator, View } from '../lib/paginator.ts'
   import { fonts, type Settings } from '../lib/settings.ts'
-  import { beat, breath, MAX_WPM, pauseName, pauseScale, sentenceTime, wordTime, type Breath } from '../lib/pacing.ts'
+  import { beat, breath, MAX_WPM, pauseName, pauseScale, sentenceTime, wordTime, type Breath, type Cue, type How } from '../lib/pacing.ts'
   import PauseBars from './PauseBars.svelte'
   import { prevUnit, sectionOf, segments, unitAt, type Decor, type Step } from '../lib/stagetext.ts'
   import Ticker from './Ticker.svelte'
@@ -50,6 +50,18 @@
   let glossTop = $state(false)
   let root = $state<HTMLDivElement>(), veil = $state<HTMLDivElement>(), lift = $state<HTMLDivElement>(), para = $state<HTMLDivElement>()
   let flow = $state<HTMLDivElement>(), marker = $state<HTMLElement>(), cueEl = $state<HTMLElement>()
+  // How each kind of mark moves through its pause; a kind cycles through its moves so no rhythm repeats.
+  const MOVES: Record<Cue, string[]> = {
+    comma: ['hop', 'sway', 'dip', 'breathe'], turn: ['sway', 'hop', 'breathe'], list: ['nudge', 'tick', 'dip'],
+    pause: ['twice', 'step', 'blink'], dash: ['stretch', 'slide', 'pulse'], cut: ['snap', 'shake'],
+    stop: ['land', 'stamp', 'sink', 'press'], ask: ['tilt', 'bob', 'curl'], bang: ['jump', 'shake', 'pop'],
+    trail: ['spread', 'drift', 'wave'], quote: ['nudge', 'close', 'wink'], paren: ['close', 'nudge', 'wink'],
+  }
+  const turns: Partial<Record<Cue, number>> = {}
+  const BY_HOW: Partial<Record<Cue, Partial<Record<How, string>>>> = {
+    stop: { short: 'stamp', long: 'sink', spoken: 'press' }, ask: { short: 'curl', long: 'tilt', spoken: 'bob' },
+    bang: { short: 'pop', long: 'jump', spoken: 'shake' }, trail: { short: 'wave', long: 'spread', spoken: 'drift' },
+  }
   let v: View | undefined, cur = -1, ue = -1, y = 0, glideT = 0, wpm = 260, closing = false
   let transient = $state(false)
   let rate = 1, gen = 0
@@ -299,7 +311,7 @@
   function cue() {
     const c = cueEl, x = ix()
     if (!c || step === 'sentence' || reduce || !landed) return
-    const { ms, cue: kind } = beat(x, ue)
+    const { ms, cue: kind, how } = beat(x, ue)
     if (!kind || !ms) return
     const all = (sentEls.get(x.words[ue].s) ?? []).filter(sp => ownerOf.get(sp) === ue && !wordEls.get(ue)?.includes(sp) && /\S/.test(sp.textContent ?? ''))
     const r = rectsOf(all.slice(0, 1))[0]
@@ -311,8 +323,27 @@
     c.textContent = marks.map(m => m.textContent).join('').trimEnd() // an exact copy over the mark: it moves, the line never reflows
     c.style.left = r.left + 'px'; c.style.top = r.top + 'px'; c.style.lineHeight = r.height + 'px'
     const f = getComputedStyle(marks[0]); Object.assign(c.style, { fontFamily: f.fontFamily, fontSize: f.fontSize, fontStyle: f.fontStyle, fontWeight: f.fontWeight })
-    c.style.setProperty('--d', pause + 'ms'); c.style.setProperty('--w', lead + 'ms'); c.dataset.c = kind
+    const moves = MOVES[kind], n = (turns[kind] = (turns[kind] ?? -1) + 1) // ordinary marks rotate through their moves
+    const move = (how && how !== 'plain' && BY_HOW[kind]?.[how]) || moves[n % moves.length] // a short, spoken or long sentence moves its own way
+    c.style.setProperty('--d', pause + 'ms'); c.style.setProperty('--w', lead + 'ms'); c.style.setProperty('--j', 'pq-' + move); c.dataset.c = kind
     c.classList.remove('on'); void c.offsetWidth; c.classList.add('on')
+    // a quote or bracket closes, or a question / exclamation ends: what it held washes in, then fades as you read on
+    const tint = kind === 'ask' ? 'var(--base0D, var(--accent))' : kind === 'bang' ? 'var(--base08, var(--accent))' : 'var(--accent)'
+    const close = marks.map(m => m.textContent).join('').match(/[”"’»)\]]/g)?.pop(), dur = Math.max(pause, 900 / Math.abs(rate))
+    const held = close ? quoted(marks[marks.length - 1], close) : kind === 'ask' || kind === 'bang' ? sentEls.get(x.words[ue].s)?.filter(sp => (ownerOf.get(sp) ?? -1) <= ue) : null
+    if (held?.length) wash(held, tint, lead, dur)
+  }
+  function wash(held: HTMLElement[], tint: string, lead: number, dur: number) {
+    for (const sp of held) { Object.entries({ '--qd': dur + 'ms', '--qw': lead + 'ms', '--qc': tint }).forEach(([k, v]) => sp.style.setProperty(k, v)); sp.classList.remove('qw'); void sp.offsetWidth; sp.classList.add('qw') }
+    setTimeout(() => held.forEach(sp => sp.classList.remove('qw')), lead + dur + 60)
+  }
+  /** The spans a closing quote or bracket held, back to its opener in this paragraph (none if there isn't one). */
+  function quoted(last: HTMLElement, close: string): HTMLElement[] {
+    const open = ({ '”': /[“"]/, '"': /"/, '’': /‘/, '»': /«/, ')': /\(/, ']': /\[/ } as Record<string, RegExp>)[close]
+    const spans = [...(last.closest('[data-b]')?.querySelectorAll<HTMLElement>('[data-s]') ?? [])], end = spans.indexOf(last)
+    let start = -1
+    for (let i = end - 1; i >= Math.max(0, end - 160); i--) if (open.test(spans[i].textContent ?? '')) { start = i; break }
+    return start < 0 ? [] : spans.slice(start, end + 1) // no opener here: an apostrophe, or a quote from the paragraph before
   }
   function uncue() {
     cueEl?.classList.remove('on')
@@ -863,14 +894,6 @@
   @keyframes pq { 0%, 100% { opacity: 1; } 8%, 90% { opacity: 0; } }
   .cue { position: absolute; left: 0; top: 0; white-space: pre; pointer-events: none; opacity: 0; color: var(--accent); transform-origin: left bottom; }
   .cue:global(.on) { animation-name: pq-cue, var(--j, pq-hop); animation-duration: var(--d); animation-delay: var(--w); animation-fill-mode: both; animation-timing-function: linear, cubic-bezier(.3,.7,.3,1); }
-  .cue:global([data-c="list"]), .cue:global([data-c="quote"]), .cue:global([data-c="paren"]) { --j: pq-nudge; }
-  .cue:global([data-c="pause"]) { --j: pq-twice; }
-  .cue:global([data-c="dash"]) { --j: pq-stretch; }
-  .cue:global([data-c="cut"]) { --j: pq-snap; }
-  .cue:global([data-c="stop"]) { --j: pq-land; }
-  .cue:global([data-c="ask"]) { --j: pq-tilt; }
-  .cue:global([data-c="bang"]) { --j: pq-jump; }
-  .cue:global([data-c="trail"]) { --j: pq-spread; }
   @keyframes -global-pq-cue { 0%, 100% { opacity: 0; } 8%, 90% { opacity: 1; } }
   @keyframes -global-pq-hop { 0%, 100% { translate: 0 0; } 35% { translate: 0 -.16em; } 70% { translate: 0 .02em; } }
   @keyframes -global-pq-nudge { 0%, 100% { translate: 0 0; } 40% { translate: 0 -.08em; } }
@@ -881,6 +904,28 @@
   @keyframes -global-pq-tilt { 0% { translate: 0 0; rotate: 0deg; } 55% { translate: 0 -.22em; rotate: -14deg; } 100% { translate: 0 -.1em; rotate: -6deg; } }
   @keyframes -global-pq-jump { 0%, 100% { translate: 0 0; scale: 1; } 35% { translate: 0 -.34em; scale: 1.2; } 60% { translate: 0 0; scale: 1.08 .9; } }
   @keyframes -global-pq-spread { 0% { letter-spacing: 0; } 70%, 100% { letter-spacing: .18em; } }
+  @keyframes -global-pq-sway { 0%, 100% { rotate: 0deg; } 30% { rotate: -14deg; } 65% { rotate: 9deg; } }
+  @keyframes -global-pq-dip { 0%, 100% { translate: 0 0; } 40% { translate: 0 .12em; } }
+  @keyframes -global-pq-breathe { 0%, 100% { scale: 1; } 45% { scale: 1.4; } }
+  @keyframes -global-pq-tick { 0%, 100% { scale: 1; } 30% { scale: .75; } 60% { scale: 1.15; } }
+  @keyframes -global-pq-step { 0%, 50%, 100% { translate: 0 0; } 25%, 75% { translate: .12em 0; } }
+  @keyframes -global-pq-blink { 0%, 50%, 100% { opacity: 1; } 25%, 75% { opacity: .25; } }
+  @keyframes -global-pq-slide { 0%, 100% { translate: 0 0; } 45% { translate: .2em 0; } }
+  @keyframes -global-pq-pulse { 0%, 100% { scale: 1 1; } 40% { scale: 1.1 2.2; } }
+  @keyframes -global-pq-shake { 0%, 100% { translate: 0 0; } 15%, 45%, 75% { translate: -.05em 0; } 30%, 60%, 90% { translate: .05em 0; } }
+  @keyframes -global-pq-stamp { 0% { scale: 1.9; opacity: .2; } 35% { scale: .9; opacity: 1; } 55%, 100% { scale: 1; } }
+  @keyframes -global-pq-sink { 0%, 100% { translate: 0 0; } 40% { translate: 0 .14em; scale: 1.15; } }
+  @keyframes -global-pq-press { 0%, 100% { scale: 1; } 30% { scale: .55; } 60% { scale: 1.2; } }
+  @keyframes -global-pq-bob { 0%, 50%, 100% { translate: 0 0; } 25% { translate: 0 -.2em; } 75% { translate: 0 -.1em; } }
+  @keyframes -global-pq-curl { 0% { rotate: 0deg; translate: 0 0; } 40% { rotate: -26deg; translate: 0 -.12em; } 75% { rotate: 10deg; } 100% { rotate: 0deg; translate: 0 0; } }
+  @keyframes -global-pq-pop { 0%, 100% { scale: 1; } 30% { scale: 1.7; } 55% { scale: .9; } }
+  @keyframes -global-pq-drift { 0%, 100% { translate: 0 0; opacity: 1; } 60% { translate: .22em 0; opacity: .45; } }
+  @keyframes -global-pq-wave { 0% { translate: 0 0; letter-spacing: 0; } 40% { translate: 0 -.1em; letter-spacing: .1em; } 100% { translate: 0 0; letter-spacing: .06em; } }
+  @keyframes -global-pq-close { 0%, 100% { scale: 1 1; } 35% { scale: .6 1; } 65% { scale: 1.15 1; } }
+  @keyframes -global-pq-wink { 0%, 100% { rotate: 0deg; scale: 1; } 40% { rotate: 16deg; scale: .9; } }
+  /* a closing quote or bracket: the passage it held washes in, then fades as you read on */
+  .flow :global(.qw) { animation: qw var(--qd) var(--qw) both; border-radius: .15em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  @keyframes qw { 0%, 100% { background-color: transparent; } 18%, 55% { background-color: color-mix(in srgb, var(--qc, var(--accent)) 16%, transparent); } }
   .fade { position: absolute; left: 0; right: 0; height: 26%; pointer-events: none; opacity: 0; transition: opacity .4s ease; }
   .fade.on { opacity: 1; }
   .top-fade { top: 0; background: linear-gradient(var(--bg) 40%, transparent); }

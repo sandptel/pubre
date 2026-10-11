@@ -664,10 +664,10 @@
 {/if}
 
 <style>
-  .stage { position: fixed; inset: 0; z-index: 7; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; cursor: default; }
+  .stage { position: fixed; inset: 0; z-index: 7; overflow: hidden; overflow: clip; /* clip: nothing (find-in-page, focus, scrollIntoView) can scroll the Stage off its veil */ touch-action: none; user-select: none; -webkit-user-select: none; cursor: default; }
   .veil { position: absolute; inset: 0; background: var(--bg); }
   .win {
-    position: absolute; inset: 0 0 0 50%; width: min(26em, calc(100vw - 40px)); translate: -50% 0;
+    position: absolute; inset: 0 0 0 50%; width: min(26em, calc(100vw - 40px)); translate: -50% 0; overflow: clip; overflow-clip-margin: 2em;
     font-size: calc(var(--size) * clamp(21px, max(1.2vw + 12px, 2.2vmin + 6px), 30px)); line-height: 1.62; color: var(--fg); /* tablets: the short side counts too */
   }
   .lift { position: relative; will-change: transform, opacity; }

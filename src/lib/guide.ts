@@ -4,7 +4,7 @@
 // in the paginator's port, *behind* the transparent book iframe, so the book DOM is never touched.
 import type { Paginator, View } from './paginator.ts'
 import type { Settings } from './settings.ts'
-import type { Word } from './textindex.ts'
+import { wordTime } from './pacing.ts'
 
 export interface GuideState { active: boolean; gliding: boolean; wpm: number }
 type Pending = 'start' | 'end' | null
@@ -172,26 +172,22 @@ export class Guide {
     for (let c = 1; c < 3 && !ws[k].pause && ws[k + 1]; c++) k++
     return k + 1
   }
-  // Glide is a ceiling, not a pacer (reading research): never faster than 350 wpm, with breathing
-  // room at sentence (+250 ms) and paragraph (+600 ms) ends.
-  private wordMs(w: Word) {
-    const f = (0.7 + 0.3 * Math.min(w.text.length, 14) / 5) * [1, 1.5, 1, 1][w.pause] / 1.25
-    return (60000 / Math.min(350, this.s.wpm)) * f + [0, 0, 250, 600][w.pause]
-  }
+  // Glide is a ceiling, not a pacer (reading research): ≤ 350 wpm, with smart pauses for
+  // punctuation and position (see pacing.ts).
+  private wordMs(k: number) { return wordTime(this.v!.ix, k, this.s.wpm) }
   private startGlide() { if (this.gliding) return; this.activate(); if (!this.active) return; this.gliding = true; this.emit(); this.tick() }
   stopGlide() { if (!this.gliding) return; this.gliding = false; clearTimeout(this.timer); this.emit() }
   private tick() {
     if (!this.gliding || !this.v) return
     const ws = this.v.ix.words, n = this.next(this.i)
     let ms = 0
-    for (let k = this.i; k < Math.min(n, ws.length); k++) ms += this.wordMs(ws[k])
+    for (let k = this.i; k < Math.min(n, ws.length); k++) ms += this.wordMs(k)
     this.timer = window.setTimeout(async () => { if (!this.gliding) return; await this.go(n, true); if (this.gliding && !this.resume) this.tick() }, ms)
   }
   private tap(t: number) {
     if (t - this.lastTap < DOUBLE_TAP) { this.lastTap = 0; this.i = this.beforeTap; this.toSentenceStart(); this.onToast?.('Back to the start of the sentence'); return }
     if (this.lastTap && t - this.lastTap < 3000) { // longer gaps are pauses, not pace
-      const w = this.v!.ix.words[this.i]
-      const sample = 60000 * this.wordMs(w) / (60000 / this.s.wpm) / (t - this.lastTap)
+      const sample = this.s.wpm * this.wordMs(this.i) / (t - this.lastTap) // your time on this word vs. expected
       if (sample > 90 && sample < 900) {
         this.s = { ...this.s, wpm: Math.round(Math.max(120, Math.min(450, this.s.wpm * 0.8 + sample * 0.2))) }
         this.onPace?.(this.s.wpm); this.emit()
@@ -234,7 +230,7 @@ export class Guide {
       this.el.classList.add('on')
       return
     }
-    this.render(glide ? Math.min(480, this.wordMs(ws[n]) * (this.s.step === 'phrase' ? 1.6 : 0.8)) : 300, glide)
+    this.render(glide ? Math.min(480, this.wordMs(n) * (this.s.step === 'phrase' ? 1.6 : 0.8)) : 300, glide)
   }
 
   // ---------- drawing ----------

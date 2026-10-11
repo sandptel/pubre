@@ -8,6 +8,7 @@ export interface Word {
   s: number   // sentence index
   b: number   // block index
   pause: 0 | 1 | 2 | 3 // after this word: none, comma-like, sentence end, block end
+  punct: string // punctuation between this word and the next (e.g. ',', '.”', '—', '?')
 }
 export interface Span { a: number; b: number } // inclusive word indices
 export type BlockKind = 'text' | 'heading' | 'skip'
@@ -86,9 +87,17 @@ export function indexDocument(doc: Document, lang = 'en'): TextIndex {
         const nxt = text.slice(b, b + 2)
         const [sn, so] = at(a), [en, eo] = at(b, true)
         words.push({ sn, so, en, eo, text: w.segment, s: sentences.length, b: blocks.length,
-          pause: /^[”’"»)\]]?[.!?…]/.test(nxt) ? 2 : /^[”’"»)\]]?[,;:—–]/.test(nxt) ? 1 : 0 })
+          pause: /^[”’"»)\]]?[.!?…]/.test(nxt) ? 2 : /^[”’"»)\]]?[,;:—–]/.test(nxt) ? 1 : 0, punct: '' })
+        ;(words as (Word & { _b?: number })[])[words.length - 1]._b = b
       }
       if (words.length > sa) sentences.push({ a: sa, b: words.length - 1 })
+    }
+    // Punctuation between each word and the next one in this block.
+    for (let k = ba; k < words.length; k++) {
+      const w = words[k] as Word & { _b?: number }, end = w._b!
+      const nextStart = k + 1 < words.length ? starts.length && (() => { const n = words[k + 1]; return starts[g.nodes.indexOf(n.sn)] + n.so })() : text.length
+      w.punct = text.slice(end, nextStart as number).replace(/\s+/g, '').slice(0, 8)
+      delete w._b
     }
     if (words.length > ba) {
       words[words.length - 1].pause = 3

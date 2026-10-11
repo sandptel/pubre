@@ -70,3 +70,15 @@ export function prevUnit(ix: TextIndex, k: number, step: Step): number {
   if (step === 'sentence') return ix.sentences[s].a
   return phrases(ix, s).find(([a, b]) => a <= k - 1 && k - 1 <= b)![0]
 }
+
+/** The section around block b: from the chapter heading (h1/h2) at or before it to the next one.
+ *  Returns its word range and its readable paragraphs (block index + word count), for "where am I". */
+export function sectionOf(ix: TextIndex, b: number) {
+  const heads = (i: number) => ix.blocks[i]?.kind === 'heading' && /^h[12]$/i.test(ix.blocks[i].el.localName)
+  let a = b, e = b + 1
+  while (a > 0 && !heads(a)) a--
+  while (e < ix.blocks.length && !heads(e)) e++
+  const paras: { b: number; n: number }[] = []
+  for (let i = a; i < e; i++) { const k = ix.blocks[i]; if (k.kind === 'text' && k.b >= k.a) paras.push({ b: i, n: k.b - k.a + 1 }) }
+  return { from: a, to: e, wa: ix.blocks[a].a, wb: e < ix.blocks.length ? ix.blocks[e].a : ix.words.length, paras }
+}

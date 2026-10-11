@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { DOMParser } from '@xmldom/xmldom'
 import { indexDocument } from '../src/lib/textindex.ts'
-import { phrases, prevUnit, segments, unitAt } from '../src/lib/stagetext.ts'
+import { phrases, prevUnit, sectionOf, segments, unitAt } from '../src/lib/stagetext.ts'
 
 const ix = indexDocument(new DOMParser().parseFromString(`<html xmlns="http://www.w3.org/1999/xhtml"><body>
 <p>Call me <i>Ishmael</i>. “Some years ago, never mind how long, I sailed.”</p></body></html>`, 'application/xhtml+xml') as unknown as Document)
@@ -43,4 +43,13 @@ test('units: phrases end at pauses and hold at most 3 words', () => {
   assert.equal(prevUnit(ix, at('Some'), 'sentence'), at('Call'))
   assert.equal(prevUnit(ix, at('me'), 'word'), at('Call'))
   assert.equal(prevUnit(ix, 0, 'word'), -1)
+})
+
+test('sectionOf: from the chapter heading to the next, with its paragraphs', () => {
+  const ix2 = indexDocument(new DOMParser().parseFromString(`<html xmlns="http://www.w3.org/1999/xhtml"><body>
+<h2>One</h2><p>a b c.</p><p>d e.</p><h2>Two</h2><p>f g h i.</p></body></html>`, 'application/xhtml+xml') as unknown as Document)
+  const s = sectionOf(ix2, 2)
+  assert.deepEqual([s.from, s.to], [0, 3])
+  assert.deepEqual(s.paras, [{ b: 1, n: 3 }, { b: 2, n: 2 }])
+  assert.equal(sectionOf(ix2, 4).from, 3)
 })

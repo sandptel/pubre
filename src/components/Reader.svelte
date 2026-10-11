@@ -8,7 +8,7 @@
   import { Guide, type GuideState } from '../lib/guide.ts'
   import { Lenses, RARE, type Token } from '../lib/lenses.ts'
   import { define, loadCommon, rarity } from '../lib/lexicon.ts'
-  import type { Decor } from '../lib/stagetext.ts'
+  import { sectionOf, type Decor } from '../lib/stagetext.ts'
   import { blockOffsets } from '../lib/textindex.ts'
   import { whoHue, WHO_SLOTS } from '../lib/marks.ts'
   import { resolveTheme } from '../lib/settings.ts'
@@ -95,7 +95,7 @@
         book = b
         pag = new Paginator(host, b, $state.snapshot(eff))
         guide = new Guide(pag, $state.snapshot(eff))
-        guide.onState = s => { const was = gstate.active; gstate = s; if (s.active !== was) { lastFocusBlock = -1; if (!s.active) paintLenses() } if (s.active) chrome = false; if (s.gliding) hideCard() }
+        guide.onState = s => { const was = gstate.active; gstate = s; if (s.active !== was) { lastFocusBlock = -1; if (!s.active) { paintLenses(); where = null; whereBlock = -1 } } if (s.active) chrome = false; if (s.gliding) hideCard() }
         guide.onPace = wpm => (settings.wpm = wpm)
         guide.onToast = toast
         pag.keyHook = e => !!stage?.key(e) || guide!.key(e)
@@ -560,11 +560,24 @@
   }
   const slug = () => rec.title.replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 40)
 
+  // Where am I (pointer guide): the section's paragraphs as wedges; the one you're in springs as you cross into it.
+  let where = $state<{ key: string; paras: { b: number; n: number }[]; cur: number } | null>(null)
+  let whereBlock = -1
+  function trackWhere(v: BookView, b: number) {
+    if (b === whereBlock && where) return
+    whereBlock = b
+    const sec = sectionOf(v.ix, b), key = `${v.index}:${sec.from}`
+    const cur = sec.paras.findIndex(p => p.b === b)
+    if (where?.key !== key) where = { key, paras: sec.paras.length <= 60 ? sec.paras : [], cur }
+    else if (where.cur !== cur && cur >= 0) where = { ...where, cur }
+  }
+
   /** The guide reached word k: repaint lenses if the block changed, bloom names, and offer a card after a dwell. */
   function arrive(v: BookView, k: number) {
     hideCard()
     const w = v.ix.words[k]
     if (!w) return
+    trackWhere(v, w.b)
     if (w.b !== lastFocusBlock) { lastFocusBlock = w.b; paintLenses(w.b) }
     const t = lenses?.tokenAt(v, w.sn, w.so)
     if (t?.kind === 'name' && eff.names && eff.intensity !== 'quiet' && eff.motion === 'full' && !reduceMotion) {
@@ -579,7 +592,7 @@
 
 <svelte:window onkeydown={e => { if (e.key === 'Escape' && !panel && !gstate.active && !staged) chrome = !chrome }} onresize={() => (wide = innerWidth >= 720)} />
 
-<div class="reader" class:chrome={showChrome} class:padded={eff.guide} class:speedy={speedChip}>
+<div class="reader" class:guiding={gstate.active && !!where} class:chrome={showChrome} class:padded={eff.guide} class:speedy={speedChip}>
   <div class="paper" bind:this={paperEl} style:view-transition-name="cover">
     <div class="stage" bind:this={host}></div>
     {#if !loc && !error}<div class="spinner" aria-label="Opening book"></div>{/if}
@@ -592,6 +605,16 @@
     </div>
   {/if}
 
+  {#if gstate.active && where && loc}
+    <div class="where glass" transition:fly={{ y: -14, duration: 380, easing: cubicOut }} aria-hidden="true">
+      <span class="w-ch"><Ticker value={loc.chapter || rec.title} /></span>
+      {#if where.paras.length > 1}
+        <span class="w-row">{#each where.paras as p, i (p.b)}<i class:done={i < where.cur} class:cur={i === where.cur} style:flex-grow={Math.max(1, Math.sqrt(p.n))}></i>{/each}</span>
+      {/if}
+      {#if loc.cpages > 1}<span class="w-pg"><Ticker value={loc.cpage + 1} /><span>/{loc.cpages}</span></span>{/if}
+      {#key where.key}<em class="w-sweep"></em>{/key}
+    </div>
+  {/if}
   <button class="fab glass close" aria-label="Close book" onclick={onclose}>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17" /></svg>
   </button>
@@ -815,7 +838,7 @@
   .stage :global(.pubre-view) { will-change: transform; } /* inherits the theme's color-scheme, matching the book's (else an opaque canvas hides what's behind) */
 
   .running {
-    position: absolute; left: 50%; translate: -50% 0; max-width: 60vw; pointer-events: none;
+    position: absolute; left: 0; right: 0; margin-inline: auto; width: fit-content; max-width: 60vw; pointer-events: none;
     font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     transition: opacity .3s var(--ease);
   }
@@ -826,6 +849,23 @@
   .pgn { display: inline-flex; gap: 3px; align-items: baseline; }
   .sep { margin: 0 4px; }
   .chrome .running { opacity: 0; }
+  .guiding .running.head { opacity: 0; }
+  /* Where am I, while the pointer guide runs: section · a wedge per paragraph · page */
+  .where {
+    position: absolute; z-index: 3; top: calc(env(safe-area-inset-top) + 8px); left: 0; right: 0; margin-inline: auto; width: fit-content; overflow: hidden; /* not left:50% + translate: that caps an auto width at half the screen */
+    display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-radius: 999px; max-width: min(560px, calc(100vw - 32px));
+    font: 600 11px system-ui; color: var(--muted); pointer-events: none;
+  }
+  .w-ch { display: inline-grid; min-width: 0; max-width: 42%; letter-spacing: .02em; }
+  .w-pg { display: inline-flex; flex: none; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .w-row { display: flex; gap: 2px; align-items: center; width: min(200px, 34vw); height: 8px; flex: none; }
+  .w-row i { flex-basis: 0; min-width: 2px; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--fg) 14%, transparent); transition: background-color .45s ease, height .35s var(--spring); }
+  .w-row i.done { background: color-mix(in srgb, var(--accent) 42%, transparent); }
+  .w-row i.cur { height: 6px; background: var(--accent); animation: wedge .65s var(--spring); }
+  @keyframes wedge { 0% { transform: scaleY(.6); } 40% { transform: scaleY(1.9); } 100% { transform: scaleY(1); } }
+  .w-sweep { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 18%, transparent), transparent); background-size: 45% 100%; background-repeat: no-repeat; animation: wsweep 1.2s cubic-bezier(.4,0,.2,1) both; }
+  @keyframes wsweep { from { background-position: -70% 0; } to { background-position: 170% 0; } }
+  @media (prefers-reduced-motion: reduce) { .w-row i.cur, .w-sweep { animation: none; } }
 
   /* Floating chrome springs in from its edge; the dock trails slightly. */
   .close, .dock { position: absolute; z-index: 2; transition: transform .5s var(--spring), opacity .25s var(--ease); }

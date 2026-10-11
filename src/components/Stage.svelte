@@ -14,7 +14,7 @@
   import type { Paginator, View } from '../lib/paginator.ts'
   import { fonts, type Settings } from '../lib/settings.ts'
   import { breath, MAX_WPM, sentenceTime, wordTime, type Breath } from '../lib/pacing.ts'
-  import { prevUnit, segments, unitAt, type Decor, type Step } from '../lib/stagetext.ts'
+  import { prevUnit, sectionOf, segments, unitAt, type Decor, type Step } from '../lib/stagetext.ts'
   import Ticker from './Ticker.svelte'
   import type { TextIndex } from '../lib/textindex.ts'
 
@@ -60,15 +60,10 @@
   let span: [number, number, View?] = [0, 0] // this section's word range [a, b) in its view
   /** The line under the label is this section (from its heading to the next): fill = how far in, ticks = paragraphs. */
   function sectionLine(x: TextIndex) {
-    const heads = (b: number) => x.blocks[b]?.kind === 'heading' && /^h[12]$/i.test(x.blocks[b].el.localName)
     if (span[2] !== v || cur < span[0] || cur >= span[1]) {
-      let a = blk(), e = blk() + 1
-      while (a > 0 && !heads(a)) a--
-      while (e < x.blocks.length && !heads(e)) e++
-      const wa = x.blocks[a].a, wb = e < x.blocks.length ? x.blocks[e].a : x.words.length
-      span = [wa, wb, v]
-      const starts: number[] = []
-      for (let i = a + 1; i < e; i++) if (readable(i)) starts.push((x.blocks[i].a - wa) / Math.max(1, wb - wa))
+      const sec = sectionOf(x, blk())
+      span = [sec.wa, sec.wb, v]
+      const starts = sec.paras.filter(p => p.b > sec.from).map(p => (x.blocks[p.b].a - sec.wa) / Math.max(1, sec.wb - sec.wa))
       sections = starts.length <= 48 ? starts : []
     }
     progress = Math.min(1, Math.max(0, (cur - span[0]) / Math.max(1, span[1] - span[0] - 1)))

@@ -26,3 +26,6 @@
 - `chore`: scaffold
 
 Verified in Chrome (desktop 1440×900) and WebKit (390×844 touch): import of 3 books, open, page turns, TOC jump, theme switch, return to library.
+- Stage reading mode (Space lifts the paragraph; sentence-at-a-time; breaths; chapter continuation) — 2026-10-11
+- Chapter-end card (three words, Question resurfacing) and "Previously…" recap — 2026-10-11
+- Critic #1 fixes (see implementation-plan status) — 2026-10-11

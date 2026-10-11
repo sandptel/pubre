@@ -46,9 +46,14 @@ The source of truth for *what* to build is plan v3.2: https://claude.ai/artifact
 - [x] Selection toolbar in the reader: 6 meaning colours, bold (stroke), italic (span + CFI ignore), note, remove.
 - [x] Persistence by CFI + TextQuote. A Highlights list in the menu. Export as Markdown and Readium annotations JSON.
 - [ ] Margin dots for notes, and highlight dots on the capsule (later)
-- [ ] Research items: "Previously…" retrieval-first card, chapter-end three words, Question highlights resurfacing
+- [x] Research items: "Previously…" retrieval-first card, chapter-end three words, Question highlights resurfacing
 
-### ⟶ Critic pass #2 (agent)
+### C5b · Stage (user's pivot, ADR 0008)
+- [x] Space lifts the paragraph into a zoomed column; sentence at a time at your pace; breaths at paragraph/section; waits at chapter end; Esc lands back on the page.
+- [x] Style setting (Stage | Pointer), Paragraph end (Breathe | Wait).
+- [ ] Pace learning from manual advances; optional Voices/names inside Stage.
+
+### ⟶ Critic pass #2 (agent): focused on Stage feel + lens density
 
 ### C6 · Living capsule (if time allows)
 - [ ] Mood-tinted wedges from insights, time left at your pace, and a crossing pulse.
@@ -60,3 +65,4 @@ The source of truth for *what* to build is plan v3.2: https://claude.ai/artifact
   - smart punctuation and position pauses
   - names as a soft tint with an underline (plan-demo style)
   - the latest iteration is always hosted (push after each chunk)
+- 2026-10-11: Critic #1 fixed (dark-mode pointer, guide toggle relayout, phone exit, confident-only Voices, one lens budget per spread, rarity-ranked hard words with definitions only, asides as parentheses only, gentler read-dimming, clamped name hues, queued page turns, reduced motion, running header). User pivot: Stage replaces the pointer as the default guide (ADR 0008). Chapter-end card + "Previously…" deployed.

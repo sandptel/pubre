@@ -23,3 +23,7 @@ Each entry: date · finding · evidence · where handled.
   - Fixes that worked: prepositions mark places; "the" marks things; two-word phrases made of common words are dropped; possessives fold into the base name.
 - **2026-10-11 · Hard-word false positives:** hyphenated compounds of common words, and contractions. A word now counts as hard only if a part, or its base before the apostrophe, is hard.
 - **2026-10-11 · Calm time estimates must use TOC chapters, not spine files.** Gutenberg files contain many chapters ("~0.5–1 h left" was wrong). Estimate to the next TOC entry.
+- **Intl.Segmenter ends a sentence at every LF** (UAX #29 Sep). EPUB XHTML often wraps paragraphs with source newlines. `indexDocument` replaces line breaks with spaces (same length) before sentence segmentation.
+- **WebKit shows iframe content unblurred through `backdrop-filter`** on an overlay above it. Use an opaque veil over book iframes.
+- **TOC fragment positions from file byte offsets drift** from the rendered page. Once a chapter is loaded, place TOC entries by their anchor element's page (`getElementById` + `pageOfRect`).
+- **An iframe whose element `color-scheme` differs from its document's** gets an opaque canvas; keep the iframe inheriting the theme's scheme.

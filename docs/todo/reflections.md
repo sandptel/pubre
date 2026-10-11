@@ -42,3 +42,18 @@ After each chunk: what worked, what hurt, what I would do differently, and what 
 - Lens painting cost on very long chapters (the parse cache is per view; rebuilt after italic edits).
 - WebKit highlight count (we limit painting to pages near the reader).
 - Speaker heuristics on non-Gutenberg books.
+
+## Critic #1 + Stage (2026-10-11)
+
+**Worked**
+- Splitting the critic's findings by file ownership: a fork fixed lenses/marks/lexicon in the c4 worktree while I built Stage on main, then a clean merge.
+- Debugging from the DOM rather than screenshots: a "half-coloured sentence" was really `Intl.Segmenter` ending sentences at source line feeds (UAX #29). Fixed in the text index, which also fixes pacing and pointer focus everywhere.
+- Measuring before guessing: the veil's computed style was right in Chrome, so WebKit's backdrop-filter-over-iframe was the culprit.
+
+**Hurt**
+- The pointer design passed my own screenshot checks but failed the human test (attention capture). Screenshots can't show where the eye goes; ask how it *feels* sooner.
+- File-offset approximations (TOC label placement) looked fine on one book and drifted on others. Prefer real DOM positions once the chapter is loaded.
+
+**Next to watch**
+- Stage on very long paragraphs (taller than the screen), verse, images, dialogue-heavy pages.
+- Pace learning in Stage (manual → presses could teach wpm, as taps do for the pointer).

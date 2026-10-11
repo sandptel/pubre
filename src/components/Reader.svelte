@@ -875,6 +875,7 @@
   <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} page={loc?.cpage ?? 0} pages={loc?.cpages ?? 0} pageEl={paperEl} {decorate} {explain} onmark={markSentence} book={{ chapters: stripChapters, cur: stripCur }}
     onopen={o => { staged = o; speedOpen = false; if (o) { chrome = false; hideCard(); guide?.deactivate(); pushBack('stage') } else { paintLenses(); popBack('stage') } }} onstate={st => (sstate = st)}
     onpace={w => (settings.wpm = w)} ontoast={toast} />
+  {#if (eff.brightness ?? 100) < 100}<div class="dimmer" style:opacity={(100 - eff.brightness) / 100 * 0.9} aria-hidden="true"></div>{/if}
   {#if bar}
     <div class="hl-bar glass" class:below={bar.below} style:left="{bar.x}px" style:top="{bar.y}px" role="toolbar" aria-label="Highlight">
       <div class="hl-row">
@@ -1254,6 +1255,7 @@
   .lens-card :global(.c-who) { display: flex; align-items: center; gap: 8px; }
   .lens-card :global(.c-av) { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 12px var(--serif); }
   @keyframes cardIn { from { opacity: 0; } }
+  .dimmer { position: absolute; inset: 0; z-index: 7; background: #000; pointer-events: none; transition: opacity .2s; }
   .toast { position: absolute; z-index: 9; left: 50%; top: calc(env(safe-area-inset-top) + var(--s5)); translate: -50% 0; padding: 8px 14px; border-radius: 999px; font-size: 13px; animation: toastIn .35s var(--ease); pointer-events: none; }
   @keyframes toastIn { from { opacity: 0; transform: translateY(-6px); } }
   .error { position: absolute; inset: 0; z-index: 3; display: grid; place-content: center; justify-items: center; text-align: center; padding: var(--s5); background: var(--bg); }

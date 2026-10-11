@@ -4,7 +4,7 @@
   import { onMount, untrack } from 'svelte'
   import { pointerBox, type PointerType } from '../lib/pointers.ts'
 
-  let { step = 'word', pointer = 'underline', read = 22, now = 100, ahead = 46, lenses = false, mini = false, wpm = 240 }: {
+  let { step = 'word', pointer = 'outline', read = 22, now = 100, ahead = 46, lenses = false, mini = false, wpm = 240 }: {
     step?: 'sentence' | 'phrase' | 'word'; pointer?: PointerType | 'ink'; read?: number; now?: number; ahead?: number
     lenses?: boolean; mini?: boolean; wpm?: number
   } = $props()

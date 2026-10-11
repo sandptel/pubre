@@ -151,7 +151,7 @@ export interface Settings {
 
 export const defaults: Settings = {
   palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto', letterSpacing: 0, measure: 'normal',
-  guide: true, guideStyle: 'stage', paraEnd: 'breathe', stageStep: 'sentence', stagePointer: 'underline', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, v: 2, brightness: 100, inkRead: 22, inkNow: 100, inkAhead: 46, weather: true, pointer: 'underline', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
+  guide: true, guideStyle: 'stage', paraEnd: 'breathe', stageStep: 'sentence', stagePointer: 'outline', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, v: 3, brightness: 100, inkRead: 22, inkNow: 100, inkAhead: 46, weather: true, pointer: 'outline', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
   intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'ink', asides: true, foreign: true, motion: 'full', onlineDefinitions: false, chapterPrompts: true,
 }
 
@@ -161,8 +161,8 @@ export const effective = (global: Settings, book?: Partial<Settings>): Settings 
 export function loadSettings(): Settings {
   try {
     const saved = JSON.parse(localStorage.getItem('pubre:settings') ?? '{}')
-    // v2: Line became the default pointer (move everyone to it once; later choices are kept)
-    if ((saved.v ?? 1) < 2) { saved.pointer = 'underline'; if (saved.stagePointer && saved.stagePointer !== 'ink') saved.stagePointer = 'underline'; saved.v = 2 }
+    // v3: Ring is the default pointer (move everyone to it once; later choices are kept)
+    if ((saved.v ?? 1) < 3) { saved.pointer = 'outline'; if (saved.stagePointer !== 'ink') saved.stagePointer = 'outline'; saved.v = 3 }
     return { ...defaults, ...saved }
   } catch {
     return { ...defaults }

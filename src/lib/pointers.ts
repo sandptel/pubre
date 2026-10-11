@@ -3,13 +3,13 @@
 export type PointerType = 'underline' | 'word' | 'highlighter' | 'type' | 'outline' | 'bracket' | 'spotlight' | 'caret' | 'dot'
 
 export const POINTERS: [PointerType, string, string][] = [
+  ['outline', 'Ring', 'A thin ring around the word'],
   ['underline', 'Line', 'A line under the word'],
   ['highlighter', 'Marker', 'A highlighter pass along the lower half'],
   ['word', 'Box', 'A soft box around the word'],
   ['type', 'Type', 'Letters type themselves in'],
   ['spotlight', 'Glow', 'A soft pool of light behind the word'],
   ['bracket', 'Brackets', 'Corner brackets frame the word'],
-  ['outline', 'Ring', 'A thin ring around the word'],
   ['caret', 'Caret', 'A caret just before the word'],
   ['dot', 'Dot', 'A dot under the word'],
 ]

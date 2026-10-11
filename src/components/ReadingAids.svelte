@@ -44,7 +44,7 @@
 <h3>Reading guide</h3>
 {#if value.guide}
   <!-- what your choices look like in action, live -->
-  <div class="live"><ReadPreview step={pstep ?? 'word'} pointer={value[pkey] ?? 'underline'} read={value.inkRead ?? 22} now={value.inkNow ?? 100} ahead={value.inkAhead ?? 46}
+  <div class="live"><ReadPreview step={pstep ?? 'word'} pointer={value[pkey] ?? 'outline'} read={value.inkRead ?? 22} now={value.inkNow ?? 100} ahead={value.inkAhead ?? 46}
     lenses={value.intensity !== 'quiet' && (stage ? value.stageLenses : true)} wpm={value.wpm} /><span class="live-l">Preview · your settings, in action</span></div>
 {/if}
 <div class="group">

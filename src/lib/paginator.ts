@@ -7,6 +7,8 @@ import { bookCss, type Settings } from './settings.ts'
 
 interface View { iframe: HTMLIFrameElement; doc: Document; index: number; pages: number }
 export interface Relocation { index: number; page: number; pages: number; fraction: number; progress: number; chapter: string }
+/** A top-level TOC entry placed on the whole-book progress axis (0..1). */
+export interface Section { label: string; href: string; start: number }
 export type Zone = 'left' | 'center' | 'right'
 
 const XHTML_NS = 'http://www.w3.org/1999/xhtml'
@@ -15,6 +17,7 @@ const TURN_MS = 420
 
 const PAGE_BREAK = /^(page|always|left|right|recto|verso)$/
 const SECTION_TYPES = /\b(part|chapter|division|volume|titlepage|halftitlepage|toc|dedication|epigraph|copyright-page|preface|foreword|prologue|introduction|epilogue|afterword|appendix|colophon|index|glossary|bibliography|endnotes|rearnotes)\b/
+const SECTION_CONTAINERS = new Set(['section', 'div', 'nav', 'article', 'aside', 'header', 'body'])
 const SECTION_CLASSES = /\b(chapter|toc|titlepage|title-page|halftitle)\b/
 
 /** Decide where sections start. Inside multi-column layout, paged-media breaks
@@ -44,7 +47,9 @@ function sectionBreaks(doc: Document) {
     if (inline?.cssText.includes('break')) check(inline, () => [el])
     const type = el.getAttribute('epub:type') ?? el.getAttributeNS('http://www.idpf.org/2007/ops', 'type') ?? ''
     const cls = el.getAttribute('class') ?? ''
-    if (el.localName === 'h1' || SECTION_TYPES.test(type) || SECTION_CLASSES.test(cls)) before.add(el)
+    // Semantic/class hints only count on containers: a `p.toc` line or `a[epub:type=toc]` is not a section.
+    const container = SECTION_CONTAINERS.has(el.localName)
+    if (el.localName === 'h1' || (container && (SECTION_TYPES.test(type) || SECTION_CLASSES.test(cls)))) before.add(el)
     if (/\bpg-boilerplate\b/.test(cls)) after.add(el)
   }
 
@@ -81,15 +86,19 @@ function sectionBreaks(doc: Document) {
 export class Paginator {
   onRelocate?: (r: Relocation) => void
   onTap?: (zone: Zone) => void
+  onSections?: (s: Section[]) => void
   private host: HTMLElement
+  private port: HTMLDivElement // clipped, centered strip the iframes slide in
   private book: Book
   private settings: Settings
   private view?: View
   private page = 0
   private busy = false
-  private L = { V: 0, H: 0, m: 0, t: 0, cols: 1, colW: 0, gap: 0 }
+  private L = { V: 0, H: 0, t: 0, cols: 1, colW: 0, gap: 0, step: 0, left: 0 }
   private starts: number[] = [] // cumulative spine weights, for whole-book progress
-  private labels: string[] = []
+  private marks: { label: string; at: number }[] = [] // every TOC entry on the progress axis
+  private wheelLock = 0
+  private wheelAcc = 0
   private ro: ResizeObserver
   private resizeTimer = 0
   private onKey = (e: KeyboardEvent) => this.key(e)
@@ -101,7 +110,13 @@ export class Paginator {
     const total = book.spine.reduce((a, s) => a + s.size, 0)
     let acc = 0
     this.starts = book.spine.map(s => { const st = acc / total; acc += s.size; return st }).concat(1)
-    this.labels = this.chapterLabels(book.toc)
+    this.port = document.createElement('div')
+    this.port.className = 'pubre-port'
+    host.append(this.port)
+    // Taps and wheel in the outer margins (outside the port) still turn pages.
+    host.addEventListener('click', e => { if (e.target === host || e.target === this.port) this.tap(e.clientX) })
+    host.addEventListener('wheel', e => this.wheel(e), { passive: true })
+    this.placeToc()
     this.ro = new ResizeObserver(() => {
       clearTimeout(this.resizeTimer)
       this.resizeTimer = window.setTimeout(() => this.relayout(), 120)
@@ -165,11 +180,19 @@ export class Paginator {
   private measure() {
     const V = this.host.clientWidth, H = this.host.clientHeight, s = this.settings
     const cols = s.spread === 'auto' && V >= 900 && V > H * 1.1 ? 2 : 1
-    const pageW = V / cols
-    let m = Math.max(16, Math.round(pageW * [0.05, 0.08, 0.12][s.margin]))
-    if (cols === 1) m = Math.max(m, Math.round((V - 760) / 2)) // keep a readable measure on wide screens
-    const gap = 2 * m
-    this.L = { V, H, m, t: H < 600 ? 40 : 56, cols, colW: (V - 2 * m - (cols - 1) * gap) / cols, gap }
+    // Measure ≈ 36em (60–75 characters); margins setting trades measure for whitespace.
+    const maxCol = Math.round(16 * s.fontScale / 100 * [40, 36, 31][s.margin])
+    const outer = Math.max(16, Math.round(V * [0.04, 0.06, 0.09][s.margin]))
+    const gap = cols === 2 ? Math.min(96, Math.max(48, Math.round(V * 0.045))) : 2 * outer
+    const colW = Math.floor(Math.min(maxCol, (V - 2 * outer - (cols - 1) * gap) / cols))
+    const step = cols * (colW + gap) // one screen of columns, incl. half a gap each side
+    const t = Math.round(Math.min(72, Math.max(36, H * 0.065)))
+    this.L = { V, H, t, cols, colW, gap, step, left: Math.round((V - step) / 2) }
+    const fade = `${gap / 2}px`
+    Object.assign(this.port.style, {
+      position: 'absolute', top: '0', bottom: '0', overflow: 'hidden', left: this.L.left + 'px', width: step + 'px',
+      maskImage: `linear-gradient(90deg, transparent, #000 ${fade}, #000 calc(100% - ${fade}), transparent)`,
+    })
   }
 
   private style(doc: Document, id: string, css: string) {
@@ -183,33 +206,33 @@ export class Paginator {
   }
 
   private inject(v: View) {
-    const { V, H, m, t, colW, gap } = this.L
+    const { H, t, cols, colW, gap } = this.L
     this.style(v.doc, 'pubre-user', bookCss(this.settings, H - 2 * t))
     this.style(v.doc, 'pubre-layout', `
 html { box-sizing: content-box !important; margin: 0 !important; max-width: none !important;
-  width: ${V - 2 * m}px !important; height: ${H - 2 * t}px !important; padding: ${t}px ${m}px !important;
+  width: ${cols * colW + (cols - 1) * gap}px !important; height: ${H - 2 * t}px !important; padding: ${t}px ${gap / 2}px !important;
   column-width: ${colW}px !important; column-gap: ${gap}px !important; column-fill: auto !important;
   overflow: hidden !important; touch-action: none; }`)
   }
 
   private paginate(v: View) {
-    const { V, m, cols, colW, gap } = this.L
-    v.iframe.style.width = V + 'px'
+    const { step, cols, colW, gap } = this.L
+    v.iframe.style.width = step + 'px'
     v.iframe.style.height = this.L.H + 'px'
-    const ncols = Math.max(1, Math.ceil((v.doc.documentElement.scrollWidth - m) / (colW + gap)))
+    const ncols = Math.max(1, Math.ceil((v.doc.documentElement.scrollWidth - gap / 2) / (colW + gap)))
     v.pages = Math.ceil(ncols / cols)
-    v.iframe.style.width = v.pages * V + 'px'
+    v.iframe.style.width = v.pages * step + 'px'
   }
 
   private pageOfRect(r: DOMRect) {
-    return Math.max(0, Math.floor((r.left + 1) / this.L.V))
+    return Math.max(0, Math.floor((r.left + 1) / this.L.step))
   }
 
   /** Text position at the top-left of the current page, used to keep place across relayouts. */
   private anchor(): Range | null {
     const v = this.view
     if (!v) return null
-    const x = this.page * this.L.V + this.L.m + 4, y = this.L.t + 12
+    const x = this.page * this.L.step + this.L.gap / 2 + 4, y = this.L.t + 12
     const d = v.doc as Document & { caretPositionFromPoint?(x: number, y: number): { offsetNode: Node; offset: number } | null }
     const pos = d.caretPositionFromPoint?.(x, y)
     if (pos) {
@@ -231,7 +254,7 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
     const rect = range?.getClientRects()[0]
       ?? (range?.startContainer instanceof Element ? range.startContainer.getBoundingClientRect() : undefined)
     this.page = Math.min(v.pages - 1, rect ? this.pageOfRect(rect) : Math.floor(fraction * v.pages))
-    this.setX(v, -this.page * this.L.V)
+    this.setX(v, -this.page * this.L.step)
     this.emit()
   }
 
@@ -243,8 +266,8 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
     iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts')
     iframe.setAttribute('title', this.book.metadata.title)
     iframe.className = 'pubre-view'
-    iframe.style.cssText = `position:absolute;inset:0 auto auto 0;border:0;opacity:0;width:${this.L.V}px;height:${this.L.H}px`
-    this.host.append(iframe)
+    iframe.style.cssText = `position:absolute;inset:0 auto auto 0;border:0;opacity:0;width:${this.L.step}px;height:${this.L.H}px`
+    this.port.append(iframe)
     const loaded = new Promise(r => iframe.addEventListener('load', r, { once: true }))
     iframe.src = await this.book.chapterUrl(index)
     await loaded
@@ -267,11 +290,11 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
     if (this.busy) return
     this.busy = true
     try {
-      if (!this.L.V) this.measure()
+      if (!this.L.step) this.measure()
       const old = this.view
       const v = old && old.index === index ? old : await this.load(index)
       this.page = Math.max(0, Math.min(v.pages - 1, pageFor(v)))
-      this.setX(v, -this.page * this.L.V)
+      this.setX(v, -this.page * this.L.step)
       this.view = v
       if (v !== old) {
         await v.iframe.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: 'ease-out' }).finished
@@ -306,7 +329,7 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
     this.busy = true
     this.page = page
     this.emit()
-    try { await this.move(v, -page * this.L.V) } finally { this.busy = false }
+    try { await this.move(v, -page * this.L.step) } finally { this.busy = false }
   }
 
   private async turnChapter(dir: 1 | -1) {
@@ -315,14 +338,14 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
     try {
       const v = await this.load(old.index + dir)
       const start = dir > 0 ? 0 : v.pages - 1
-      const shift = dir * this.L.V
+      const shift = dir * this.L.step
       const oldX = this.currentX(old)
-      this.setX(v, -start * this.L.V + shift + (oldX + this.page * this.L.V)) // follow any drag offset
+      this.setX(v, -start * this.L.step + shift + (oldX + this.page * this.L.step)) // follow any drag offset
       v.iframe.style.opacity = '1'
       this.view = v
       this.page = start
       this.emit()
-      await Promise.all([this.move(old, -this.pageOf(old) * this.L.V - shift), this.move(v, -start * this.L.V)])
+      await Promise.all([this.move(old, -this.pageOf(old) * this.L.step - shift), this.move(v, -start * this.L.step)])
       old.iframe.remove()
     } finally {
       this.busy = false
@@ -330,12 +353,12 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
   }
 
   private pageOf(v: View) {
-    return Math.round(-new DOMMatrix(v.iframe.style.transform).m41 / this.L.V)
+    return Math.round(-new DOMMatrix(v.iframe.style.transform).m41 / this.L.step)
   }
 
   private bounce(dir: number) {
     const v = this.view!
-    const x = -this.page * this.L.V
+    const x = -this.page * this.L.step
     v.iframe.animate(
       [{ transform: `translate3d(${x}px,0,0)` }, { transform: `translate3d(${x + dir * 36}px,0,0)` }, { transform: `translate3d(${x}px,0,0)` }],
       { duration: 360, easing: 'ease-out' },
@@ -346,9 +369,25 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
 
   private key(e: KeyboardEvent) {
     if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return
-    if ((e.target as HTMLElement)?.closest?.('input, textarea, select, dialog[open]')) return
+    if ((e.target as HTMLElement)?.closest?.('input, textarea, select, dialog[open], [role=slider]')) return
     if (['ArrowRight', 'PageDown', ' '].includes(e.key) && !e.shiftKey) { e.preventDefault(); this.next() }
     else if (['ArrowLeft', 'PageUp'].includes(e.key) || (e.key === ' ' && e.shiftKey)) { e.preventDefault(); this.prev() }
+  }
+
+  private tap(clientX: number) {
+    const x = clientX - this.host.getBoundingClientRect().left
+    const zone: Zone = x < this.L.V * 0.28 ? 'left' : x > this.L.V * 0.72 ? 'right' : 'center'
+    if (zone === 'left') this.prev()
+    else if (zone === 'right') this.next()
+    this.onTap?.(zone)
+  }
+
+  private wheel(e: WheelEvent) {
+    this.wheelAcc += Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
+    if (Date.now() < this.wheelLock || Math.abs(this.wheelAcc) < 40) return
+    this.wheelLock = Date.now() + 450
+    ;(this.wheelAcc > 0 ? this.next() : this.prev())
+    this.wheelAcc = 0
   }
 
   private bind(v: View) {
@@ -367,15 +406,7 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
       this.goTo(this.book.resolveHref(this.book.spine[v.index].href, href))
     })
 
-    let wheelLock = 0, wheelAcc = 0
-    doc.addEventListener('wheel', e => {
-      const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
-      wheelAcc += d
-      if (Date.now() < wheelLock || Math.abs(wheelAcc) < 40) return
-      wheelLock = Date.now() + 450
-      ;(wheelAcc > 0 ? this.next() : this.prev())
-      wheelAcc = 0
-    }, { passive: true })
+    doc.addEventListener('wheel', e => this.wheel(e), { passive: true })
 
     // Tap zones (any pointer) + drag-to-turn (touch/pen).
     let start: { x: number; y: number; t: number; id: number; touch: boolean } | null = null
@@ -391,7 +422,7 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
       if (!dragging && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2 && !doc.getSelection()?.toString()) dragging = true
       if (!dragging) return
       const atEdge = (dx > 0 && this.page === 0 && v.index === 0) || (dx < 0 && this.page === v.pages - 1 && v.index === this.book.spine.length - 1)
-      this.setX(v, -this.page * this.L.V + (atEdge ? dx * 0.3 : dx))
+      this.setX(v, -this.page * this.L.step + (atEdge ? dx * 0.3 : dx))
     })
     const end = (e: PointerEvent) => {
       if (!start || e.pointerId !== start.id) return
@@ -400,21 +431,17 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
       if (dragging) {
         dragging = false
         const fast = Math.abs(dx) / dt > 0.4
-        if (e.type !== 'pointercancel' && (Math.abs(dx) > this.L.V * 0.18 || fast)) {
+        if (e.type !== 'pointercancel' && (Math.abs(dx) > this.L.step * 0.18 || fast)) {
           dx < 0 ? this.next() : this.prev()
         } else {
           this.busy = true
-          this.move(v, -this.page * this.L.V, 260).finally(() => { this.busy = false })
+          this.move(v, -this.page * this.L.step, 260).finally(() => { this.busy = false })
         }
         return
       }
       if (e.type === 'pointercancel' || Math.hypot(dx, dy) > 8 || dt > 600) return
       if ((e.target as Element).closest?.('a[href]') || doc.getSelection()?.toString()) return
-      const x = v.iframe.getBoundingClientRect().left + e.clientX - this.host.getBoundingClientRect().left
-      const zone: Zone = x < this.L.V * 0.28 ? 'left' : x > this.L.V * 0.72 ? 'right' : 'center'
-      if (zone === 'left') this.prev()
-      else if (zone === 'right') this.next()
-      this.onTap?.(zone)
+      this.tap(v.iframe.getBoundingClientRect().left + e.clientX)
     }
     doc.addEventListener('pointerup', end)
     doc.addEventListener('pointercancel', end)
@@ -422,22 +449,49 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
 
   // ---------- reporting ----------
 
-  private chapterLabels(toc: TocItem[]) {
-    const flat: TocItem[] = []
-    const walk = (items: TocItem[]) => items.forEach(i => { flat.push(i); walk(i.children) })
-    walk(toc)
-    let last = ''
-    return this.book.spine.map((_, i) => {
-      const hit = flat.find(t => this.book.spineIndex(t.href) === i)
-      return (last = hit?.label || last)
-    })
+  /** Place every TOC entry on the progress axis, using the fragment's offset inside its file.
+   *  Gives precise chapter labels even when one spine file holds many chapters. */
+  private async placeToc() {
+    const texts = new Map<number, string>()
+    const at = async (href: string) => {
+      const i = this.book.spineIndex(href)
+      if (i < 0) return -1
+      const [, frag] = href.split('#')
+      let f = 0
+      if (frag) {
+        if (!texts.has(i)) texts.set(i, await this.book.zip.text(this.book.spine[i].href).catch(() => ''))
+        const t = texts.get(i)!
+        const pos = t.search(new RegExp(`id=["']${frag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`))
+        f = pos > 0 ? pos / t.length : 0
+      }
+      return this.starts[i] + (this.starts[i + 1] - this.starts[i]) * f
+    }
+    const marks: { label: string; at: number }[] = []
+    const walk = async (items: TocItem[]) => {
+      for (const t of items) {
+        if (t.href) marks.push({ label: t.label, at: await at(t.href) })
+        await walk(t.children)
+      }
+    }
+    await walk(this.book.toc)
+    this.marks = marks.filter(m => m.at >= 0).sort((a, b) => a.at - b.at)
+    const sections: Section[] = []
+    for (const t of this.book.toc) {
+      const start = t.href ? await at(t.href) : -1
+      if (start >= 0 && !sections.some(s => s.start === start)) sections.push({ label: t.label, href: t.href, start })
+    }
+    this.onSections?.(sections.sort((a, b) => a.start - b.start))
+    this.emit()
   }
 
   private emit() {
     const v = this.view
     if (!v) return
     const fraction = v.pages > 1 ? this.page / (v.pages - 1) : 0
-    const progress = this.starts[v.index] + (this.starts[v.index + 1] - this.starts[v.index]) * ((this.page + 1) / v.pages)
-    this.onRelocate?.({ index: v.index, page: this.page, pages: v.pages, fraction, progress, chapter: this.labels[v.index] })
+    const w = this.starts[v.index + 1] - this.starts[v.index]
+    const progress = this.starts[v.index] + w * ((this.page + 1) / v.pages)
+    const top = this.starts[v.index] + w * (this.page / v.pages) // position of this page's first line
+    const chapter = this.marks.findLast(m => m.at <= top + w / v.pages * 0.5)?.label ?? ''
+    this.onRelocate?.({ index: v.index, page: this.page, pages: v.pages, fraction, progress, chapter })
   }
 }

@@ -299,9 +299,12 @@ export class Guide {
     const focusRead = k > fa ? span(ws[fa].sn, ws[fa].so, w.sn, w.so) : null
     const paraAfter = fb < pb ? span(ws[fb].en, ws[fb].eo, ws[pb].en, ws[pb].eo) : null
     const after = pb < ws.length - 1 ? span(ws[pb].en, ws[pb].eo, last.en, last.eo) : null
+    // Upcoming text is never dimmed (user preference): focus comes from the pointer and from fading
+    // what you've already read, not from greying out what's ahead.
+    void after; void paraAfter
     const dim = this.s.dimRead, ok = (r: Range | null): r is Range => !!r
-    m.set('c-page', [after, dim ? null : before].filter(ok))
-    m.set('c-para', [paraAfter, dim ? null : paraBefore].filter(ok))
+    m.set('c-page', [dim ? null : before].filter(ok))
+    m.set('c-para', [dim ? null : paraBefore].filter(ok))
     m.set('c-read', [dim ? before : null].filter(ok))
     m.set('c-readpara', [dim ? paraBefore : null].filter(ok))
     m.set('c-readfocus', [dim ? focusRead : null].filter(ok))

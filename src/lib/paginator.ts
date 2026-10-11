@@ -13,6 +13,71 @@ const XHTML_NS = 'http://www.w3.org/1999/xhtml'
 const EASE = 'cubic-bezier(.2,.75,.25,1)'
 const TURN_MS = 420
 
+const PAGE_BREAK = /^(page|always|left|right|recto|verso)$/
+const SECTION_TYPES = /\b(part|chapter|division|volume|titlepage|halftitlepage|toc|dedication|epigraph|copyright-page|preface|foreword|prologue|introduction|epilogue|afterword|appendix|colophon|index|glossary|bibliography|endnotes|rearnotes)\b/
+const SECTION_CLASSES = /\b(chapter|toc|titlepage|title-page|halftitle)\b/
+
+/** Decide where sections start. Inside multi-column layout, paged-media breaks
+ *  (`page-break-before: always`, `break-after: page`…) are ignored, and many books never mark
+ *  breaks at all. Combine the publisher's CSS breaks with structural ones (h1, epub:type
+ *  sections, chapter/TOC blocks, Gutenberg boilerplate) and express them as column breaks. */
+function sectionBreaks(doc: Document) {
+  const body = doc.body ?? doc.documentElement
+  const before = new Set<Element>(), after = new Set<Element>()
+  const check = (style: CSSStyleDeclaration, el: () => Iterable<Element>) => {
+    if (PAGE_BREAK.test(style.breakBefore) || PAGE_BREAK.test(style.pageBreakBefore)) for (const e of el()) before.add(e)
+    if (PAGE_BREAK.test(style.breakAfter) || PAGE_BREAK.test(style.pageBreakAfter)) for (const e of el()) after.add(e)
+  }
+  const walk = (rules: CSSRuleList) => {
+    for (const r of Array.from(rules)) {
+      if ('selectorText' in r && 'style' in r) {
+        const rule = r as CSSStyleRule
+        check(rule.style, () => { try { return doc.querySelectorAll(rule.selectorText) } catch { return [] } })
+      } else if ('cssRules' in r) walk((r as CSSGroupingRule).cssRules)
+    }
+  }
+  for (const sheet of Array.from(doc.styleSheets)) {
+    try { walk(sheet.cssRules) } catch { /* unreadable sheet */ }
+  }
+  for (const el of Array.from(body.querySelectorAll('*'))) {
+    const inline = (el as HTMLElement).style
+    if (inline?.cssText.includes('break')) check(inline, () => [el])
+    const type = el.getAttribute('epub:type') ?? el.getAttributeNS('http://www.idpf.org/2007/ops', 'type') ?? ''
+    const cls = el.getAttribute('class') ?? ''
+    if (el.localName === 'h1' || SECTION_TYPES.test(type) || SECTION_CLASSES.test(cls)) before.add(el)
+    if (/\bpg-boilerplate\b/.test(cls)) after.add(el)
+  }
+
+  // "Break after X" becomes "break before the next element with content", so adjacent breaks
+  // (with empty spacer elements between them) collapse into one.
+  const hasContent = (n: Node) => !!n.textContent?.trim() || !!(n as Element).querySelector?.('img, svg, image, video')
+    || ['img', 'svg', 'image', 'video'].includes((n as Element).localName)
+  for (const el of after) {
+    let n: Element | null = el
+    while (n && n !== body) {
+      let sib = n.nextElementSibling
+      while (sib && !hasContent(sib)) sib = sib.nextElementSibling
+      if (sib) { before.add(sib); break }
+      n = n.parentElement
+    }
+  }
+
+  // Apply in document order, skipping a break when nothing was laid out since the previous one
+  // (start of document, or a section heading right after its section's own break): it would
+  // only produce an empty page.
+  const range = doc.createRange()
+  range.setStart(body, 0)
+  for (const el of Array.from(body.querySelectorAll('*'))) {
+    if (!before.has(el)) continue
+    range.setEndBefore(el)
+    if (!hasContent(range.cloneContents())) continue
+    const st = (el as HTMLElement).style
+    st?.setProperty('break-before', 'column', 'important')
+    st?.setProperty('-webkit-column-break-before', 'always', 'important')
+    range.setStartBefore(el)
+  }
+}
+
 export class Paginator {
   onRelocate?: (r: Relocation) => void
   onTap?: (zone: Zone) => void
@@ -189,6 +254,7 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
     }
     const v: View = { iframe, doc, index, pages: 1 }
     this.inject(v)
+    sectionBreaks(doc)
     this.bind(v)
     const timeout = new Promise(r => setTimeout(r, 1500))
     await Promise.race([Promise.allSettled([doc.fonts?.ready, ...Array.from(doc.images, i => i.decode())]), timeout])

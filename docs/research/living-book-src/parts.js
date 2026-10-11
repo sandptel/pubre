@@ -280,8 +280,14 @@ placeDot(); addEventListener('resize', placeDot); document.fonts?.ready.then(pla
 const met = new Set()
 let peekT = 0, lastSent = -1
 const root = document.documentElement
-function peek(html, rect) { showTip(html, rect); tip.classList.add('peek'); clearTimeout(peekT); peekT = setTimeout(() => { tip.classList.remove('peek'); hideTip() }, 1700) }
+// Peeks never interrupt reading: they wait until the cursor has rested ~600 ms on a word
+// (no glide, no step), and vanish the moment it moves again.
+const DWELL = 600
+let dwellT = 0
+function settlePeek() { clearTimeout(dwellT); clearTimeout(peekT); if (tip.classList.contains('peek')) { tip.classList.remove('peek'); hideTip() } }
+function peek(html, rect) { dwellT = setTimeout(() => { if (gliding) return; showTip(html, rect); tip.classList.add('peek'); peekT = setTimeout(settlePeek, 4000) }, DWELL) }
 window.PUBRE_ARRIVE = k => {
+  settlePeek()
   const w = W[k], rect = (() => { const r = document.createRange(); r.setStart(w.node, w.a); r.setEnd(w.node, w.b); return r.getBoundingClientRect() })()
   if (w.s !== lastSent) { lastSent = w.s; if (!reduce) root.animate([{ '--sentA': '0%' }, { '--sentA': '7%' }], { duration: 420, easing: 'ease-out' }) }
   const t = tokens.find(t => t.node === w.node && t.a <= w.a && t.b >= w.b)

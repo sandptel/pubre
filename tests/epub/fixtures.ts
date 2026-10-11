@@ -109,3 +109,27 @@ export const OPF2 = `<?xml version="1.0"?>
   </manifest>
   <spine toc="ncx"><itemref idref="c1"/></spine>
 </package>`
+
+export const NCX = `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head><meta name="dtb:uid" content="urn:uuid:abc"/><meta name="dtb:depth" content="2"/></head>
+  <docTitle><text>Old Book</text></docTitle>
+  <docAuthor><text>Jane Austen</text></docAuthor>
+  <navMap>
+    <navPoint id="np1" playOrder="1" class="chapter">
+      <navLabel><text>Chapter 1</text></navLabel><content src="c1.html"/>
+      <navPoint id="np2" playOrder="2"><navLabel><text> Section
+        1.1 </text></navLabel><content src="c1.html#s1"/></navPoint>
+    </navPoint>
+    <navPoint id="np3" playOrder="3"><navLabel><text>Chapter 2</text></navLabel><content src="sub/c2.html"/></navPoint>
+  </navMap>
+  <pageList>
+    <navLabel><text>Pages</text></navLabel>
+    <pageTarget id="p1" type="front" value="1" playOrder="4"><navLabel><text>i</text></navLabel><content src="c1.html#pi"/></pageTarget>
+    <pageTarget id="p2" type="normal" value="2" playOrder="5"><navLabel><text>2</text></navLabel><content src="c1.html#p2"/></pageTarget>
+  </pageList>
+  <navList class="lot">
+    <navLabel><text>Tables</text></navLabel>
+    <navTarget id="t1" playOrder="6"><navLabel><text>Table 1</text></navLabel><content src="c1.html#t1"/></navTarget>
+  </navList>
+</ncx>`

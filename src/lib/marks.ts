@@ -14,7 +14,7 @@ export const MEANINGS = [['0A', 'Key', 'yellow'], ['0B', 'Beautiful', 'green'], 
 export const ORDER = [
   'aside', 'c-page', 'c-para', 'c-read', 'c-readpara', 'c-readfocus', 'c-focus', // read-dimming wins over asides
   ...VOICES.flatMap(k => [`v-soft-${k}`, `v-ink-${k}`, `v-under-${k}`, `v-marks-${k}`]),
-  'hard', 'foreign', ...Array.from({ length: WHO_SLOTS }, (_, k) => `who-${k}`),
+  'hard', 'spark', 'foreign', ...Array.from({ length: WHO_SLOTS }, (_, k) => `who-${k}`),
   ...MEANINGS.map(([c]) => `u-${c}`), 'u-bold', 'bloom', 'breathe',
   'stage-rest', 'stage-fade', 'stage-hidden', // first-line staging: the page waits, the words to come are held back, the next one fades in
 ]
@@ -82,6 +82,7 @@ ${VOICES.map(k => `::highlight(v-ink-${k}) { color: ${mix(fg, voice(k), 0.55)} }
 ::highlight(v-soft-${k}) { color: ${mix(fg, voice(k), 0.42)} }
 ::highlight(v-under-${k}) { text-decoration: underline 1.5px ${alpha(voice(k), 0.5)}; text-underline-offset: 6px }
 ::highlight(v-marks-${k}) { color: ${voice(k)} }`).join('\n')}
+::highlight(spark) { text-decoration: underline wavy 1.5px ${alpha(accent, 0.85)}; text-underline-offset: 5px; text-shadow: 0 0 10px ${alpha(accent, 0.55)} }
 ::highlight(hard) { text-decoration: underline dotted 2px ${alpha(accent, 0.8)}; text-underline-offset: 5px }
 ::highlight(foreign) { text-decoration: underline dashed 1.5px ${alpha(muted, 0.8)}; text-underline-offset: 5px }
 ${Array.from({ length: WHO_SLOTS }, (_, k) => `::highlight(who-${k}) { background-color: ${alpha(whoHue(t, k), t.dark ? 0.22 : 0.16)}; text-decoration: underline 1px ${alpha(whoHue(t, k), 0.35)}; text-underline-offset: 3px }`).join('\n')}

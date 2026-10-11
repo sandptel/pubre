@@ -13,6 +13,8 @@
   import { nearestWord } from '../lib/textindex.ts'
   import { colourOf } from '../lib/palette.ts'
   import { chapterFor, fingerprint, openerOf } from '../insights/chapters.ts'
+  import { companions } from '../insights/cast.ts'
+  import { keepsakeSvg } from '../insights/keepsake.ts'
   import { mix } from '../lib/settings.ts'
   import { blockOffsets } from '../lib/textindex.ts'
   import { whoHue, WHO_SLOTS } from '../lib/marks.ts'
@@ -135,9 +137,16 @@
         pag.onSections = s => (sections = s)
         pag.onRelocate = r => {
           chapterTurn(r)
+          const backMatter = r.progress > 0.85 && /licen[cs]e|gutenberg|endnotes|^notes|index|about the author|acknowledg|colophon|copyright/i.test(r.chapter)
+          if ((r.progress >= 0.995 || backMatter) && !rec.keepsake && rec.profile?.punct) { // you finished: your copy, drawn
+            const t = resolveTheme(eff.palette, 'paper'), moods = (rec.profile.chapters ?? []).filter(c => c.title).map(c => moodTint(c.mood))
+            rec.keepsake = keepsakeSvg(rec.profile.punct, moods.length ? moods : [t.base[t.accent]], rec.title, t.base[5], t.base[0])
+            if (rec.progress < 0.995) rec.progress = 1 // back matter counts as finished
+            toast('You finished. Your copy is on your shelf.'); save()
+          }
           loc = r
           rec.location = { index: r.index, fraction: r.fraction, cfi: r.cfi }
-          rec.progress = r.progress
+          rec.progress = rec.keepsake && r.progress > 0.85 ? 1 : r.progress // finished stays finished in the back matter
           rec.chapter = r.chapter
           if (!gstate.active) paintLenses()
           const at = `${r.index}:${r.page}`
@@ -281,6 +290,8 @@
       return
     }
   }
+  /** The TOC chapter a spine item starts in (for "first met in…"). */
+  const chapterOfSpine = (i: number) => sections.findLast(s => (book?.spineIndex(s.href) ?? 0) <= i)?.label ?? ''
   const tocGlyph = (label: string, href: string) => {
     const list = rec.profile?.chapters, c = list && chapterFor(list, label, book?.spineIndex(href) ?? -1)
     return c?.title ? fingerprint(c.lens, 22) : ''
@@ -510,11 +521,12 @@
     lenses.paint(v, ws[a].b, ws[b].b)
   }
   async function loadProfile(b: Book) {
-    if (rec.profile?.v === 3) { lenses?.setProfile(rec.profile.names); paintLenses(); return }
+    if (rec.profile?.v === 4) { lenses?.setProfile(rec.profile.names); if (lenses) lenses.hapax = rec.profile.hapax ?? {}; paintLenses(); return }
     const texts = await Promise.all(b.spine.map(s => b.zip.text(s.href).catch(() => '')))
     const worker = new Worker(new URL('../insights/worker.ts', import.meta.url), { type: 'module' })
     worker.onmessage = e => {
-      rec.profile = { v: 3, names: e.data.names, words: e.data.words, chapters: e.data.chapters }
+      rec.profile = { v: 4, names: e.data.names, words: e.data.words, chapters: e.data.chapters, links: e.data.links, hapax: e.data.hapax, punct: e.data.punct }
+      if (lenses) lenses.hapax = e.data.hapax ?? {}
       profileChapters = e.data.chapters
       if (pag?.current && eff.openers && applyOpeners(pag.current.doc, pag.current.index)) pag.refresh()
       lenses?.setProfile(e.data.names); paintLenses(); save(); worker.terminate()
@@ -528,8 +540,12 @@
       const p = lenses!.person(t.key)
       const sofar = p ? p.perSpine.slice(0, v.index + 1).reduce((a, n) => a + n, 0) : 0
       const hue = p && p.slot >= 0 ? whoHue(theme, p.slot % WHO_SLOTS) : 'var(--muted)'
+      // Meet the cast: first met, how often, who they're seen with, a little history — all up to your page.
       const lead = t.kind === 'speech' ? 'is speaking.' : sofar > 1 ? `Mentioned ${sofar} times so far.` : 'You’re meeting them now.'
-      return `<div class="c-who"><span class="c-av" style="background:${hue}">${escape(t.key[0])}</span><b>${escape(t.key)}</b></div><div class="c-def">${lead}</div><div class="c-meta">Counts stop at your page</div>`
+      const met = p && p.first < v.index ? chapterOfSpine(p.first) : '', mates = companions(rec.profile?.links, t.key, v.index)
+      const hist = p ? p.perSpine.slice(0, v.index + 1) : [], peak = Math.max(1, ...hist)
+      const spark = hist.length > 2 ? `<div class="c-hist">${hist.slice(-40).map(n => `<i style="height:${Math.max(1, Math.round(n / peak * 14))}px;background:${hue}"></i>`).join('')}</div>` : ''
+      return `<div class="c-who"><span class="c-av" style="background:${hue}">${escape(t.key[0])}</span><b>${escape(t.key)}</b></div><div class="c-def">${lead}${met ? ` First met in ${escape(met)}.` : ''}</div>${mates.length ? `<div class="c-def">Often with ${mates.map(escape).join(', ')}.</div>` : ''}${spark}`
     }
     if (t.kind === 'speech') return `<div class="c-def">Quoted words with no speaker named nearby.</div>`
     if (t.kind === 'foreign') return `<b>${escape(lenses!.rangeOf(v, t).toString().slice(0, 60))}</b><div class="c-def">A phrase in another language (${escape(t.key)}).</div>`
@@ -579,18 +595,22 @@
   }
   // ---------- "Previously…" ----------
   // ---------- chapter end: three words + open questions (optional, gentle, non-modal) ----------
-  let ending = $state<{ chapter: string; questions: Annotation[] } | null>(null)
+  let ending = $state<{ chapter: string; questions: Annotation[]; sparks: string[] } | null>(null)
+  let lastSpine = -1
   let endWords = $state('')
   let words = $state<Record<string, string>>(untrack(() => rec.words ?? {}))
   let lastLoc: { chapter: string; progress: number } | null = null
-  function chapterTurn(r: { chapter: string; progress: number }) {
+  function chapterTurn(r: { chapter: string; progress: number; index: number }) {
     const prev = lastLoc
     lastLoc = { chapter: r.chapter, progress: r.progress }
+    const prevSpine = lastSpine; lastSpine = r.index
     if (ending) { ending = null; return } // the card leaves on your next page turn
     if (!prev || !prev.chapter || prev.chapter === r.chapter || !eff.chapterPrompts || gstate.gliding) return
     if (r.progress < prev.progress || r.progress - prev.progress > 0.02) return // only when paging forward, not jumping
     if ((rec.promptSkips ?? 0) >= 2 && !anns.some(a => a.color === '09' && a.chapter === prev.chapter && !a.note.startsWith('✓'))) return
-    ending = { chapter: prev.chapter, questions: anns.filter(a => a.color === '09' && a.chapter === prev.chapter && !a.note.startsWith('✓')).slice(0, 1) }
+    // the rare-word sparks you met in that chapter (words used once in the whole book)
+    const sparks = Object.entries(rec.profile?.hapax ?? {}).filter(([w, si]) => si === prevSpine && typeof rarity(w) === 'number' && rarity(w)! < RARE).map(([w]) => w).slice(0, 6)
+    ending = { chapter: prev.chapter, questions: anns.filter(a => a.color === '09' && a.chapter === prev.chapter && !a.note.startsWith('✓')).slice(0, 1), sparks }
     endWords = words[prev.chapter] ?? ''
   }
   function keepWords() {
@@ -907,6 +927,7 @@
   {#if ending && !chrome && !staged}
     <div class="ending glass" role="status">
       <span class="r-eyebrow">End of {ending.chapter}</span>
+      {#if ending.sparks.length}<p class="e-sparks"><span>Words you won’t meet again</span>{#each ending.sparks as w}<button class="spark-w" onclick={async () => { const d = await define(w); toast(d ? `${w} · ${d.text}` : w) }}>{w}</button>{/each}</p>{/if}
       {#each ending.questions as q (q.id)}
         <p class="e-q">You asked: <i>“{q.exact.slice(0, 120)}{q.exact.length > 120 ? '…' : ''}”</i>. Answered yet?</p>
         <div class="r-actions"><button class="pill ghost" onclick={() => answered(q, true)}>Yes</button><button class="r-skip" onclick={() => answered(q, false)}>Not yet</button></div>
@@ -1213,6 +1234,9 @@
   .sh-rate { font: 600 15px system-ui; color: var(--fg); font-variant-numeric: tabular-nums; }
   .ending { position: absolute; z-index: 6; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 64px); translate: -50% 0; width: min(420px, calc(100vw - 32px));
     padding: var(--s3) var(--s4); border-radius: 18px; display: grid; gap: var(--s2); animation: cardIn .35s var(--ease); }
+  .e-sparks { margin: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+  .e-sparks span { width: 100%; font: 600 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .spark-w { border: 0; border-radius: 999px; padding: 4px 10px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--fg); font: italic 14px var(--serif); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 25%, transparent); }
   .e-q { margin: 0; font: 14.5px/1.45 var(--serif); }
   .e-l { font-size: 13px; color: var(--muted); }
   .e-row { display: flex; gap: var(--s2); align-items: center; }
@@ -1262,6 +1286,8 @@
   .lens-card :global(.c-def) { margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .lens-card :global(.c-meta) { font-size: 11.5px; color: var(--muted); }
   .lens-card :global(.c-who) { display: flex; align-items: center; gap: 8px; }
+  .lens-card :global(.c-hist) { display: flex; align-items: end; gap: 1px; height: 14px; margin-top: 6px; }
+  .lens-card :global(.c-hist i) { flex: 1; min-width: 1px; border-radius: 1px; opacity: .7; }
   .lens-card :global(.c-av) { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 12px var(--serif); }
   @keyframes cardIn { from { opacity: 0; } }
   .dimmer { position: absolute; inset: 0; z-index: 7; background: #000; pointer-events: none; transition: opacity .2s; }

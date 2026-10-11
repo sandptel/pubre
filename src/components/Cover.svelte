@@ -3,6 +3,7 @@
 
   let { book }: { book: BookRecord } = $props()
 
+  const keep = $derived(book.keepsake && book.progress >= 0.995 ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(book.keepsake) : '')
   const url = $derived(book.cover ? URL.createObjectURL(new Blob([book.cover], { type: book.coverType })) : '')
   $effect(() => () => { if (url) URL.revokeObjectURL(url) })
 
@@ -11,7 +12,9 @@
 </script>
 
 <div class="cover" class:generated={!url} style:--c="var(--base{hue})">
-  {#if url}
+  {#if keep}
+    <img src={keep} alt="" draggable="false" />
+  {:else if url}
     <img src={url} alt="" draggable="false" />
   {:else}
     <span class="t">{book.title}</span>

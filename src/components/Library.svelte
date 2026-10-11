@@ -35,7 +35,7 @@
   const chapterLeft = (b: BookRecord) => { const r = b.chapterLeft ? calmRange(b.chapterLeft / Math.max(60, settings.wpm)) : ''; return r ? `${r} left in chapter` : '' }
   let marks = $state<Record<string, string>>({}) // your latest highlight per book you're reading
   $effect(() => { for (const b of reading) if (!(b.id in marks)) listAnnotations(b.id).then(l => { const a = l.sort((x, y) => y.created - x.created)[0]; marks = { ...marks, [b.id]: a ? a.exact.replace(/\s+/g, ' ').slice(0, 120) : '' } }) })
-  const recent = $derived(books.filter(b => b !== current && (b.progress > 0 || b.readAt)).sort((x, y) => lastRead(y) - lastRead(x)).slice(0, 12))
+  const recent = $derived(books.filter(b => b !== current && b.progress < 0.995 && (b.progress > 0 || b.readAt)).sort((x, y) => lastRead(y) - lastRead(x)).slice(0, 12))
   const anyStarted = $derived(books.some(b => b.progress > 0)) // a "new" dot means nothing while every book is new
   // Shelves: what you're reading, what's next, what you've finished. Empty shelves are hidden.
   const shelves = $derived([

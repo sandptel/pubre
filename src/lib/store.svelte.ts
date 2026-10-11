@@ -21,12 +21,13 @@ export interface BookRecord {
   words?: Record<string, string> // your "three words" per chapter
   promptSkips?: number // consecutive dismissals of the chapter-end card
   prefs?: Partial<Settings> // this book's overrides of the global settings
-  profile?: { v: number; names: NameInfo[]; words?: number[]; chapters?: ChapterInfo[] } // on-device insights (cast, words per part, chapter profiles), computed once
+  profile?: { v: number; names: NameInfo[]; words?: number[]; chapters?: ChapterInfo[]; links?: Record<string, Record<string, number[]>>; hapax?: Record<string, number>; punct?: string } // on-device insights (cast, words per part, chapter profiles), computed once
   // Your place, kept for the homepage (only what you've read: spoiler-safe)
   readAt?: number // when you last read
   lastLine?: string // the sentence at your place
   who?: string[] // who was around just before your place
   chapterLeft?: number // words left in the chapter
+  keepsake?: string // the finish keepsake (an SVG), drawn when you finish
 }
 
 let dbp: Promise<IDBDatabase> | undefined

@@ -68,6 +68,8 @@ export class Lenses {
 
   /** Called (debounced) when definitions arrive, so hard words held back while loading can be painted. */
   onChange?: () => void
+  /** Words used once in the whole book (rare-word sparks): word → spine item. */
+  hapax: Record<string, number> = {}
   private changeT = 0
 
   constructor(s: Settings, lang = 'en') {
@@ -151,7 +153,7 @@ export class Lenses {
           if (cap <= 0) break
           const sn = sentence(t)
           if (used.has(sn)) continue
-          used.add(sn); cap--; put('hard', range(t))
+          used.add(sn); cap--; put(t.key in this.hapax ? 'spark' : 'hard', range(t)) // used once in the whole book: it glows
         }
       }
       if (s.foreign) inRange.filter(t => t.kind === 'foreign').slice(0, rich ? 4 : 2).forEach(t => put('foreign', range(t)))

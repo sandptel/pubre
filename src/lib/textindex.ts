@@ -11,7 +11,7 @@ export interface Word {
 }
 export interface Span { a: number; b: number } // inclusive word indices
 export type BlockKind = 'text' | 'heading' | 'skip'
-export interface Block extends Span { el: Element; kind: BlockKind; text: string }
+export interface Block extends Span { el: Element; kind: BlockKind; text: string; nodes: Text[]; starts: number[] }
 export interface TextIndex { words: Word[]; sentences: Span[]; blocks: Block[] }
 
 const BLOCK = new Set(['p', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'dd', 'dt', 'div', 'figcaption',
@@ -92,7 +92,7 @@ export function indexDocument(doc: Document, lang = 'en'): TextIndex {
     }
     if (words.length > ba) {
       words[words.length - 1].pause = 3
-      blocks.push({ a: ba, b: words.length - 1, el: g.el, kind: g.kind, text })
+      blocks.push({ a: ba, b: words.length - 1, el: g.el, kind: g.kind, text, nodes: g.nodes, starts })
     }
   }
   return { words, sentences, blocks }
@@ -101,4 +101,15 @@ export function indexDocument(doc: Document, lang = 'en'): TextIndex {
 /** Word containing (node, offset), or -1. */
 export function wordAt(ix: TextIndex, node: Node, offset: number): number {
   return ix.words.findIndex(w => (w.sn === node && offset >= w.so && (w.en !== node || offset <= w.eo)) || (w.en === node && w.sn !== node && offset <= w.eo))
+}
+
+/** A DOM range for characters [a, b) of a block's text. */
+export function blockRange(doc: Document, blk: Block, a: number, b: number): Range {
+  const at = (pos: number, end: boolean): [Text, number] => {
+    let k = 0
+    while (k + 1 < blk.starts.length && (end ? blk.starts[k + 1] < pos : blk.starts[k + 1] <= pos)) k++
+    return [blk.nodes[k], pos - blk.starts[k]]
+  }
+  const [sn, so] = at(a, false), [en, eo] = at(b, true), r = doc.createRange()
+  r.setStart(sn, so); r.setEnd(en, eo); return r
 }

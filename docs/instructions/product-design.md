@@ -62,3 +62,9 @@ If any box fails, fix it before committing.
 - A per-card "⋯" button, and `confirm()` for removal.
 - Large font tiles for every font. Use a compact list behind a disclosure instead.
 - A gutter twice the outer margin with unbounded line length on wide screens.
+
+## 7. Reading motion (learned 2026-10-11)
+
+- Things that move *while someone reads* (the pointer, focus contrast) must be calm. **Never use the spring/overshoot curve on size** (width or height): a block that pulses longer and shorter is distracting. Size uses a monotonic ease-out (`cubic-bezier(.25,.8,.25,1)`). Position may settle very gently (`cubic-bezier(.22,1.12,.36,1)`, about 0.5% overshoot). Continuous glides use ease-in-out.
+- The `--spring` curve is for UI chrome (sheets, buttons, toasts), not for text-level motion.
+- Verify by sampling per frame: width overshoot should be 0 px, position overshoot ≤ 1%.

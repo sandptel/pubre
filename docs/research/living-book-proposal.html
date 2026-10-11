@@ -328,7 +328,7 @@ kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; 
 .g-opts { gap:8px 10px; padding-top:2px }
 .optl { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted) }
 .g-text { isolation:isolate }
-.g-cursor { z-index:-1; height:3px; transition-property:transform,width,height,opacity; transition-timing-function:var(--spring) }
+.g-cursor { z-index:-1; height:3px }
 .g-cursor.p-word { background:color-mix(in srgb,var(--accent) 22%,transparent); border-radius:6px; box-shadow:none }
 .g-cursor.p-outline { background:transparent; border-radius:6px; box-shadow:inset 0 0 0 1.5px var(--accent) }
 .g-cursor.p-underline { border-radius:2px }
@@ -384,7 +384,7 @@ kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; 
         <button class="verb sans">Breathe<small>the wash brightens once as the cursor passes; its note peeks only when you rest</small></button></div>
       <div class="gr" data-verb="glide"><b>Pointer</b><span><b>The word you’re on.</b> Whole-word by default; underline, dot or outline if you prefer.</span>
         <span class="spec"><span class="sp-glide"><span>Some</span> <span>years</span> <span>ago</span></span></span>
-        <button class="verb sans">Hop<small>springs to the next word with a little bounce</small></button></div>
+        <button class="verb sans">Hop<small>slides to the next word with a soft settle; its size eases, never bounces</small></button></div>
       <div class="gr" data-verb="none"><b>Weight &amp; slant</b><span><b>Your emphasis.</b> Bold and italic are only ever yours. The author’s own italics are never changed.</span>
         <span class="spec"><span style="-webkit-text-stroke:.035em currentColor">bold</span> (a stroke, no reflow) · <i>italic</i></span>
         <span class="verb sans static">Still<small>emphasis never moves</small></span></div>
@@ -791,7 +791,11 @@ const play = {
     const at = w => { const r = w.getBoundingClientRect(); return { transform: `translateX(${r.left - base.left - 3}px)`, width: r.width + 6 + 'px', height: r.height + 2 + 'px' } }
     Object.assign(blk.style, at(words[0]))
     let k = 0
-    const hop = () => { k++; if (k >= words.length) return setTimeout(() => blk.remove(), 700); blk.animate([at(words[k - 1]), at(words[k])], { duration: D(380), easing: getComputedStyle(document.documentElement).getPropertyValue('--spring') || 'ease-out', fill: 'forwards' }); setTimeout(hop, D(520)) }
+    const hop = () => { k++; if (k >= words.length) return setTimeout(() => blk.remove(), 700)
+      const [f, t] = [at(words[k - 1]), at(words[k])] // position: gentle settle; size: monotonic ease, no overshoot
+      blk.animate([{ transform: f.transform }, { transform: t.transform }], { duration: D(300), easing: 'cubic-bezier(.22,1.12,.36,1)', fill: 'forwards' })
+      blk.animate([{ width: f.width, height: f.height }, { width: t.width, height: t.height }], { duration: D(255), easing: 'cubic-bezier(.25,.8,.25,1)', fill: 'forwards' })
+      setTimeout(hop, D(520)) }
     setTimeout(hop, D(300))
   },
   settle(row) { [...row.querySelectorAll('.lv')].forEach((el, k) => el.animate([{ color: 'var(--fg)' }, { color: getComputedStyle(el).color }], { duration: D(500), delay: k * 160, easing: 'ease-out', fill: 'backwards' })) },
@@ -869,7 +873,11 @@ function placePointer(rect, box, dur) {
     word: [x - 3, y - 1, w + 6, h + 2], outline: [x - 3, y - 1, w + 6, h + 2],
     underline: [x, y + h + 1, w, 3], dot: [x + w / 2 - 3, y + h + 2, 6, 6],
   }[pointer]
-  cur.style.transitionDuration = `${dur}ms`
+  // Calm motion for reading: position glides with a barely-there settle; size eases monotonically
+  // (never over/undershoots, so the block doesn't pulse longer/shorter). Glides use plain ease-in-out.
+  const move = gliding ? 'cubic-bezier(.45,0,.25,1)' : 'cubic-bezier(.22,1.12,.36,1)'
+  const size = 'cubic-bezier(.25,.8,.25,1)'
+  cur.style.transition = dur ? `transform ${dur}ms ${move}, width ${Math.round(dur * .85)}ms ${size}, height ${Math.round(dur * .85)}ms ${size}, opacity .2s` : 'none'
   cur.style.transform = `translate(${geo[0]}px, ${geo[1]}px)`
   cur.style.width = geo[2] + 'px'; cur.style.height = geo[3] + 'px'
 }
@@ -881,7 +889,7 @@ function render(dur = 380) {
   const r = end && Math.abs(end.top - rect.top) < 4 ? new DOMRect(rect.left, rect.top, end.right - rect.left, rect.height) : rect
   const newLine = prevTop !== null && Math.abs(rect.top - prevTop) > 4
   prevTop = rect.top
-  if (reduce) cur.style.transition = 'none'
+  if (reduce) dur = 0
   else if (newLine) { // hop to the new line: quick fade-through instead of a diagonal swipe
     cur.animate([{ opacity: 1 }, { opacity: 0, offset: .4 }, { opacity: 1 }], { duration: Math.min(260, dur) })
   }
@@ -911,7 +919,7 @@ function paintFocus() {
 function go(n, glide = false) {
   if (n > W.length - 1) { stopGlide(); toast('End of page. In pubre the page turns and the cursor carries on.'); return }
   i = Math.max(0, n)
-  render(glide ? Math.min(520, wordMs(W[i]) * (unit === 'phrase' ? 2.2 : 0.95)) : 380)
+  render(glide ? Math.min(480, wordMs(W[i]) * (unit === 'phrase' ? 1.6 : 0.8)) : 300)
 }
 function startGlide() { if (gliding) return; activate(); gliding = true; $('gHold').classList.add('held'); tick() }
 function tick() { if (!gliding) return; const n = nextUnit(i); let ms = 0; for (let k = i; k < Math.min(n, W.length); k++) ms += wordMs(W[k]); timer = setTimeout(() => { if (!gliding) return; go(n, true); tick() }, ms) }
@@ -1218,7 +1226,6 @@ window.PUBRE_ARRIVE = k => {
   settlePeek()
   const w = W[k], rect = rng(w.node, w.a, w.node, w.b).getBoundingClientRect()
   if (w.s !== lastSent) { lastSent = w.s; if (!reduce) root.animate([{ '--fk': '62%' }, { '--fk': '100%' }], { duration: 380, easing: 'ease-out' }) } // settle
-  if (!reduce && pointer !== 'dot') cur.animate([{ transform: cur.style.transform + ' scale(1)' }, { transform: cur.style.transform + ' scale(1.06)' }, { transform: cur.style.transform }], { duration: 260, delay: 120 })
   const t = tokens.find(t => t.node === w.node && t.a <= w.a && t.b >= w.b && t.kind !== 'speech' && t.kind !== 'aside')
   if (t && t.kind === 'name' && on('lnNames') && intensity !== 'quiet') {
     setHL('bloom', [tokRange(t)], PR.bloom); if (!reduce) root.animate([{ '--bloom': '0px' }, { '--bloom': '10px' }, { '--bloom': '0px' }], { duration: 750, easing: 'ease-out' })

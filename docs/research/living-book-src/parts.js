@@ -67,7 +67,11 @@ function placePointer(rect, box, dur) {
     word: [x - 3, y - 1, w + 6, h + 2], outline: [x - 3, y - 1, w + 6, h + 2],
     underline: [x, y + h + 1, w, 3], dot: [x + w / 2 - 3, y + h + 2, 6, 6],
   }[pointer]
-  cur.style.transitionDuration = `${dur}ms`
+  // Calm motion for reading: position glides with a barely-there settle; size eases monotonically
+  // (never over/undershoots, so the block doesn't pulse longer/shorter). Glides use plain ease-in-out.
+  const move = gliding ? 'cubic-bezier(.45,0,.25,1)' : 'cubic-bezier(.22,1.12,.36,1)'
+  const size = 'cubic-bezier(.25,.8,.25,1)'
+  cur.style.transition = dur ? `transform ${dur}ms ${move}, width ${Math.round(dur * .85)}ms ${size}, height ${Math.round(dur * .85)}ms ${size}, opacity .2s` : 'none'
   cur.style.transform = `translate(${geo[0]}px, ${geo[1]}px)`
   cur.style.width = geo[2] + 'px'; cur.style.height = geo[3] + 'px'
 }
@@ -79,7 +83,7 @@ function render(dur = 380) {
   const r = end && Math.abs(end.top - rect.top) < 4 ? new DOMRect(rect.left, rect.top, end.right - rect.left, rect.height) : rect
   const newLine = prevTop !== null && Math.abs(rect.top - prevTop) > 4
   prevTop = rect.top
-  if (reduce) cur.style.transition = 'none'
+  if (reduce) dur = 0
   else if (newLine) { // hop to the new line: quick fade-through instead of a diagonal swipe
     cur.animate([{ opacity: 1 }, { opacity: 0, offset: .4 }, { opacity: 1 }], { duration: Math.min(260, dur) })
   }
@@ -109,7 +113,7 @@ function paintFocus() {
 function go(n, glide = false) {
   if (n > W.length - 1) { stopGlide(); toast('End of page. In pubre the page turns and the cursor carries on.'); return }
   i = Math.max(0, n)
-  render(glide ? Math.min(520, wordMs(W[i]) * (unit === 'phrase' ? 2.2 : 0.95)) : 380)
+  render(glide ? Math.min(480, wordMs(W[i]) * (unit === 'phrase' ? 1.6 : 0.8)) : 300)
 }
 function startGlide() { if (gliding) return; activate(); gliding = true; $('gHold').classList.add('held'); tick() }
 function tick() { if (!gliding) return; const n = nextUnit(i); let ms = 0; for (let k = i; k < Math.min(n, W.length); k++) ms += wordMs(W[k]); timer = setTimeout(() => { if (!gliding) return; go(n, true); tick() }, ms) }
@@ -416,7 +420,6 @@ window.PUBRE_ARRIVE = k => {
   settlePeek()
   const w = W[k], rect = rng(w.node, w.a, w.node, w.b).getBoundingClientRect()
   if (w.s !== lastSent) { lastSent = w.s; if (!reduce) root.animate([{ '--fk': '62%' }, { '--fk': '100%' }], { duration: 380, easing: 'ease-out' }) } // settle
-  if (!reduce && pointer !== 'dot') cur.animate([{ transform: cur.style.transform + ' scale(1)' }, { transform: cur.style.transform + ' scale(1.06)' }, { transform: cur.style.transform }], { duration: 260, delay: 120 })
   const t = tokens.find(t => t.node === w.node && t.a <= w.a && t.b >= w.b && t.kind !== 'speech' && t.kind !== 'aside')
   if (t && t.kind === 'name' && on('lnNames') && intensity !== 'quiet') {
     setHL('bloom', [tokRange(t)], PR.bloom); if (!reduce) root.animate([{ '--bloom': '0px' }, { '--bloom': '10px' }, { '--bloom': '0px' }], { duration: 750, easing: 'ease-out' })

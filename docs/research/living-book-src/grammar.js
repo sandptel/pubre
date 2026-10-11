@@ -37,7 +37,11 @@ const play = {
     const at = w => { const r = w.getBoundingClientRect(); return { transform: `translateX(${r.left - base.left - 3}px)`, width: r.width + 6 + 'px', height: r.height + 2 + 'px' } }
     Object.assign(blk.style, at(words[0]))
     let k = 0
-    const hop = () => { k++; if (k >= words.length) return setTimeout(() => blk.remove(), 700); blk.animate([at(words[k - 1]), at(words[k])], { duration: D(380), easing: getComputedStyle(document.documentElement).getPropertyValue('--spring') || 'ease-out', fill: 'forwards' }); setTimeout(hop, D(520)) }
+    const hop = () => { k++; if (k >= words.length) return setTimeout(() => blk.remove(), 700)
+      const [f, t] = [at(words[k - 1]), at(words[k])] // position: gentle settle; size: monotonic ease, no overshoot
+      blk.animate([{ transform: f.transform }, { transform: t.transform }], { duration: D(300), easing: 'cubic-bezier(.22,1.12,.36,1)', fill: 'forwards' })
+      blk.animate([{ width: f.width, height: f.height }, { width: t.width, height: t.height }], { duration: D(255), easing: 'cubic-bezier(.25,.8,.25,1)', fill: 'forwards' })
+      setTimeout(hop, D(520)) }
     setTimeout(hop, D(300))
   },
   settle(row) { [...row.querySelectorAll('.lv')].forEach((el, k) => el.animate([{ color: 'var(--fg)' }, { color: getComputedStyle(el).color }], { duration: D(500), delay: k * 160, easing: 'ease-out', fill: 'backwards' })) },

@@ -2,39 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { parseNav } from '../../src/epub/nav.ts'
 import { xhtml, parseXml } from './helpers.ts'
-
-const NAV = `<?xml version="1.0" encoding="UTF-8"?>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-<head><title>Nav</title></head>
-<body>
-  <nav epub:type="toc" id="toc">
-    <h1>Contents</h1>
-    <ol>
-      <li><a href="text/ch1.xhtml">Chapter
-        <em>One</em></a></li>
-      <li><span>Part II</span>
-        <ol>
-          <li><a href="text/ch2.xhtml#s1">Section 2.1</a></li>
-          <li hidden=""><a href="text/ch2.xhtml#s2">Hidden 2.2</a></li>
-        </ol>
-      </li>
-      <li><a href="text/ch3.xhtml"><img src="x.png" alt="Pictured Chapter"/></a></li>
-      <li><a href="text/ch4.xhtml" title="Titled"> </a></li>
-    </ol>
-  </nav>
-  <nav epub:type="page-list" hidden="">
-    <ol><li><a href="text/ch1.xhtml#p1">1</a></li><li><a href="text/ch1.xhtml#pii">ii</a></li></ol>
-  </nav>
-  <nav epub:type="landmarks">
-    <h2>Guide</h2>
-    <ol>
-      <li><a epub:type="cover" href="cover.xhtml">Cover</a></li>
-      <li><a epub:type="bodymatter" href="text/ch1.xhtml">Start</a></li>
-    </ol>
-  </nav>
-  <nav epub:type="loi"><ol><li><a href="text/ch1.xhtml#fig1">Figure 1</a></li></ol></nav>
-  <nav role="doc-toc" aria-label="lot" epub:type="lot"><div><ul><li><a href="text/ch2.xhtml#t1">Table 1</a></li></ul></div></nav>
-</body></html>`
+import { NAV } from './fixtures.ts'
 
 test('EPUB 3 nav: toc (nested, span headings, hidden, image labels), page-list, landmarks, other navs', () => {
   const nav = parseNav(xhtml(NAV), 'OEBPS/nav.xhtml')

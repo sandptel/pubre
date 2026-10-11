@@ -38,3 +38,5 @@ Verified in Chrome (desktop 1440×900) and WebKit (390×844 touch): import of 3 
 - d138908 feat(guide): pacing.beat() gives each situation its own pause + cue (list, clause turn, speech tag, cut-off speech, short-sentence landing); pauses scale with pace (pauseScale).
 - 6f67dfd feat(stage): the mark hops during its pause (copy of the mark animated over the original; per-kind motion).
 - 941fab8 trailer v3: device-framed UI (phone/tablet/desktop), camera zooms, a different e-ink transition per cut. Source ../pubre-samples/reel/trailer3.html, record3.mjs.
+- Trailer v3 re-cut: 120 bpm grid (BEAT=500ms, scene lengths in beats, absolute-time scheduler), refreshes only at the four act breaks, hard cuts with a 140ms e-ink ghost elsewhere.
+- README video: GitHub only plays inline video from user-attachments uploads (CSP media-src); repo/raw and release URLs are blocked. Needs a manual drag-and-drop upload.

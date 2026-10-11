@@ -39,3 +39,5 @@ Each entry: date · finding · evidence · where handled.
 - **A registered `@property --accent: <color>`** lets the accent itself transition (palette drift) everywhere it's used.
 - **A multi-word unit across a line break hides words:** markers measure the first line only; stop phrases at line ends.
 - **Gutenberg books end in a license:** 'finished' must also count back matter near the end, or nobody ever finishes.
+- **SVG used as an `<img>`/data URL is parsed as strict XML:** a duplicated attribute (fine inline in HTML) makes the image silently blank. Test generated SVG with an XML parser.
+- **Web fonts inside the book iframe need their own @import** (in the injected book CSS); the chapter CSP allows fonts.googleapis/gstatic.

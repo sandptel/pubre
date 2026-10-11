@@ -27,3 +27,9 @@ Collected 2026-10-11. Add new entries with dates.
 - The user wants **creative, surprising** uses of the book's own content in the UI. The research is in `research/content-to-ui.md`.
 - The EPUB protocol should live in its own robust, UI-free module ("a struct with methods doing one thing"). Project parts go in dedicated submodules.
 - "Surprise me" is welcome: propose bold ideas, ranked by impact, with visualizations.
+
+## Added 2026-10-11 (planning workflow + reading guide)
+
+- **Plans are finalised together on a visual artifact.** The user comments one item at a time on the published page and then says so in chat. I read all threads (`ArtifactComments read`), address everything in one pass, republish to the **same URL**, and reply to and resolve the threads sent to Claude. Don't implement planned features until the user signs off.
+- **Reading guide vision** (user's words): a visual cursor that replaces a finger, moving over one word at a time, with a light tint on the sentence or paragraph being read. The user controls it: press Space (or a UI button) to move forward, double-press to go back to the sentence start, arrow keys / vim / editor-like word motions. Auto-advancing pacers are rejected because getting back and adjusting speed are a pain.
+- The user loved the word highlighting for names and hard words. They want more in that direction: selective highlighting with colours **and typography** (bold, italic) and custom hover tooltips.

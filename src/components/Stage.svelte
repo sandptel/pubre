@@ -617,7 +617,7 @@
   .veil { position: absolute; inset: 0; background: var(--bg); }
   .win {
     position: absolute; inset: 0 0 0 50%; width: min(26em, calc(100vw - 40px)); translate: -50% 0;
-    font-size: calc(var(--size) * clamp(21px, 1.2vw + 12px, 27px)); line-height: 1.62; color: var(--fg);
+    font-size: calc(var(--size) * clamp(21px, max(1.2vw + 12px, 2.2vmin + 6px), 30px)); line-height: 1.62; color: var(--fg); /* tablets: the short side counts too */
   }
   .lift { position: relative; will-change: transform, opacity; }
   .para { will-change: transform, opacity; }
@@ -625,6 +625,7 @@
   .flow { position: relative; text-wrap: pretty; hyphens: manual; color: color-mix(in srgb, var(--fg) 30%, transparent); }
   .flow :global(*) { margin: 0; font-size: inherit; line-height: inherit; }
   .flow > :global([data-b]) { margin: 0 0 .85em; transition: opacity .6s ease; }
+  .flow :global(a) { color: inherit; text-decoration: none; }
   .flow :global(img) { display: block; margin: 0 auto .8em; max-height: 38vh; max-width: 100%; }
   .flow > :global(.h) { font-weight: 600; letter-spacing: -.01em; font-size: 1.3em; line-height: 1.3; text-wrap: balance; text-align: center; margin: 1.1em 0 .9em; }
   /* The card: while it travels, the paragraph is a sheet of paper with a shadow (no layout shift). */

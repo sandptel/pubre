@@ -72,7 +72,7 @@
 
 <style>
   .capsule { border-radius: 22px; padding: 9px 16px 11px; display: grid; gap: 8px; min-width: 0; }
-  .meta { display: flex; gap: var(--s3); font-size: 12px; line-height: 1; }
+  .meta { display: flex; gap: var(--s3); font-size: 12px; line-height: 1; min-width: 0; } /* a grid item: without this, a long title widens the bar */
   .chapter { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
   .yours { font-style: italic; font-weight: 400; color: var(--accent); }
   .page { color: var(--muted); font-variant-numeric: tabular-nums; }

@@ -26,6 +26,7 @@
   let settingsOpen = $state(false)
   let sview = $state<'menu' | 'look' | 'aids'>('menu')
   const current = $derived(books.find(b => b.progress > 0 && b.progress < 0.995))
+  const anyStarted = $derived(books.some(b => b.progress > 0)) // a "new" dot means nothing while every book is new
   // Shelves: what you're reading, what's next, what you've finished. Empty shelves are hidden.
   const shelves = $derived([
     { id: 'reading', title: 'Reading', list: books.filter(b => b.progress > 0 && b.progress < 0.995 && b !== current) },
@@ -171,7 +172,7 @@
               <Cover book={b} />
               {#if b.progress > 0 && b.progress < 0.995}<span class="bar"><span style:width="{b.progress * 100}%"></span></span>{/if}
             </span>
-            <span class="title">{#if !b.progress}<i class="dot" title="New"></i>{/if}{b.title}</span>
+            <span class="title">{#if !b.progress && anyStarted}<i class="dot" title="New"></i>{/if}{b.title}</span>
             <span class="author">{b.creator}{b.progress >= 0.995 ? ' · Finished' : ''}</span>
           </button>
         </li>
@@ -269,7 +270,7 @@
   .grid {
     list-style: none; padding: 0; margin: 0;
     display: grid; gap: var(--s6) var(--s5);
-    grid-template-columns: repeat(auto-fill, minmax(clamp(128px, 20vw, 160px), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(clamp(132px, 16vw, 200px), 1fr));
   }
   .grid li { animation: rise .5s var(--ease) both; animation-delay: calc(min(var(--i), 12) * 35ms); }
   .book { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 2px; width: 100%; -webkit-touch-callout: none; user-select: none; }
@@ -279,7 +280,7 @@
   .book:active .cover { transform: scale(.96); }
   .bar { position: absolute; left: 8%; right: 8%; bottom: 7px; height: 3px; border-radius: 2px; background: rgb(255 255 255 / .45); overflow: hidden; box-shadow: 0 1px 3px rgb(0 0 0 / .3); }
   .dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--accent); vertical-align: 1px; }
-  .title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .title { font-size: 14px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .author { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .empty { text-align: center; padding: 12vh var(--s4); display: grid; justify-items: center; }

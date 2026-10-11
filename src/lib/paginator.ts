@@ -270,14 +270,20 @@ export class Paginator {
   }
 
   private inject(v: View) {
-    const { H, t, cols, colW, gap } = this.L
+    const { H, t, cols, gap } = this.L
+    // A cover or plate (an image and next to no text) on a two-column spread: one column as wide as
+    // the spread, so the picture is centred instead of sitting in the left half.
+    const solo = cols > 1 && (v.doc.body?.textContent ?? '').trim().length < 40 && !!v.doc.querySelector('img, svg, image')
+    const colW = solo ? cols * this.L.colW + (cols - 1) * gap : this.L.colW
     this.style(v.doc, 'pubre-user', bookCss(this.settings, H - 2 * t))
     this.style(v.doc, 'pubre-marks', marksCss(resolveTheme(this.settings.palette, this.settings.mode)))
     this.style(v.doc, 'pubre-layout', `
 html { box-sizing: content-box !important; margin: 0 !important; max-width: none !important;
-  width: ${cols * colW + (cols - 1) * gap}px !important; height: ${H - 2 * t - this.reserve - this.reserveTop}px !important; padding: ${t + this.reserveTop}px ${gap / 2}px ${t + this.reserve}px !important;
+  width: ${solo ? colW : cols * colW + (cols - 1) * gap}px !important; height: ${H - 2 * t - this.reserve - this.reserveTop}px !important; padding: ${t + this.reserveTop}px ${gap / 2}px ${t + this.reserve}px !important;
   column-width: ${colW}px !important; column-gap: ${gap}px !important; column-fill: auto !important;
-  overflow: hidden !important; touch-action: none; }`)
+  overflow: hidden !important; touch-action: none; }${solo ? `
+img, svg { display: block !important; margin-left: auto !important; margin-right: auto !important; }
+body > div, body > section, body > p, body > figure { text-align: center !important; }` : ''}`)
   }
 
   private paginate(v: View) {

@@ -99,6 +99,14 @@
   small { font-size: 12px; color: var(--muted); }
   .hint { font-size: 12px; color: var(--muted); margin: 0; padding: var(--s2) 0 var(--s3); line-height: 1.45; }
   .pace { width: 38%; flex: none; accent-color: var(--accent); }
+  /* Phones: a choice sits under its label, full width, instead of squeezing the label into a column. */
+  @media (max-width: 460px) {
+    .line:has(.segmented), .line:has(.pace) { flex-wrap: wrap; row-gap: var(--s2); padding: var(--s3) 0; }
+    .line:has(.segmented) > span:first-child, .line:has(.pace) > span:first-child { flex-basis: 100%; }
+    .line .segmented { width: 100%; }
+    .line .segmented button { flex: 1; }
+    .line .pace { width: 100%; }
+  }
   .segmented { display: flex; background: var(--hover); border-radius: 9px; padding: 2px; flex: none; }
   .segmented button { border: 0; background: transparent; border-radius: 7px; padding: 5px 9px; font-size: 13px; transition: background-color .25s var(--ease); }
   .segmented .on { background: var(--bg); box-shadow: 0 1px 3px rgb(0 0 0 / .15); font-weight: 600; }

@@ -59,12 +59,12 @@ export function marksCss(t: Theme): string {
   return `
 @property --bloom { syntax: '<length>'; inherits: true; initial-value: 0px }
 @property --breathe { syntax: '<number>'; inherits: true; initial-value: 0 }
-::highlight(c-page) { color: ${level(t, 0.38, 2.2)} }
-::highlight(c-para) { color: ${level(t, 0.66, 3.2)} }
-::highlight(c-read) { color: ${level(t, 0.28, 1.8)} }
-::highlight(c-readpara) { color: ${level(t, 0.4, 2.2)} }
-::highlight(aside) { color: ${level(t, 0.6, 3)} }
-::highlight(c-readfocus) { color: ${level(t, 0.52, 2.8)} }
+::highlight(c-page) { color: ${level(t, 0.72, 3.4)} }
+::highlight(c-para) { color: ${level(t, 0.8, 4)} }
+::highlight(c-read) { color: ${level(t, 0.45, 2.4)} }
+::highlight(c-readpara) { color: ${level(t, 0.55, 2.8)} }
+::highlight(aside) { color: ${level(t, 0.72, 3.4)} }
+::highlight(c-readfocus) { color: ${level(t, 0.68, 3.4)} }
 ::highlight(c-focus) { color: ${fg} }
 ${VOICES.map(k => `::highlight(v-ink-${k}) { color: ${mix(fg, voice(k), 0.55)} }
 ::highlight(v-soft-${k}) { color: ${mix(fg, voice(k), 0.42)} }

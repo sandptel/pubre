@@ -104,6 +104,7 @@ export class Paginator {
   private page = 0
   private busy = false
   private L = { V: 0, H: 0, t: 0, cols: 1, colW: 0, gap: 0, step: 0, left: 0 }
+  private reserve = 0 // extra bottom margin (e.g. room for the reading guide's pad)
   private starts: number[] = [] // cumulative spine weights, for whole-book progress
   private marks: { label: string; at: number }[] = [] // every TOC entry on the progress axis
   private wheelLock = 0
@@ -216,6 +217,9 @@ export class Paginator {
     this.bounce(1)
   }
 
+  /** Keep `px` free at the bottom of every page (relayouts, keeping your place). */
+  setReserve(px: number) { if (px === this.reserve) return; this.reserve = px; this.relayout() }
+
   setSettings(s: Settings) {
     this.settings = s
     this.relayout()
@@ -257,7 +261,7 @@ export class Paginator {
     this.style(v.doc, 'pubre-marks', marksCss(resolveTheme(this.settings.palette, this.settings.mode)))
     this.style(v.doc, 'pubre-layout', `
 html { box-sizing: content-box !important; margin: 0 !important; max-width: none !important;
-  width: ${cols * colW + (cols - 1) * gap}px !important; height: ${H - 2 * t}px !important; padding: ${t}px ${gap / 2}px !important;
+  width: ${cols * colW + (cols - 1) * gap}px !important; height: ${H - 2 * t - this.reserve}px !important; padding: ${t}px ${gap / 2}px ${t + this.reserve}px !important;
   column-width: ${colW}px !important; column-gap: ${gap}px !important; column-fill: auto !important;
   overflow: hidden !important; touch-action: none; }`)
   }

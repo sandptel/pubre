@@ -6,8 +6,8 @@ import { resolveTheme, modes, palettes, effective, defaults } from '../src/lib/s
 test('dimmed text never drops below its contrast floor, in every palette × mode', () => {
   for (const p of Object.keys(palettes)) for (const m of Object.keys(modes)) {
     const t = resolveTheme(p, m)
-    assert.ok(contrast(level(t, 0.38, 2.2), t.base[0]) >= 2.2 - 1e-9, `${p}/${m} page`)
-    assert.ok(contrast(level(t, 0.66, 3.2), t.base[0]) >= Math.min(3.2, contrast(t.base[5], t.base[0])) - 1e-9, `${p}/${m} para`)
+    assert.ok(contrast(level(t, 0.6, 3), t.base[0]) >= Math.min(3, contrast(t.base[5], t.base[0])) - 1e-9, `${p}/${m} page`)
+    assert.ok(contrast(level(t, 0.8, 4), t.base[0]) >= Math.min(4, contrast(t.base[5], t.base[0])) - 1e-9, `${p}/${m} para`)
   }
 })
 

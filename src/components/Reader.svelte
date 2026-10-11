@@ -4,7 +4,8 @@
   import { fly } from 'svelte/transition'
   import { Book, type TocItem } from '../lib/epub.ts'
   import { Paginator, type Relocation, type Section } from '../lib/paginator.ts'
-  import type { Settings } from '../lib/settings.ts'
+  import { effective, type Settings } from '../lib/settings.ts'
+  import { Guide, type GuideState } from '../lib/guide.ts'
   import { getFile, saveBook, type BookRecord } from '../lib/store.svelte.ts'
   import Appearance from './Appearance.svelte'
   import Cover from './Cover.svelte'
@@ -29,6 +30,13 @@
   let dir = $state(1)
   let error = $state('')
   let saveTimer = 0
+  let padT = 0, padDown = 0
+  let guide: Guide | undefined
+  let gstate = $state<GuideState>({ active: false, gliding: false, wpm: 260 })
+  let toastMsg = $state('')
+  let toastT = 0
+  const eff = $derived(effective(settings, rec.prefs))
+  function toast(m: string) { toastMsg = m; clearTimeout(toastT); toastT = window.setTimeout(() => (toastMsg = ''), 1800) }
 
   const left = $derived(loc ? loc.pages - loc.page - 1 : 0)
 
@@ -46,7 +54,14 @@
         const b = await Book.open(new Uint8Array(data))
         if (gone) return b.destroy()
         book = b
-        pag = new Paginator(host, b, $state.snapshot(settings))
+        pag = new Paginator(host, b, $state.snapshot(eff))
+        guide = new Guide(pag, $state.snapshot(eff))
+        guide.onState = s => { if (s.active !== gstate.active) pag?.setReserve(s.active ? 44 : 0); gstate = s; if (s.active) chrome = false }
+        guide.onPace = wpm => (settings.wpm = wpm)
+        guide.onToast = toast
+        pag.keyHook = e => guide!.key(e)
+        pag.tapHook = (v, x, y) => guide!.tapWord(v, x, y)
+        pag.onView = v => guide!.view(v)
         pag.onSections = s => (sections = s)
         pag.onRelocate = r => {
           loc = r
@@ -67,14 +82,20 @@
     return () => {
       gone = true
       save()
+      guide?.destroy()
       pag?.destroy()
       book?.destroy()
     }
   })
 
+  // Only appearance changes re-lay out the book; feature settings (guide, lenses, pace) don't.
+  const LAYOUT = ['palette', 'mode', 'font', 'fontScale', 'lineHeight', 'margin', 'justify', 'bold', 'spread'] as const
+  let layoutKey = ''
   $effect(() => {
-    const s = $state.snapshot(settings)
-    pag?.setSettings(s)
+    const s = $state.snapshot(eff)
+    const key = JSON.stringify(LAYOUT.map(k => s[k]))
+    if (key !== layoutKey) { layoutKey = key; pag?.setSettings(s) }
+    guide?.setSettings(s)
   })
   $effect(() => { if (!panel) setTimeout(() => (view = 'menu'), 400) }) // reset after the close animation
 
@@ -117,10 +138,27 @@
           onjump={jump} onscrub={p => pag?.goToProgress(p)} />
       </div>
     {/if}
+    {#if eff.guide}
+      <button class="fab glass guide-btn" class:on={gstate.active} aria-label={gstate.active ? 'Leave reading guide (G)' : 'Reading guide (G)'} aria-pressed={gstate.active}
+        onclick={() => { guide?.toggle(); chrome = false }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="9" width="9" height="6" rx="2" fill="currentColor" opacity=".35" stroke="none" /><path d="M3 18h18M15 12h6" /></svg>
+      </button>
+    {/if}
     <button class="fab glass menu" aria-label="Reading menu" onclick={() => { view = 'menu'; panel = true }} disabled={!book}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h9" /></svg>
     </button>
   </div>
+
+  {#if gstate.active}
+    <button class="pad glass" class:held={gstate.gliding} aria-label="Hold to glide, tap to step, double-tap for sentence start"
+      onpointerdown={e => { e.preventDefault(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); padDown = performance.now(); padT = window.setTimeout(() => guide?.holdStart(), 220) }}
+      onpointerup={() => { clearTimeout(padT); if (gstate.gliding) guide?.holdEnd(); else if (padDown) guide?.padTap(); padDown = 0 }}
+      onpointercancel={() => { clearTimeout(padT); guide?.holdEnd(); padDown = 0 }}
+      oncontextmenu={e => e.preventDefault()}>
+      <span class="pad-ring"></span><span class="pad-l">{gstate.gliding ? `${gstate.wpm} wpm` : 'Hold'}</span>
+    </button>
+  {/if}
+  {#if toastMsg}<div class="toast glass" role="status">{toastMsg}</div>{/if}
 
   {#if error}
     <div class="error" role="alert">
@@ -228,6 +266,29 @@
     border: 2.5px solid var(--line); border-top-color: var(--accent); border-radius: 50%;
     animation: spin .8s linear infinite;
   }
+  /* Reading guide: pointer (in the page strip, behind the transparent book), pad, toast */
+  .reader :global(.pubre-pointer) { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; opacity: 0; transition: opacity .2s; }
+  .reader :global(.pubre-pointer.on) { opacity: 1; }
+  .reader :global(.pubre-pointer.p-word) { background: color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 6px; }
+  .reader :global(.pubre-pointer.p-outline) { border-radius: 6px; box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .reader :global(.pubre-pointer.p-underline) { background: var(--accent); border-radius: 2px; }
+  .reader :global(.pubre-pointer.p-dot) { background: var(--accent); border-radius: 50%; }
+  .guide-btn.on { background: var(--accent); color: var(--bg); }
+  .pad {
+    position: absolute; z-index: 3; right: calc(env(safe-area-inset-right) + var(--s3)); bottom: calc(env(safe-area-inset-bottom) + var(--s3));
+    width: 52px; height: 52px; border: 0; border-radius: 50%; display: grid; place-items: center; color: var(--fg);
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    transition: transform .3s var(--ease), opacity .3s; animation: padIn .4s var(--ease);
+  }
+  .pad.held { transform: scale(.94); }
+  .pad-l { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pad-ring { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; }
+  .pad.held .pad-ring { opacity: 1; animation: ring 1.2s ease-out infinite; }
+  @media (hover: hover) and (pointer: fine) { .pad { opacity: .55; } .pad:hover, .pad.held { opacity: 1; } }
+  @keyframes padIn { from { opacity: 0; transform: scale(.8); } }
+  @keyframes ring { from { transform: scale(.96); opacity: .9; } to { transform: scale(1.15); opacity: 0; } }
+  .toast { position: absolute; z-index: 4; left: 50%; top: calc(env(safe-area-inset-top) + var(--s5)); translate: -50% 0; padding: 8px 14px; border-radius: 999px; font-size: 13px; animation: toastIn .35s var(--ease); pointer-events: none; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(-6px); } }
   .error { position: absolute; inset: 0; z-index: 3; display: grid; place-content: center; justify-items: center; text-align: center; padding: var(--s5); background: var(--bg); }
   .error h2 { font: 600 1.5rem var(--serif); margin: 0 0 var(--s2); }
   .error p { color: var(--muted); max-width: 420px; margin: 0 0 var(--s5); }

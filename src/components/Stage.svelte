@@ -57,7 +57,7 @@
   const font = $derived(fonts[settings.font]?.stack || 'ui-serif, Georgia, serif')
   const step = $derived<Step>(settings.stageStep ?? 'sentence')
   const pointer = $derived(step === 'sentence' ? 'ink' : settings.stagePointer ?? 'ink')
-  const go_ = $derived(touch ? 'tap' : 'Space')
+  const go_ = $derived(touch ? 'tap ▶' : 'Space')
   $effect(() => { const w = settings.wpm; untrack(() => { if (w !== wpm) { wpm = w; if (open) setRate(rate) } }) }) // a new pace applies mid-sentence
   let progress = $state(0) // through this chapter's text, for the pad's ring and the line under the label
   let sections = $state<number[]>([]) // paragraph starts within this section (ticks on the line)
@@ -553,6 +553,8 @@
     toggle()
   }
   export const isOpen = () => open
+  /** One unit back or forward (the ‹ button). */
+  export function nudge(dir: 1 | -1) { if (open && landed) unit(dir) }
 
   /** The paginator changed chapter (we asked it to, at a chapter's end). */
   export function view(nv: View) { if (open && nv !== v) v = nv }
@@ -620,11 +622,18 @@
     clearTimeout(markT); markT = 0
     if (marked) { marked = false; return }
     if ((e.target as HTMLElement).closest('button, .gloss')) return
-    const dy = e.clientY - downY
+    const dy = e.clientY - downY, dx = e.clientX - downX
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) return unit(dx > 0 ? -1 : 1) // swipe right: back a word (or unit)
     if (Math.abs(dy) > 40) return sentence(dy < 0 ? 1 : -1)
     if (e.timeStamp - downAt >= 500) return
-    const k = (e.target as HTMLElement).closest<HTMLElement>('[data-k]')?.dataset.k
-    if (k) { if (playing) stop(); showGloss(k); return } // stopping at a word: tell me more
+    const sp = (e.target as HTMLElement).closest<HTMLElement>('.flow [data-s]'), w = sp ? ownerOf.get(sp) : undefined
+    if (w !== undefined && w >= 0 && landed) { // tap a word: read from there (and hear about it, if it's marked)
+      waiting = ''; breathAt = null
+      go(w); schedule()
+      const k = sp!.closest<HTMLElement>('[data-k]')?.dataset.k
+      if (k) showGloss(k)
+      return
+    }
     toggle()
   }
   function over(e: PointerEvent) {
@@ -674,8 +683,8 @@
     <div class="foot" aria-live="polite">
       {#if landed && !transient}
         {#if waiting === 'end' && waits(waiting)}<span>End of chapter · {go_} to go on</span>
-        {:else if waiting === 'chapter' && waits(waiting)}<span>{go_ === 'tap' ? 'Tap' : 'Space'} for the next chapter</span>
-        {:else if waiting === 'paragraph' && waits(waiting)}<span>{go_ === 'tap' ? 'Tap' : 'Space'} for the next paragraph</span>
+        {:else if waiting === 'chapter' && waits(waiting)}<span>{touch ? 'Tap ▶' : 'Space'} for the next chapter</span>
+        {:else if waiting === 'paragraph' && waits(waiting)}<span>{touch ? 'Tap ▶' : 'Space'} for the next paragraph</span>
         {:else if !playing && !holdPlay}<span>Paused · {go_} to go on</span>{/if}
       {/if}
     </div>
@@ -764,9 +773,9 @@
   @keyframes sweep { 0% { background-position: -60% 0; opacity: 0; } 15% { opacity: 1; } 100% { background-position: 160% 0; opacity: 0; } }
   .top.on { opacity: 1; }
   @media (prefers-reduced-motion: reduce) { .line em { animation: none; } }
-  .foot { position: absolute; left: 190px; right: 190px; bottom: calc(env(safe-area-inset-bottom) + 28px); display: grid; place-items: center; /* clear of the pad + speed chip */ font: 12px system-ui; color: var(--muted); pointer-events: none; min-height: 16px; }
+  .foot { position: absolute; left: 260px; right: 260px; bottom: calc(env(safe-area-inset-bottom) + 28px); display: grid; place-items: center; /* clear of the pad + speed chip */ font: 12px system-ui; color: var(--muted); pointer-events: none; min-height: 16px; }
   .foot span { animation: fade .5s ease both; text-align: center; }
-  @media (max-width: 719px) { .foot { left: 20px; right: 170px; place-items: center start; bottom: calc(env(safe-area-inset-bottom) + 34px); } }
+  @media (max-width: 719px) { .foot { left: 20px; right: 236px; place-items: center start; bottom: calc(env(safe-area-inset-bottom) + 34px); } }
   .breath { position: absolute; width: 56px; height: 2px; border-radius: 1px; background: color-mix(in srgb, var(--fg) 10%, transparent); overflow: hidden; opacity: .4; pointer-events: none; animation: fade .4s ease both; }
   .breath i { display: block; height: 100%; background: var(--accent); transform-origin: left; animation: fill linear both; }
   .x { position: absolute; z-index: 1; top: calc(env(safe-area-inset-top) + 10px); right: calc(env(safe-area-inset-right) + 10px); width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; transition: background-color .2s, color .2s, opacity .3s; opacity: 0; }

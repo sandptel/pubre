@@ -375,6 +375,10 @@
     },
   }
 
+  let backT = 0
+  function stepBy(dir: 1 | -1) { if (stageStyle() && staged) stage?.nudge(dir); else guide?.stepBy(dir) }
+  const hold = (dir: 1 | -1) => (e: PointerEvent) => { e.preventDefault(); stepBy(dir); backT = window.setTimeout(function rep() { stepBy(dir); backT = window.setTimeout(rep, 170) }, 420) }
+
   function padTap() {
     chrome = false; hideCard()
     if (stageStyle()) stage?.tap(); else guide?.padTap()
@@ -757,6 +761,18 @@
 
   {#if eff.guide && loc && !error}
     <div class="padgroup" class:up={showChrome && !staged}>
+      {#if staged || (gstate.active && !showChrome)}
+        <span class="steps glass">
+          <button class="back" aria-label="Back a word (hold to keep going)" onpointerdown={hold(-1)}
+            onpointerup={() => clearTimeout(backT)} onpointercancel={() => clearTimeout(backT)} onpointerleave={() => clearTimeout(backT)} oncontextmenu={e => e.preventDefault()}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </button>
+          <button class="back" aria-label="Next word (hold to keep going)" onpointerdown={hold(1)}
+            onpointerup={() => clearTimeout(backT)} onpointercancel={() => clearTimeout(backT)} onpointerleave={() => clearTimeout(backT)} oncontextmenu={e => e.preventDefault()}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </button>
+        </span>
+      {/if}
       {#if speedChip}
         <button class="speed glass" class:on={speedOpen} aria-label="Reading speed, {eff.wpm} words a minute" aria-expanded={speedOpen}
           onclick={() => { speedOpen = !speedOpen; clearTimeout(speedT); if (speedOpen) speedT = window.setTimeout(() => (speedOpen = false), 5000) }}>
@@ -1063,6 +1079,12 @@
     .reader.chrome.padded .progress { margin-right: 64px; transition: margin .3s var(--ease); }
     .reader.chrome.padded.speedy .progress { margin-right: 150px; }
   }
+  .steps { display: flex; border-radius: 999px; animation: padIn .4s var(--spring); }
+  .back { width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; display: grid; place-items: center; color: var(--fg); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  .back svg { width: 20px; height: 20px; }
+  .back + .back { margin-left: -6px; }
+  .back:active { transform: scale(.92); }
+  @media (hover: hover) and (pointer: fine) { .back { opacity: .6; height: 34px; width: 34px; } .back:hover { opacity: 1; } }
   .speed { height: 40px; min-width: 64px; padding: 0 12px; border: 0; border-radius: 999px; display: flex; align-items: baseline; justify-content: center; gap: 3px; color: var(--fg); font-variant-numeric: tabular-nums; animation: padIn .4s var(--spring); transition: background-color .2s, color .2s; }
   .speed b { font: 600 15px system-ui; }
   .speed small { font-size: 10.5px; color: var(--muted); }

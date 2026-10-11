@@ -131,6 +131,8 @@ export class Guide {
   /** A tap on the pad: same as tapping Space (play/pause; double-tap = sentence start). */
   padTap() { if (!this.active) { this.start(); return } this.tap(performance.now()) }
   sentenceStart() { this.activate(); this.toSentenceStart() }
+  /** One word (or phrase) back or forward, keeping play/pause as it was. */
+  stepBy(dir: 1 | -1) { if (!this.active) return; this.go(dir > 0 ? this.next(this.i) : Math.max(0, this.i - 1)) }
 
   // ---------- keys (called for keydown and keyup, from the app and the book) ----------
   key(e: KeyboardEvent): boolean {

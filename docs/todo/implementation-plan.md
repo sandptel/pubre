@@ -71,11 +71,11 @@ Source: artifact comment threads, 2026-10-11 (thread ids in brackets). Each iter
 - [x] I3 · Pick up where you left off, on the homepage [1f888ce5]: continue card with the last sentence you read, time since, chapter, calm time left; mini capsule per book (progress + your position); "Recently read" row (last opened, who was on stage, latest highlight); a return-after-a-gap prompt (recall first, then recap).
 - [x] I4 · Ambient palette drift [6ce933bf]: each chapter's dominant colour word pulls the accent toward it over a few seconds, only at a chapter crossing (@property interpolation); toggle; Weather & time of day later (Wave 3).
 - [x] I5 · Every chapter gets its own stage [40decf3b]: semantic chapter openers (Classic, Daylight, Nocturne, Stage, Long Swell; auto, overridable); first-line staging for epigraphs/openings (word by word, once); chapter fingerprints (Posavec sentence drawing).
-- [ ] I6 · The capsule comes alive [eb70bf50]: mood (dark → bright) and dialogue-texture hatching on the wedges; chapter-crossing pulse; story-shape skyline (spoiler-gated).
-- [ ] I7 · Meet the cast [eb70bf50]: character card (first appearance, how often, seen with; position-bounded); constellation later.
-- [ ] I8 · Rare-word sparks [eb70bf50]: words used once in the whole book glow softly; long-press defines; the chapter-end card collects them.
-- [ ] I9 · Finish keepsake [eb70bf50]: on finishing, draw the copy (chapter 1 punctuation spiral ringed by the book's mood) as its shelf cover.
-- [ ] I10 · Motion set remainder [eb70bf50]: ink-bleed chapter titles, character star-birth, arc reveal after a session.
+- [x] I6 · The capsule comes alive [eb70bf50]: mood (dark → bright) and dialogue-texture hatching on the wedges; chapter-crossing pulse; story-shape skyline (spoiler-gated).
+- [x] I7 · Meet the cast [eb70bf50]: character card (first appearance, how often, seen with; position-bounded); constellation later.
+- [x] I8 · Rare-word sparks [eb70bf50]: words used once in the whole book glow softly; long-press defines; the chapter-end card collects them.
+- [x] I9 · Finish keepsake [eb70bf50]: on finishing, draw the copy (chapter 1 punctuation spiral ringed by the book's mood) as its shelf cover.
+- [x] I10 · Motion set remainder [eb70bf50]: ink-bleed chapter titles, character star-birth, arc reveal after a session.
 
 ### C6 · Living capsule (if time allows)
 - [ ] Mood-tinted wedges from insights, time left at your pace, and a crossing pulse.
@@ -91,3 +91,4 @@ Source: artifact comment threads, 2026-10-11 (thread ids in brackets). Each iter
 - 2026-10-11: C7 S1–S4 + hold-to-read + quick speed landed and are deployed; S5 first pass done (phone bar, Reading aids layout, library, tablets, centred covers). Critic #3 running.
 - 2026-10-11: C8 I1–I5 live (where-am-I strip + capsule, Type pointer, homepage pick-up, palette drift, chapter openers/staging/fingerprints); phone asks: ‹ › word steps, tap a word to start, swipe steps; critic #3 fixes deployed. Open: I6–I10; one gesture grammar decision (hold = read vs select vs keep).
 - 2026-10-11: UI revamp from the user's references (R1 tokens: mono labels, radius/elevation scale, card + ink; R2 library: My Library hero + Continue pill, Recent row, floating dark bar; R3 reader: top cluster, chapter eyebrow titles, mono progress line; R4 control-center settings with preview, font tiles, vertical size/brightness sliders). Deployed.
+- 2026-10-11: Idea bank complete (I6 living capsule + highlight dots, I7 cast card + constellation, I8 rare-word sparks, I9 finish keepsake, I10 ink-bleed titles / letters type / star-birth / arc reveal) + weather & time of day + tinted Up next cards + critic #3 remainders. Settings sheets: Geist Mono, opaque accent-tinted surface (user: 'opaque and aesthetically coloured'). Every word gets the marker (phrases stop at line ends).

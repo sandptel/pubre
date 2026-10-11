@@ -37,3 +37,5 @@ Each entry: date · finding · evidence · where handled.
 - **`overflow: hidden` containers are still scrollable** (find-in-page, focus, scrollIntoView). Use `overflow: clip` for overlays that must never scroll.
 - **Highlights can stage text without touching the DOM:** `::highlight(x) { color: transparent }` on a shrinking range reveals words one by one (first-line staging); the text index and CFIs stay valid.
 - **A registered `@property --accent: <color>`** lets the accent itself transition (palette drift) everywhere it's used.
+- **A multi-word unit across a line break hides words:** markers measure the first line only; stop phrases at line ends.
+- **Gutenberg books end in a license:** 'finished' must also count back matter near the end, or nobody ever finishes.

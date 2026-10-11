@@ -150,12 +150,13 @@
           rec.chapter = r.chapter
           if (!gstate.active) paintLenses()
           const at = `${r.index}:${r.page}`
-          if (at !== stagedAt) { stagedAt = at; stagingStop?.(); if (pag?.current) stageFirstLine(pag.current) } // only a real page change stops it
+          if (at !== stagedAt) { stagedAt = at; stagingStop?.(); if (pag?.current) { stageFirstLine(pag.current); starBirth(pag.current) } } // only a real page change stops it
           hideCard()
           clearTimeout(saveTimer)
           saveTimer = window.setTimeout(() => { snapshotPlace(); save() }, 500)
         }
         pag.onTap = zone => { chrome = zone === 'center' ? !chrome : false }
+        rec.sessionFrom = rec.progress // for the library's arc reveal: what you climb this session grows in
         const away = Date.now() - (rec.opened || Date.now())
         rec.opened = Date.now()
         if (rec.location?.cfi) await pag.openCfi(rec.location.cfi)
@@ -256,38 +257,74 @@
   const staged1 = new Set<string>()
   let stagedAt = ''
   let stagingStop: (() => void) | null = null
+  /** Reveal words a..z one by one (paced by punctuation), holding the rest of the page back; any input finishes it. */
+  function reveal(v: BookView, a: number, z: number, last: number, perWord: number) {
+    const ix = v.ix
+    const rng = (i: number, j: number) => { const r = v.doc.createRange(); r.setStart(ix.words[i].sn, ix.words[i].so); r.setEnd(ix.words[j].en, ix.words[j].eo); return r }
+    // the line's tail runs to the next word (its punctuation and closing quote stay back too)
+    const upto = (i: number, j: number) => { const r = rng(i, j), n = ix.words[j + 1]; if (n) r.setEnd(n.sn, n.so); return r }
+    const rest = z < last ? [upto(z + 1, last)] : []
+    let k = a, t = 0
+    const stop = () => { clearTimeout(t); v.marks.set('stage-hidden', []); v.marks.set('stage-fade', []); v.marks.set('stage-rest', []); stagingStop = null; removeEventListener('keydown', stop, true); v.doc.removeEventListener('pointerdown', stop, true) }
+    stagingStop?.(); stagingStop = stop
+    addEventListener('keydown', stop, true); v.doc.addEventListener('pointerdown', stop, true)
+    const tick = () => {
+      if (k > z) { v.marks.set('stage-hidden', []); v.marks.set('stage-fade', []); t = window.setTimeout(stop, 500); return } // in: the page comes back
+      v.marks.set('stage-fade', [rng(k, k)])
+      v.marks.set('stage-hidden', k < z ? [upto(k + 1, z)] : [])
+      if (k === a) v.marks.set('stage-rest', rest)
+      const ms = perWord + pauseAfter(ix, k) * (perWord > 100 ? 0.6 : 0.25)
+      k++
+      t = window.setTimeout(tick, ms)
+    }
+    t = window.setTimeout(tick, 380) // after the page has settled
+  }
+  /** On arriving at a page: a chapter's first line arrives word by word, its title soaks in (ink-bleed),
+   *  a letter ("Dear…") types itself — each once, never on ordinary body text. */
   function stageFirstLine(v: BookView) {
     if (!eff.openers || eff.motion !== 'full' || reduceMotion || gstate.active || staged || !pag) return
     const ix = v.ix, first = pag.firstWordOnPage(v), last = pag.currentPage + 1 < v.pages ? pag.firstWordOnPage(v, pag.currentPage + 1) - 1 : ix.words.length - 1
     for (let b = ix.words[first]?.b ?? 0; b < ix.blocks.length && ix.blocks[b].a <= last; b++) {
-      const h = ix.blocks[b]
-      if (h.kind !== 'heading' || !h.el.hasAttribute('data-pubre-opener')) continue
-      const key = `${v.index}:${b}`
-      if (staged1.has(key)) return
-      staged1.add(key)
-      let p = b + 1
-      while (p < ix.blocks.length && (ix.blocks[p].kind !== 'text' || ix.blocks[p].b < ix.blocks[p].a)) p++
-      if (p >= ix.blocks.length || ix.blocks[p].a > last) return
-      const s = ix.sentences[ix.words[ix.blocks[p].a].s], a = s.a, z = Math.min(s.b, a + 40, last)
-      const rng = (i: number, j: number) => { const r = v.doc.createRange(); r.setStart(ix.words[i].sn, ix.words[i].so); r.setEnd(ix.words[j].en, ix.words[j].eo); return r }
-      // the line's tail runs to the next word (its punctuation and closing quote stay back too)
-      const upto = (i: number, j: number) => { const r = rng(i, j), n = ix.words[j + 1]; if (n) r.setEnd(n.sn, n.so); return r }
-      const rest = z < last ? [upto(z + 1, last)] : []
-      let k = a, t = 0
-      const stop = () => { clearTimeout(t); v.marks.set('stage-hidden', []); v.marks.set('stage-fade', []); v.marks.set('stage-rest', []); stagingStop = null; removeEventListener('keydown', stop, true); v.doc.removeEventListener('pointerdown', stop, true) }
-      stagingStop?.(); stagingStop = stop
-      addEventListener('keydown', stop, true); v.doc.addEventListener('pointerdown', stop, true)
-      const tick = () => {
-        if (k > z) { v.marks.set('stage-hidden', []); v.marks.set('stage-fade', []); t = window.setTimeout(stop, 500); return } // the line is in: the page comes back
-        v.marks.set('stage-fade', [rng(k, k)])
-        v.marks.set('stage-hidden', k < z ? [upto(k + 1, z)] : [])
-        if (k === a) v.marks.set('stage-rest', rest)
-        const ms = 170 + pauseAfter(ix, k) * 0.6
-        k++
-        t = window.setTimeout(tick, ms)
+      const h = ix.blocks[b], key = `${v.index}:${b}`
+      if (staged1.has(key)) continue
+      if (h.kind === 'heading' && h.el.hasAttribute('data-pubre-opener')) {
+        staged1.add(key)
+        ;(h.el as HTMLElement).animate([{ filter: 'blur(5px)', opacity: 0.15, letterSpacing: '.06em' }, { filter: 'blur(1.2px)', opacity: 0.85, offset: 0.55 }, { filter: 'none', opacity: 1, letterSpacing: 'normal' }], { duration: 1100, easing: 'cubic-bezier(.2,.7,.2,1)' }) // ink soaks into the paper
+        let p = b + 1
+        while (p < ix.blocks.length && (ix.blocks[p].kind !== 'text' || ix.blocks[p].b < ix.blocks[p].a)) p++
+        if (p >= ix.blocks.length || ix.blocks[p].a > last) return
+        const s = ix.sentences[ix.words[ix.blocks[p].a].s]
+        return reveal(v, s.a, Math.min(s.b, s.a + 40, last), last, 170)
       }
-      t = window.setTimeout(tick, 380) // after the page has settled
-      return
+      // letters type themselves: a paragraph that opens like a letter, typed in quickly, once
+      if (h.kind === 'text' && h.b >= h.a && /^\s*[“"]?\s*(my\s+)?(dear(est)?|sir|madam|gentlemen)\b[^.!?]{0,40}[,:—]/i.test(h.text)) {
+        staged1.add(key)
+        return reveal(v, Math.max(h.a, first), Math.min(h.b, h.a + 120, last), last, 45)
+      }
+    }
+  }
+  // Star-birth: the first time a character is ever named, a small spark rises from the name.
+  const born = new Set<string>(untrack(() => rec.born ?? []))
+  function starBirth(v: BookView) {
+    if (eff.motion !== 'full' || reduceMotion || !lenses || !eff.names || !pag) return
+    const first = pag.firstWordOnPage(v), last = pag.currentPage + 1 < v.pages ? pag.firstWordOnPage(v, pag.currentPage + 1) - 1 : v.ix.words.length - 1
+    const f = v.iframe.getBoundingClientRect()
+    for (const pr of rec.profile?.names ?? []) {
+      if (pr.kind !== 'person' || pr.slot < 0 || pr.first !== v.index || born.has(pr.name)) continue
+      for (let b = v.ix.words[first]?.b ?? 0; b < v.ix.blocks.length && v.ix.blocks[b].a <= last; b++) {
+        const t = lenses.tokensIn(v, b).find(t => t.kind === 'name' && t.key === pr.name)
+        if (!t) continue
+        const r = lenses.rangeOf(v, t).getClientRects()[0]
+        if (!r || r.left + f.left < 0 || r.left + f.left > innerWidth) continue
+        born.add(pr.name); rec.born = [...born]
+        const hue = whoHue(resolveTheme(eff.palette, eff.mode), pr.slot % WHO_SLOTS)
+        const dot = document.createElement('i')
+        dot.className = 'star-birth'; dot.style.cssText = `left:${f.left + r.left + r.width / 2}px;top:${f.top + r.top}px;background:${hue};box-shadow:0 0 12px ${hue}`
+        host.parentElement?.append(dot)
+        dot.animate([{ transform: 'translate(-50%, 0) scale(.4)', opacity: 0 }, { transform: 'translate(-50%, -10px) scale(1.4)', opacity: 1, offset: 0.25 }, { transform: `translate(-50%, ${-(f.top + r.top) + 30}px) scale(.5)`, opacity: 0 }], { duration: 1400, delay: 500, easing: 'cubic-bezier(.3,.6,.2,1)', fill: 'both' }).finished.then(() => dot.remove())
+        toast(`Meet ${pr.name}`)
+        break
+      }
     }
   }
   /** The TOC chapter a spine item starts in (for "first met in…"). */
@@ -1290,6 +1327,7 @@
   .lens-card :global(.c-hist i) { flex: 1; min-width: 1px; border-radius: 1px; opacity: .7; }
   .lens-card :global(.c-av) { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 12px var(--serif); }
   @keyframes cardIn { from { opacity: 0; } }
+  :global(.star-birth) { position: fixed; z-index: 6; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; }
   .dimmer { position: absolute; inset: 0; z-index: 7; background: #000; pointer-events: none; transition: opacity .2s; }
   .toast { position: absolute; z-index: 9; left: 50%; top: calc(env(safe-area-inset-top) + var(--s5)); translate: -50% 0; padding: 8px 14px; border-radius: 999px; font-size: 13px; animation: toastIn .35s var(--ease); pointer-events: none; }
   @keyframes toastIn { from { opacity: 0; transform: translateY(-6px); } }

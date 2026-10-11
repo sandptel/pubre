@@ -8,6 +8,7 @@
   import { bookMinutesLeft, calmRange, since } from '../lib/calm.ts'
   import Cover from './Cover.svelte'
   import MiniCapsule from './MiniCapsule.svelte'
+  import Skyline from './Skyline.svelte'
   import Sheet from './Sheet.svelte'
   import Appearance from './Appearance.svelte'
   import ReadingAids from './ReadingAids.svelte'
@@ -151,7 +152,7 @@
           <b class="h-title">{current.title}</b>
           <span class="h-author">{current.creator}</span>
           {#if current.chapter}<span class="h-chapter">{current.chapter}</span>{/if}
-          <span class="h-prog"><MiniCapsule words={current.profile?.words} progress={current.progress} /><span class="num">{pct(current.progress)}</span></span>
+          <span class="h-prog">{#if (current.profile?.chapters?.length ?? 0) > 2}<Skyline chapters={current.profile?.chapters} progress={current.progress} from={current.sessionFrom ?? current.progress} />{:else}<MiniCapsule words={current.profile?.words} progress={current.progress} />{/if}<span class="num">{pct(current.progress)}</span></span>
           {#if chapterLeft(current) || timeLeft(current)}<span class="h-left">{chapterLeft(current) || timeLeft(current)}</span>{/if}
         </div>
       </div>
@@ -291,7 +292,8 @@
   .h-author { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .h-chapter { font: italic 13.5px var(--serif); color: color-mix(in srgb, var(--fg) 72%, var(--bg)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .h-prog { display: flex; align-items: center; gap: var(--s2); margin-top: 6px; }
-  .h-prog :global(.mini) { flex: 1; }
+  .h-prog :global(.mini), .h-prog :global(.sky) { flex: 1; }
+  .h-prog { align-items: end; }
   .h-left { font: 12px var(--mono); color: var(--muted); }
   .c-line { margin: 0; padding: 0 2px; }
   .c-line p { margin: 0; font: italic 15px/1.5 var(--serif); color: color-mix(in srgb, var(--fg) 82%, var(--bg)); display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }

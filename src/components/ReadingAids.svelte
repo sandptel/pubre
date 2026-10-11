@@ -95,7 +95,7 @@
   h3 { font: 600 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: var(--s5) 0 var(--s2); }
   h3:first-child { margin-top: var(--s1); }
   /* outlined panels, not filled: the glass shows through */
-  .group { border-radius: var(--r4); background: color-mix(in srgb, var(--bg) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 16%, transparent); padding: 0 var(--s4); }
+  .group { border-radius: var(--r4); background: color-mix(in srgb, var(--bg) 35%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 16%, transparent); padding: 0 var(--s4); }
   .line { display: flex; align-items: center; gap: var(--s3); min-height: 52px; font-size: 13.5px; text-transform: uppercase; letter-spacing: .02em; }
   .line small { text-transform: none; letter-spacing: 0; }
   .line + .line, .line + .hint { border-top: .5px solid var(--hairline); }

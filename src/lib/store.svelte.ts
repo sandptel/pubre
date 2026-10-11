@@ -28,6 +28,8 @@ export interface BookRecord {
   who?: string[] // who was around just before your place
   chapterLeft?: number // words left in the chapter
   keepsake?: string // the finish keepsake (an SVG), drawn when you finish
+  born?: string[] // characters whose first appearance you've seen (star-birth plays once)
+  sessionFrom?: number // progress when this reading session began (the library's arc reveal)
 }
 
 let dbp: Promise<IDBDatabase> | undefined

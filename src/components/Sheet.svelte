@@ -64,14 +64,12 @@
   dialog.see-through[open]::backdrop { background: rgb(0 0 0 / 0); }
   @starting-style { dialog[open]::backdrop { background: rgb(0 0 0 / 0); } }
 
-  /* Frosted, translucent: the page glows through; set in mono, like an instrument panel */
+  /* Opaque and softly coloured (the theme's accent folded into its surface); set in mono, like an instrument panel */
   .sheet {
     border-radius: 28px; overflow: hidden; font-family: var(--mono); letter-spacing: -.01em;
-    background: color-mix(in srgb, var(--surface) 70%, transparent);
-    backdrop-filter: blur(30px) saturate(1.5); -webkit-backdrop-filter: blur(30px) saturate(1.5);
-    box-shadow: 0 0 0 1px var(--hairline), var(--e2);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 14%, var(--surface)), color-mix(in srgb, var(--accent) 7%, var(--surface)) 60%);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, var(--hairline)), var(--e2);
   }
-  @supports not (backdrop-filter: blur(1px)) { .sheet { background: var(--glass-solid); } }
   header { display: flex; align-items: center; gap: var(--s2); padding: var(--s3) var(--s3) var(--s1) var(--s5); }
   header:has(.nav:first-child) { padding-left: var(--s2); }
   /* No title: the close button floats over the content's top-right corner. */

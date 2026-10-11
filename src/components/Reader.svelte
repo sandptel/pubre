@@ -32,6 +32,7 @@
   import Sheet from './Sheet.svelte'
   import Stage, { type StageState } from './Stage.svelte'
   import Ticker from './Ticker.svelte'
+  import ReadPreview from './ReadPreview.svelte'
   import Constellation from './Constellation.svelte'
   import ChapterStrip, { type StripChapter } from './ChapterStrip.svelte'
   import Toc from './Toc.svelte'
@@ -927,16 +928,20 @@
       {/if}
       </div>
     {#if speedOpen}
-      <div class="speedpop glass" class:up={showChrome && !staged} role="dialog" aria-label="Reading speed">
-        <div class="sp-head"><span>Reading pace</span></div>
-        <div class="sp-presets" role="radiogroup" aria-label="Pace presets">
-          {#each PACES as [w, name]}
-            <button role="radio" aria-checked={paceName(eff.wpm) === name} class:on={paceName(eff.wpm) === name} onclick={() => setPace(w)}>{name}<small>{w}</small></button>
-          {/each}
+      <div class="speedpop" class:up={showChrome && !staged} role="dialog" aria-label="Reading speed">
+        <div class="sp-top">
+          <span class="sp-num"><b>{eff.wpm}</b><small>words / min</small></span>
+          <span class="sp-name">{paceName(eff.wpm)}{footLeft ? ` · ${footLeft} in chapter` : ''}</span>
         </div>
-        <div class="sp-fine">
+        <!-- what this pace feels like: a sample line, reading at it -->
+        <ReadPreview step={eff.guideStyle === 'stage' ? (eff.stageStep === 'sentence' ? 'phrase' : eff.stageStep) : eff.step} pointer={(eff.guideStyle === 'stage' ? eff.stagePointer : eff.pointer) as any}
+          read={eff.inkRead ?? 22} now={eff.inkNow ?? 100} ahead={eff.inkAhead ?? 46} wpm={eff.wpm} />
+        <div class="sp-dial">
           <button aria-label="Slower" onclick={() => setPace(eff.wpm - 10)}>−</button>
-          <input type="range" min="120" max="350" step="5" value={eff.wpm} aria-label="Words a minute" oninput={e => setPace(+e.currentTarget.value)} />
+          <div class="sp-track">
+            <input type="range" min="120" max="350" step="5" value={eff.wpm} aria-label="Words a minute" oninput={e => setPace(+e.currentTarget.value)} style:--f="{(eff.wpm - 120) / 230 * 100}%" />
+            <div class="sp-ticks" aria-hidden="true">{#each PACES as [w, name]}<button style:left="{(w - 120) / 230 * 100}%" class:on={paceName(eff.wpm) === name} aria-label="{name}, {w}" onclick={() => setPace(w)}><i></i>{w}</button>{/each}</div>
+          </div>
           <button aria-label="Faster" onclick={() => setPace(eff.wpm + 10)}>+</button>
         </div>
       </div>
@@ -1245,16 +1250,23 @@
     width: min(320px, calc(100vw - 2 * var(--s3))); padding: 14px; border-radius: 20px; display: grid; gap: 12px; animation: popIn .3s var(--spring); transform-origin: bottom right;
   }
   .speedpop.up { right: calc(env(safe-area-inset-right) + var(--s3) + 52px); }
-  .sp-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--muted); letter-spacing: .02em; }
-  .sp-presets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
-  .sp-presets button { border: 0; border-radius: 10px; padding: 7px 0 6px; background: var(--hover); color: var(--fg); font: 600 12px system-ui; display: grid; gap: 1px; transition: background-color .2s, color .2s, transform .2s var(--spring); }
-  .sp-presets button small { font-weight: 400; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .sp-presets button.on { background: var(--accent); color: var(--bg); }
-  .sp-presets button.on small { color: color-mix(in srgb, var(--bg) 75%, transparent); }
-  .sp-presets button:active { transform: scale(.95); }
-  .sp-fine { display: flex; align-items: center; gap: 10px; }
-  .sp-fine button { width: 44px; height: 44px; flex: none; border: 0; border-radius: 50%; background: var(--hover); color: var(--fg); font: 500 20px/1 system-ui; }
-  .sp-fine input { flex: 1; accent-color: var(--accent); }
+  .speedpop { padding: 14px; gap: 12px; background: color-mix(in srgb, var(--accent) 9%, var(--surface)); box-shadow: 0 0 0 1px var(--hairline), var(--e2); font-family: var(--mono); }
+  .sp-top { display: flex; align-items: end; justify-content: space-between; gap: var(--s2); }
+  .sp-num { display: flex; align-items: baseline; gap: 6px; }
+  .sp-num b { font: 600 34px/1 var(--mono); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .sp-num small { font: 500 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .sp-name { font: 500 11px var(--mono); color: var(--muted); text-align: right; }
+  .sp-dial { display: flex; align-items: start; gap: 10px; }
+  .sp-dial > button { width: 44px; height: 44px; flex: none; border: 0; border-radius: 50%; background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 20%, transparent); color: var(--fg); font: 500 20px/1 var(--mono); }
+  .sp-dial > button:active { background: var(--hover); }
+  .sp-track { position: relative; flex: 1; padding-top: 10px; }
+  .sp-track input { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; margin: 0; border-radius: 3px; background: linear-gradient(90deg, var(--accent) var(--f), color-mix(in srgb, var(--fg) 14%, transparent) var(--f)); }
+  .sp-track input::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); border: 3px solid var(--accent); box-shadow: 0 2px 6px rgb(0 0 0 / .25); }
+  .sp-track input::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--ink); border: 3px solid var(--accent); }
+  .sp-ticks { position: relative; height: 30px; margin-top: 6px; }
+  .sp-ticks button { position: absolute; translate: -50% 0; display: grid; justify-items: center; gap: 3px; border: 0; background: none; padding: 0 2px; color: var(--muted); font: 600 9px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+  .sp-ticks i { width: 1px; height: 6px; background: currentColor; }
+  .sp-ticks button.on { color: var(--accent); }
   @keyframes popIn { from { opacity: 0; transform: scale(.92) translateY(8px); } }
   .pad {
     position: relative;

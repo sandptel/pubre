@@ -575,7 +575,7 @@
   /** Open or close the quick switcher (pointer, step, contrast) — from the reading bar. */
   export function toggleQuick() { quick = !quick }
   /** One unit back or forward (the ‹ button). */
-  export function nudge(dir: 1 | -1) { if (open && landed) unit(dir) }
+  export function nudge(dir: 1 | -1) { if (!open || !landed) return; if (playing) { stop(); return } unit(dir) } // moving: the first press only stops
 
   /** The paginator changed chapter (we asked it to, at a chapter's end). */
   export function view(nv: View) { if (open && nv !== v) v = nv }
@@ -609,7 +609,7 @@
     e.preventDefault()
     const act: Record<string, () => unknown> = {
       Escape: close, q: close, g: close, G: close,
-      ArrowRight: () => unit(1), l: () => unit(1), ArrowLeft: () => unit(-1), h: () => unit(-1),
+      ArrowRight: () => (playing ? stop() : unit(1)), l: () => (playing ? stop() : unit(1)), ArrowLeft: () => (playing ? stop() : unit(-1)), h: () => (playing ? stop() : unit(-1)),
       ')': () => sentence(1), '(': () => sentence(-1),
       ArrowDown: () => paragraph(1), j: () => paragraph(1), '}': () => paragraph(1),
       ArrowUp: () => paragraph(-1), k: () => paragraph(-1), '{': () => paragraph(-1),
@@ -643,6 +643,8 @@
     clearTimeout(markT); markT = 0
     if (marked) { marked = false; return }
     if ((e.target as HTMLElement).closest('button, .gloss, .quick')) return
+    // While it's moving, any tap or swipe only stops it; moving around is for when it's still.
+    if (playing && !holdPlay) { stop(); waiting = ''; breathAt = null; return }
     const dy = e.clientY - downY, dx = e.clientX - downX
     if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) return unit(dx > 0 ? -1 : 1) // swipe right: back a word (or unit)
     if (Math.abs(dy) > 40) return sentence(dy < 0 ? 1 : -1)

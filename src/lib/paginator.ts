@@ -219,6 +219,9 @@ export class Paginator {
     this.bounce(1)
   }
 
+  /** Re-measure after the book DOM changed (e.g. italic highlights), keeping your place. */
+  refresh() { const v = this.view; if (!v) return; v.ix = indexDocument(v.doc, this.book.metadata.language || 'en'); this.relayout() }
+
   /** Keep `px` free at the bottom of every page (relayouts, keeping your place). */
   setReserve(px: number) { if (px === this.reserve) return; this.reserve = px; this.relayout() }
 

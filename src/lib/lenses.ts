@@ -36,7 +36,8 @@ export class Lenses {
     this.nameRe = all.length ? new RegExp(`(?<![A-Za-z])(${all.join('|')})(?:[’']s)?(?![A-Za-z])`, 'g') : null
     this.cache = new WeakMap()
   }
-  person(name: string) { return this.people.find(p => p.name === name) }
+  invalidate(v: View) { this.cache.delete(v) }
+    person(name: string) { return this.people.find(p => p.name === name) }
 
   private parse(v: View): Parsed {
     let p = this.cache.get(v)

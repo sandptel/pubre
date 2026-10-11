@@ -15,6 +15,9 @@
   import Appearance from './Appearance.svelte'
   import ReadingAids from './ReadingAids.svelte'
   import { calmRange } from '../lib/calm.ts'
+  import { paintAnnotations, quoteOf, resolveAnnotation, toMarkdown, toReadium, unwrapItalic, wrapItalic, type Annotation } from '../lib/annotations.ts'
+  import { deleteAnnotation, listAnnotations, saveAnnotation } from '../lib/store.svelte.ts'
+  import { MEANINGS } from '../lib/marks.ts'
   import Cover from './Cover.svelte'
   import Progress from './Progress.svelte'
   import Sheet from './Sheet.svelte'
@@ -22,8 +25,8 @@
 
   let { record, settings = $bindable(), onclose }: { record: BookRecord; settings: Settings; onclose: () => void } = $props()
 
-  type View = 'menu' | 'contents' | 'appearance' | 'aids' | 'book'
-  const titles: Record<View, string> = { menu: '', contents: 'Contents', appearance: 'Themes & Settings', aids: 'Reading aids', book: 'This book' }
+  type View = 'menu' | 'contents' | 'appearance' | 'aids' | 'book' | 'notes'
+  const titles: Record<View, string> = { menu: '', contents: 'Contents', appearance: 'Themes & Settings', aids: 'Reading aids', book: 'This book', notes: 'Highlights & notes' }
 
   const rec: BookRecord = untrack(() => $state.snapshot(record)) // local copy we persist
   let host: HTMLDivElement
@@ -88,9 +91,10 @@
         guide.onPace = wpm => (settings.wpm = wpm)
         guide.onToast = toast
         pag.keyHook = e => guide!.key(e)
-        pag.tapHook = (v, x, y) => guide!.tapWord(v, x, y)
+        pag.tapHook = (v, x, y) => guide!.tapWord(v, x, y) || tapAnnotation(v, x, y)
         lenses = new Lenses($state.snapshot(eff), b.metadata.language)
-        pag.onView = v => { guide!.view(v); attachHover(v); paintLenses() }
+        pag.onView = v => { guide!.view(v); attachHover(v); attachSelection(v); paintAnns(v); paintLenses() }
+        listAnnotations(rec.id).then(list => { anns = list; if (pag?.current) paintAnns(pag.current) })
         guide.onArrive = (v, k) => arrive(v, k)
         loadCommon().then(set => { lenses?.setCommon(set); paintLenses() })
         loadProfile(b)
@@ -209,12 +213,117 @@
         const d = v.doc as Document & { caretPositionFromPoint?(x: number, y: number): { offsetNode: Node; offset: number } | null }
         const pos = d.caretPositionFromPoint?.(e.clientX, e.clientY), cr = pos ? null : d.caretRangeFromPoint?.(e.clientX, e.clientY)
         const node = pos?.offsetNode ?? cr?.startContainer, off = pos?.offset ?? cr?.startOffset ?? 0
+        const a = node && annAt(v, node, off)
+        if (a) { showNote(v, a); return }
         const t = node && lenses?.tokenAt(v, node, off)
         if (t) showCard(v, t); else hideCard()
       }, 350)
     })
     v.doc.addEventListener('mouseleave', hideCard)
   }
+  // ---------- highlights & notes ----------
+  let anns = $state.raw<Annotation[]>([]) // raw: the toolbar edits these objects in place, then reassigns
+  let ranges = new Map<string, Range>()
+  let bar = $state.raw<{ x: number; y: number; below: boolean; ann?: Annotation; range?: Range; v: BookView; note?: boolean } | null>(null)
+  let noteText = $state('')
+  const wrapped = new WeakMap<Document, Set<string>>()
+  const meaning = (c: string) => MEANINGS.find(m => m[0] === c)?.[1] ?? 'Highlight'
+  function paintAnns(v: BookView) {
+    // Italic needs real spans (CFI-transparent); apply any missing ones, then re-measure.
+    const done = wrapped.get(v.doc) ?? new Set<string>()
+    wrapped.set(v.doc, done)
+    let changed = false
+    for (const a of anns) {
+      if (a.spine !== v.index) continue
+      if (a.italic && !done.has(a.id)) { const r = resolveAnnotation(v.doc, a); if (r) { wrapItalic(v.doc, r, a.id); done.add(a.id); changed = true } }
+      if (!a.italic && done.has(a.id)) { unwrapItalic(v.doc, a.id); done.delete(a.id); changed = true }
+    }
+    if (changed) { lenses?.invalidate(v); pag?.refresh() }
+    ranges = paintAnnotations(v, anns)
+  }
+  function annAt(v: BookView, node: Node, off: number) {
+    for (const [id, r] of ranges) { try { if (r.isPointInRange(node, off)) return anns.find(a => a.id === id) } catch { /* other doc */ } }
+    return undefined
+  }
+  function caretAt(v: BookView, x: number, y: number) {
+    const d = v.doc as Document & { caretPositionFromPoint?(x: number, y: number): { offsetNode: Node; offset: number } | null }
+    const pos = d.caretPositionFromPoint?.(x, y), cr = pos ? null : d.caretRangeFromPoint?.(x, y)
+    return { node: pos?.offsetNode ?? cr?.startContainer, off: pos?.offset ?? cr?.startOffset ?? 0 }
+  }
+  function tapAnnotation(v: BookView, x: number, y: number) {
+    const { node, off } = caretAt(v, x, y)
+    const a = node && annAt(v, node, off)
+    if (!a) { if (bar) { bar = null; return true } return false }
+    openBar(v, ranges.get(a.id)!, a)
+    return true
+  }
+  function openBar(v: BookView, r: Range, ann?: Annotation) {
+    const rect = r.getBoundingClientRect(), f = v.iframe.getBoundingClientRect()
+    const below = f.top + rect.top < 90
+    bar = { x: Math.max(12, Math.min(innerWidth - 300, f.left + rect.left + rect.width / 2 - 150)), y: below ? f.top + rect.bottom + 10 : f.top + rect.top - 10, below, ann, range: r, v }
+    noteText = ann?.note ?? ''
+    hideCard()
+  }
+  const selHooked = new WeakSet<Document>()
+  function attachSelection(v: BookView) {
+    if (selHooked.has(v.doc)) return
+    selHooked.add(v.doc)
+    let t = 0
+    v.doc.addEventListener('selectionchange', () => {
+      clearTimeout(t)
+      t = window.setTimeout(() => {
+        const sel = v.doc.getSelection()
+        if (sel && !sel.isCollapsed && sel.rangeCount && sel.toString().trim().length > 1) openBar(v, sel.getRangeAt(0))
+        else if (bar && !bar.ann) bar = null
+      }, 220)
+    })
+  }
+  async function applyColor(c: string) {
+    if (!bar || !book) return
+    if (bar.ann) { bar.ann.color = c; await saveAnnotation(bar.ann); anns = [...anns]; paintAnns(bar.v); bar = { ...bar }; return }
+    const r = bar.range!, v = bar.v
+    const a: Annotation = { id: crypto.randomUUID(), book: rec.id, spine: v.index, cfi: book.cfi(v.index, r), ...quoteOf(r), color: c, bold: false, italic: false, note: '', chapter: loc?.chapter ?? '', created: Date.now() }
+    anns = [...anns, a]
+    await saveAnnotation(a)
+    v.doc.getSelection()?.removeAllRanges()
+    paintAnns(v)
+    bar = { ...bar, ann: a, range: ranges.get(a.id) ?? r }
+  }
+  async function toggleStyle(k: 'bold' | 'italic') {
+    if (!bar) return
+    if (!bar.ann) await applyColor('0A') // styling a fresh selection highlights it first
+    const a = bar.ann!
+    a[k] = !a[k]
+    await saveAnnotation(a); anns = [...anns]; paintAnns(bar.v); bar = { ...bar, range: ranges.get(a.id) ?? bar.range }
+  }
+  async function saveNote() {
+    if (!bar) return
+    if (!bar.ann) await applyColor('0A')
+    bar.ann!.note = noteText.trim(); await saveAnnotation(bar.ann!); anns = [...anns]; bar = null
+  }
+  async function removeAnn() {
+    if (!bar?.ann) return
+    const a = bar.ann
+    if (a.italic) { unwrapItalic(bar.v.doc, a.id); wrapped.get(bar.v.doc)?.delete(a.id); pag?.refresh() }
+    anns = anns.filter(x => x.id !== a.id); await deleteAnnotation(a.id); paintAnns(bar.v); bar = null
+  }
+  function showNote(v: BookView, a: Annotation) {
+    const key = 'ann:' + a.id
+    if (cardKey === key) return
+    cardKey = key
+    const r = ranges.get(a.id)?.getClientRects()[0], f = v.iframe.getBoundingClientRect()
+    if (!r) return
+    const below = f.top + r.top < 110
+    card = { x: Math.max(12, Math.min(innerWidth - 292, f.left + r.left + r.width / 2 - 140)), y: below ? f.top + r.bottom + 10 : f.top + r.top - 10, below,
+      html: `<div class="c-meta">${escape(meaning(a.color))}</div>${a.note ? `<div class="c-def">${escape(a.note)}</div>` : '<div class="c-def c-meta">Tap to add a note</div>'}` }
+  }
+  function download(name: string, text: string, type: string) {
+    const url = URL.createObjectURL(new Blob([text], { type }))
+    const el = document.createElement('a'); el.href = url; el.download = name; el.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+  const slug = () => rec.title.replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 40)
+
   /** The guide reached word k: repaint lenses if the block changed, bloom names, and offer a card after a dwell. */
   function arrive(v: BookView, k: number) {
     hideCard()
@@ -278,6 +387,25 @@
       <span class="pad-ring"></span><span class="pad-l">{gstate.gliding ? `${gstate.wpm} wpm` : 'Hold'}</span>
     </button>
   {/if}
+  {#if bar}
+    <div class="hl-bar glass" class:below={bar.below} style:left="{bar.x}px" style:top="{bar.y}px" role="toolbar" aria-label="Highlight">
+      <div class="hl-row">
+        {#each MEANINGS as [c, name]}
+          <button class="hl-c" class:on={bar.ann?.color === c} title={name} aria-label={name} onclick={() => applyColor(c)}><i style:background="var(--base{c})"></i></button>
+        {/each}
+        <span class="hl-sep"></span>
+        <button class="hl-b" class:on={bar.ann?.bold} aria-label="Bold" onclick={() => toggleStyle('bold')}><b>B</b></button>
+        <button class="hl-b" class:on={bar.ann?.italic} aria-label="Italic" onclick={() => toggleStyle('italic')}><i>I</i></button>
+        <button class="hl-b" class:on={bar.note} aria-label="Note" onclick={() => { if (bar) bar = { ...bar, note: !bar.note } }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16z" /></svg></button>
+        {#if bar.ann}<button class="hl-b" aria-label="Remove highlight" onclick={removeAnn}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>{/if}
+      </div>
+      {#if bar.note}
+        <input class="hl-note" placeholder="Note… (Enter to save)" bind:value={noteText} onkeydown={e => { if (e.key === 'Enter') saveNote(); if (e.key === 'Escape') bar = null }} />
+      {/if}
+      {#if bar.ann}<span class="hl-m">{meaning(bar.ann.color)}</span>{/if}
+    </div>
+  {/if}
   {#if card}
     <div class="lens-card glass" class:below={card.below} style:left="{card.x}px" style:top="{card.y}px" role="tooltip">{@html card.html}</div>
   {/if}
@@ -321,6 +449,11 @@
               <span>Reading aids</span>
               <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
             </button>
+            <button onclick={() => go('notes')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16z" /></svg>
+              <span>Highlights &amp; notes{#if anns.length}<small class="badge">{anns.length}</small>{/if}</span>
+              <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+            </button>
             <button onclick={() => { bookVal = effective(settings, prefs); go('book') }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h10a3 3 0 013 3v13H8a3 3 0 01-3-3z" /><path d="M5 17a3 3 0 013-3h10" /></svg>
               <span>This book{#if custom}<small class="badge">custom</small>{/if}</span>
@@ -333,6 +466,25 @@
           <Appearance bind:settings />
         {:else if view === 'aids'}
           <ReadingAids bind:value={settings} />
+        {:else if view === 'notes'}
+          {#if !anns.length}
+            <p class="empty-notes">Select any text to highlight it. Each colour has a meaning: {MEANINGS.map(m => m[1]).join(', ')}.</p>
+          {:else}
+            <ul class="notes">
+              {#each [...anns].sort((x, y) => x.spine - y.spine || x.created - y.created) as a (a.id)}
+                <li><button onclick={() => { panel = false; pag?.openCfi(a.cfi) }}>
+                  <span class="n-chip" style:background="var(--base{a.color})"></span>
+                  <span class="n-body"><span class="n-q" class:b={a.bold} class:i={a.italic}>“{a.exact.length > 160 ? a.exact.slice(0, 160) + '…' : a.exact}”</span>
+                    {#if a.note}<span class="n-note">{a.note}</span>{/if}
+                    <span class="n-meta">{meaning(a.color)}{a.chapter ? ` · ${a.chapter}` : ''}</span></span>
+                </button></li>
+              {/each}
+            </ul>
+            <div class="exports">
+              <button class="pill ghost" onclick={() => download(`${slug()}-highlights.md`, toMarkdown(rec.title, rec.creator, anns), 'text/markdown')}>Export Markdown</button>
+              <button class="pill ghost" onclick={() => download(`${slug()}.annotation`, JSON.stringify(toReadium(rec.title, book?.metadata.identifier ?? '', anns), null, 2), 'application/rd-annotations+json')}>Export annotations</button>
+            </div>
+          {/if}
         {:else if view === 'book'}
           <label class="custom"><span>Custom reading aids for this book<small>{custom ? 'Changes here apply only to this book' : 'Uses your defaults'}</small></span>
             <input type="checkbox" role="switch" bind:checked={custom} onchange={() => { if (custom) bookVal = effective(settings, prefs) }} /></label>
@@ -438,6 +590,29 @@
   @media (hover: hover) and (pointer: fine) { .pad { opacity: .55; } .pad:hover, .pad.held { opacity: 1; } }
   @keyframes padIn { from { opacity: 0; transform: scale(.8); } }
   @keyframes ring { from { transform: scale(.96); opacity: .9; } to { transform: scale(1.15); opacity: 0; } }
+  .hl-bar { position: fixed; z-index: 6; width: 300px; padding: 6px; border-radius: 14px; transform: translateY(-100%); animation: cardIn .2s var(--ease); }
+  .hl-bar.below { transform: none; }
+  .hl-row { display: flex; align-items: center; gap: 2px; }
+  .hl-c, .hl-b { width: 32px; height: 32px; border: 0; border-radius: 9px; background: none; display: grid; place-items: center; font: 16px var(--serif); color: var(--fg); }
+  .hl-c:hover, .hl-b:hover, .hl-b.on { background: var(--hover); }
+  .hl-c i { width: 18px; height: 18px; border-radius: 50%; display: block; box-shadow: inset 0 0 0 .5px rgb(0 0 0 / .2); transition: transform .25s var(--ease); }
+  .hl-c.on i { transform: scale(1.15); box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--fg); }
+  .hl-b svg { width: 16px; height: 16px; }
+  .hl-sep { width: .5px; height: 20px; background: var(--hairline); margin: 0 3px; }
+  .hl-note { width: 100%; margin-top: 6px; border: 0; border-radius: 9px; padding: 8px 10px; background: var(--hover); font: 14px system-ui; color: var(--fg); outline: none; }
+  .hl-m { display: block; font-size: 11px; color: var(--muted); padding: 4px 8px 0; }
+  .empty-notes { color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .notes button { display: flex; gap: var(--s3); width: 100%; text-align: left; border: 0; background: none; padding: var(--s3) var(--s2); border-radius: 12px; }
+  .notes button:hover { background: var(--hover); }
+  .n-chip { width: 4px; border-radius: 2px; flex: none; }
+  .n-body { display: grid; gap: 4px; min-width: 0; }
+  .n-q { font: 15px/1.45 var(--serif); }
+  .n-q.b { -webkit-text-stroke: .03em currentColor; } .n-q.i { font-style: italic; }
+  .n-note { font-size: 13.5px; }
+  .n-meta { font-size: 11.5px; color: var(--muted); }
+  .exports { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s4); }
+  .pill.ghost { background: var(--hover); color: var(--fg); font-weight: 600; font-size: 13px; padding: 8px 14px; }
   .lens-card {
     position: fixed; z-index: 5; width: 280px; padding: 10px 14px; border-radius: 14px; font-size: 13.5px; line-height: 1.45;
     transform: translateY(-100%); pointer-events: none; animation: cardIn .2s var(--ease);

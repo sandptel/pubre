@@ -3,6 +3,7 @@
 import { Book } from './epub.ts'
 import type { Settings } from './settings.ts'
 import type { NameInfo } from '../insights/names.ts'
+import type { Annotation } from './annotations.ts'
 
 export interface Location { index: number; fraction: number; cfi?: string }
 export interface BookRecord {
@@ -23,10 +24,12 @@ export interface BookRecord {
 let dbp: Promise<IDBDatabase> | undefined
 function db() {
   return dbp ??= new Promise((resolve, reject) => {
-    const r = indexedDB.open('pubre', 1)
+    const r = indexedDB.open('pubre', 2)
     r.onupgradeneeded = () => {
-      r.result.createObjectStore('books', { keyPath: 'id' })
-      r.result.createObjectStore('files')
+      const d = r.result
+      if (!d.objectStoreNames.contains('books')) d.createObjectStore('books', { keyPath: 'id' })
+      if (!d.objectStoreNames.contains('files')) d.createObjectStore('files')
+      if (!d.objectStoreNames.contains('annotations')) d.createObjectStore('annotations', { keyPath: 'id' }).createIndex('book', 'book')
     }
     r.onsuccess = () => resolve(r.result)
     r.onerror = () => reject(r.error)
@@ -47,6 +50,10 @@ export const listBooks = () =>
 export const getBook = (id: string) => run<BookRecord | undefined>('books', 'readonly', s => s.get(id))
 export const saveBook = (b: BookRecord) => run('books', 'readwrite', s => s.put($state.snapshot(b)))
 export const getFile = (id: string) => run<ArrayBuffer | undefined>('files', 'readonly', s => s.get(id))
+
+export const listAnnotations = (book: string) => run<Annotation[]>('annotations', 'readonly', s => s.index('book').getAll(book))
+export const saveAnnotation = (a: Annotation) => run('annotations', 'readwrite', s => s.put($state.snapshot(a)))
+export const deleteAnnotation = (id: string) => run('annotations', 'readwrite', s => s.delete(id))
 
 export async function removeBook(id: string) {
   await run('books', 'readwrite', s => s.delete(id))

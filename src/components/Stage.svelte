@@ -13,7 +13,7 @@
   import { tick, untrack } from 'svelte'
   import type { Paginator, View } from '../lib/paginator.ts'
   import { fonts, type Settings } from '../lib/settings.ts'
-  import { breath, MAX_WPM, sentenceTime, wordTime, type Breath } from '../lib/pacing.ts'
+  import { beat, breath, MAX_WPM, pauseScale, sentenceTime, wordTime, type Breath } from '../lib/pacing.ts'
   import { prevUnit, sectionOf, segments, unitAt, type Decor, type Step } from '../lib/stagetext.ts'
   import Ticker from './Ticker.svelte'
   import { POINTERS, pointerBox, type PointerType } from '../lib/pointers.ts'
@@ -48,7 +48,7 @@
   let glossT = 0, hoverT = 0
   let glossTop = $state(false)
   let root = $state<HTMLDivElement>(), veil = $state<HTMLDivElement>(), lift = $state<HTMLDivElement>(), para = $state<HTMLDivElement>()
-  let flow = $state<HTMLDivElement>(), marker = $state<HTMLElement>()
+  let flow = $state<HTMLDivElement>(), marker = $state<HTMLElement>(), cueEl = $state<HTMLElement>()
   let v: View | undefined, cur = -1, ue = -1, y = 0, glideT = 0, wpm = 260, closing = false
   let transient = $state(false)
   let rate = 1, gen = 0
@@ -266,6 +266,7 @@
     if (oldS < 0) paint(Math.max(0, ns - 3), ns + 3)
     else paint(Math.min(oldS, ns) - 1, Math.max(oldS, ns) + 1)
     flow!.classList.remove('exhale')
+    uncue()
     const newBlock = blk() !== oldB
     sectionLine(x)
     place(animate, newBlock ? 800 : 600)
@@ -281,7 +282,7 @@
   }
   const moving = () => playing || holdPlay
   function play() { playing = true; hideGloss(); schedule() }
-  function stop() { playing = false; if (!holdPlay) { clearTimeout(timer); if (open && landed) glossHere() } }
+  function stop() { playing = false; if (!holdPlay) { clearTimeout(timer); uncue(); if (open && landed) glossHere() } }
   /** Time the current unit; when it's done, move on (or back, when shuttling backwards). */
   function schedule() {
     clearTimeout(timer)
@@ -289,6 +290,32 @@
     tFn = rate > 0 ? advance : retreat
     tDur = unitMs() / Math.abs(rate); tStart = performance.now()
     timer = window.setTimeout(tFn, tDur)
+    if (rate > 0) cue()
+  }
+  /** The beat after a punctuation mark: when the word's own time is up, its mark lights and a small cue
+   *  hops in its own way (a comma's small hop, a full stop landing, a question tilting up, an ellipsis spreading)
+   *  plays for exactly the pause. Paragraph ends have their own breath line. */
+  function cue() {
+    const c = cueEl, x = ix()
+    if (!c || step === 'sentence' || reduce || !landed) return
+    const { ms, cue: kind } = beat(x, ue)
+    if (!kind || !ms || kind === 'para' || kind === 'section') return
+    const all = (sentEls.get(x.words[ue].s) ?? []).filter(sp => ownerOf.get(sp) === ue && !wordEls.get(ue)?.includes(sp) && /\S/.test(sp.textContent ?? ''))
+    const r = rectsOf(all.slice(0, 1))[0]
+    if (!r) return
+    const marks = all.filter(m => { const q = rectsOf([m]); return q.length === 1 && Math.abs(q[0].top - r.top) < 4 }) // one line: a pair split by a wrap leaves its tail still
+    if (!marks.length) return
+    const pause = ms * pauseScale(wpm) / Math.abs(rate), lead = Math.max(0, tDur - pause)
+    for (const m of marks) { m.style.setProperty('--d', pause + 'ms'); m.style.setProperty('--w', lead + 'ms'); m.classList.add('pq') }
+    c.textContent = marks.map(m => m.textContent).join('').trimEnd() // an exact copy over the mark: it moves, the line never reflows
+    c.style.left = r.left + 'px'; c.style.top = r.top + 'px'; c.style.lineHeight = r.height + 'px'
+    const f = getComputedStyle(marks[0]); Object.assign(c.style, { fontFamily: f.fontFamily, fontSize: f.fontSize, fontStyle: f.fontStyle, fontWeight: f.fontWeight })
+    c.style.setProperty('--d', pause + 'ms'); c.style.setProperty('--w', lead + 'ms'); c.dataset.c = kind
+    c.classList.remove('on'); void c.offsetWidth; c.classList.add('on')
+  }
+  function uncue() {
+    cueEl?.classList.remove('on')
+    flow?.querySelectorAll('.pq').forEach(m => m.classList.remove('pq'))
   }
   /** Shuttle while holding: 1 = your pace, 2 = twice as fast, 0 = still, −1 = backwards at your pace.
    *  A change of speed keeps how far into the current unit you are. */
@@ -684,7 +711,7 @@
     <div class="win" style:font-family={font} style:--size="{settings.fontScale / 100}">
       <div class="lift" bind:this={lift}>
         <div class="para" bind:this={para}>
-          <div class="flow" class:fine={step !== 'sentence'} style:--in-read={settings.inkRead ?? 10} style:--in-now={settings.inkNow ?? 100} style:--in-ahead={settings.inkAhead ?? 20} bind:this={flow} aria-live="polite"><i class="marker ptr" bind:this={marker} aria-hidden="true"></i></div>
+          <div class="flow" class:fine={step !== 'sentence'} style:--in-read={settings.inkRead ?? 10} style:--in-now={settings.inkNow ?? 100} style:--in-ahead={settings.inkAhead ?? 20} bind:this={flow} aria-live="polite"><i class="marker ptr" bind:this={marker} aria-hidden="true"></i><i class="cue" bind:this={cueEl} aria-hidden="true"></i></div>
         </div>
       </div>
     </div>
@@ -821,6 +848,29 @@
   /* The marker (phrase / word steps) */
   .marker { position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .25s; }
   .marker:global(.on) { opacity: 1; }
+  /* Punctuation beats: for the pause, the mark hands over to a copy of itself that moves the way the pause sounds */
+  .flow :global(.pq) { animation: pq var(--d) var(--w) both; }
+  @keyframes pq { 0%, 100% { opacity: 1; } 8%, 90% { opacity: 0; } }
+  .cue { position: absolute; left: 0; top: 0; white-space: pre; pointer-events: none; opacity: 0; color: var(--accent); transform-origin: left bottom; }
+  .cue:global(.on) { animation-name: pq-cue, var(--j, pq-hop); animation-duration: var(--d); animation-delay: var(--w); animation-fill-mode: both; animation-timing-function: linear, cubic-bezier(.3,.7,.3,1); }
+  .cue:global([data-c="list"]), .cue:global([data-c="quote"]), .cue:global([data-c="paren"]) { --j: pq-nudge; }
+  .cue:global([data-c="pause"]) { --j: pq-twice; }
+  .cue:global([data-c="dash"]) { --j: pq-stretch; }
+  .cue:global([data-c="cut"]) { --j: pq-snap; }
+  .cue:global([data-c="stop"]) { --j: pq-land; }
+  .cue:global([data-c="ask"]) { --j: pq-tilt; }
+  .cue:global([data-c="bang"]) { --j: pq-jump; }
+  .cue:global([data-c="trail"]) { --j: pq-spread; }
+  @keyframes -global-pq-cue { 0%, 100% { opacity: 0; } 8%, 90% { opacity: 1; } }
+  @keyframes -global-pq-hop { 0%, 100% { translate: 0 0; } 35% { translate: 0 -.16em; } 70% { translate: 0 .02em; } }
+  @keyframes -global-pq-nudge { 0%, 100% { translate: 0 0; } 40% { translate: 0 -.08em; } }
+  @keyframes -global-pq-twice { 0%, 50%, 100% { translate: 0 0; } 22%, 72% { translate: 0 -.14em; } }
+  @keyframes -global-pq-stretch { 0%, 100% { scale: 1 1; } 45% { scale: 1.35 1; } }
+  @keyframes -global-pq-snap { 0% { scale: 1 1; } 30% { scale: 1.3 1; } 45%, 65% { translate: .04em 0; } 55% { translate: -.04em 0; } 100% { scale: 1 1; translate: 0 0; } }
+  @keyframes -global-pq-land { 0% { translate: 0 -.3em; scale: 1 1; } 45% { translate: 0 0; scale: 1.2 .75; } 70% { scale: .9 1.1; } 100% { translate: 0 0; scale: 1 1; } }
+  @keyframes -global-pq-tilt { 0% { translate: 0 0; rotate: 0deg; } 55% { translate: 0 -.22em; rotate: -14deg; } 100% { translate: 0 -.1em; rotate: -6deg; } }
+  @keyframes -global-pq-jump { 0%, 100% { translate: 0 0; scale: 1; } 35% { translate: 0 -.34em; scale: 1.2; } 60% { translate: 0 0; scale: 1.08 .9; } }
+  @keyframes -global-pq-spread { 0% { letter-spacing: 0; } 70%, 100% { letter-spacing: .18em; } }
   .fade { position: absolute; left: 0; right: 0; height: 26%; pointer-events: none; opacity: 0; transition: opacity .4s ease; }
   .fade.on { opacity: 1; }
   .top-fade { top: 0; background: linear-gradient(var(--bg) 40%, transparent); }

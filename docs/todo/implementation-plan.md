@@ -55,6 +55,13 @@ The source of truth for *what* to build is plan v3.2: https://claude.ai/artifact
 
 ### ⟶ Critic pass #2 (agent): focused on Stage feel + lens density
 
+### C7 · Guide v3 + phone (user request 2026-10-11)
+- [ ] S1 One-click start: the guide button / Space / G start reading immediately in either style. Pointer: Space tap = play/pause, double-tap = sentence start, hold = glide while held.
+- [ ] S2 Stage strip: the next paragraph is already there below and scrolls up into focus (no swap). Move by Sentence / Phrase / Word; pointer types inside Stage (Ink, Word, Line, Dot, Ring); words ink in as you go; motion polish.
+- [ ] S3 Stage highlighting: names (hue, chip on first mention), Voices by speaker, hard words (dotted, gloss on tap/hover/pause), foreign phrases, asides, your own highlights. Stage lenses toggle.
+- [ ] S4 Pin controls: a quick toggle keeps the reader's buttons visible; the book reserves room so nothing overlaps.
+- [ ] S5 Phone-first UI pass at 360/390/430/768/1024/1440/2000 wide: Stage controls for thumbs, sheets, library, reader chrome, touch targets. Then critic #3.
+
 ### C6 · Living capsule (if time allows)
 - [ ] Mood-tinted wedges from insights, time left at your pace, and a crossing pulse.
 

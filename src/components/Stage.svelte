@@ -508,7 +508,7 @@
     finish()
   }
   function finish() {
-    hideGloss()
+    hideGloss(); waiting = ''; breathAt = null
     revealSources(0)
     recede?.cancel(); recede = null; lifting = []
     clearTimeout(timer); clearTimeout(glideT)
@@ -542,6 +542,8 @@
     if (!playing) clearTimeout(timer)
   }
   /** Slide up while holding: keep it up after release. */
+  /** A short hold that didn't slide: keep reading, as a tap would. */
+  export function keep() { if (!open) return; transient = false; holdPlay = false; play() }
   export function lock() { if (!open || !transient) return; transient = false; playing = true; ontoast?.('Locked · tap to pause') }
   /** A tap: open, or pause / play; a quick second tap undoes that and goes back a sentence. */
   let lastTap = 0, playBefore = false
@@ -685,7 +687,7 @@
         {#if waiting === 'end' && waits(waiting)}<span>End of chapter · {go_} to go on</span>
         {:else if waiting === 'chapter' && waits(waiting)}<span>{touch ? 'Tap ▶' : 'Space'} for the next chapter</span>
         {:else if waiting === 'paragraph' && waits(waiting)}<span>{touch ? 'Tap ▶' : 'Space'} for the next paragraph</span>
-        {:else if !playing && !holdPlay}<span>Paused · {go_} to go on</span>{/if}
+        {:else if !playing && !holdPlay && !touch}<span>Paused · {go_} to go on</span>{/if}
       {/if}
     </div>
     <button class="x" class:on={landed} aria-label="Back to the page (Esc)" onclick={close}>
@@ -733,7 +735,7 @@
   .flow :global(.lx-hard[data-st="read"]), .flow :global(.lx-hard[data-st="later"]) { text-decoration-color: transparent; }
   .flow :global(.lx-foreign) { font-style: italic; --ink: color-mix(in srgb, var(--base0C, var(--accent)) 65%, var(--fg)); }
   .flow :global(.lx-aside) { opacity: .72; }
-  .flow :global(.lx-yours) { background: color-mix(in srgb, var(--hl) 26%, transparent); border-radius: 2px; transition: color var(--t, .8s) ease, background-color .8s ease; }
+  .flow :global(.lx-yours) { background: color-mix(in srgb, var(--hl) 26%, transparent); border-radius: 0; transition: color var(--t, .8s) ease, background-color .8s ease; }
   .flow :global(.lx-yours[data-st="read"]), .flow :global(.lx-yours[data-st="later"]) { background: color-mix(in srgb, var(--hl) 12%, transparent); }
   .flow :global(.lx-bold) { -webkit-text-stroke: .022em currentColor; }
   .flow :global(.lx-ital) { font-style: italic; }

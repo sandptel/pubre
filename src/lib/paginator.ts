@@ -505,7 +505,7 @@ body > div, body > section, body > p, body > figure { text-align: center !import
       start = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId, touch: e.pointerType !== 'mouse' }
       dragging = false
       clearTimeout(holdT); holdT = 0
-      if (this.holdHook && (e.pointerType !== 'mouse' || e.button === 0) && !(e.target as Element).closest?.('a[href]')) {
+      if (this.holdHook && e.pointerType !== 'mouse' && !(e.target as Element).closest?.('a[href]')) { // a mouse press-pause-drag is a selection; Space holds on desktop
         const s0 = start
         holdT = window.setTimeout(() => {
           holdT = 0

@@ -33,7 +33,7 @@
     <label class="line"><span>Pace<small>{value.wpm} words a minute · the speed chip by the pad changes it while you read</small></span>
       <input class="pace" type="range" min="120" max="350" step="5" bind:value={value.wpm} aria-label="Words a minute" /></label>
     {@render toggle('Hold the page to read', 'holdToRead', 'Off: holding selects text. In the Stage, long-press a sentence to highlight it')}
-    {@render choice('Style', 'guideStyle', [['stage', 'Stage'], ['pointer', 'Pointer']], value.guideStyle === 'stage' ? 'Space lifts the paragraph toward you' : 'A marker moves on the page')}
+    {@render choice('Style', 'guideStyle', [['stage', 'Stage'], ['pointer', 'Pointer']], value.guideStyle === 'stage' ? 'The pad (or Space) lifts the paragraph toward you' : 'A marker moves on the page')}
   {/if}
   {#if value.guide && value.guideStyle === 'stage'}
     {@render choice('Move by', 'stageStep', [['sentence', 'Sentence'], ['phrase', 'Phrase'], ['word', 'Word']], value.stageStep === 'sentence' ? 'A sentence lights up at a time' : 'Words ink in as you go')}
@@ -110,7 +110,7 @@
     .line .pace { width: 100%; }
   }
   .segmented { display: flex; background: var(--hover); border-radius: 9px; padding: 2px; flex: none; }
-  .segmented button { border: 0; background: transparent; border-radius: 7px; padding: 5px 9px; font-size: 13px; transition: background-color .25s var(--ease); }
+  .segmented button { border: 0; background: transparent; border-radius: 7px; padding: 5px 9px; min-height: 36px; font-size: 13px; transition: background-color .25s var(--ease); }
   .segmented .on { background: var(--bg); box-shadow: 0 1px 3px rgb(0 0 0 / .15); font-weight: 600; }
   input[role=switch] {
     appearance: none; flex: none; width: 50px; height: 30px; border-radius: 15px; margin: 0; position: relative; cursor: pointer;

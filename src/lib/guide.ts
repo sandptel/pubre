@@ -7,6 +7,7 @@ import type { Paginator, View } from './paginator.ts'
 import type { Settings } from './settings.ts'
 import { MAX_WPM, wordTime } from './pacing.ts'
 import { edgesOnFirstLine, letterRects, typeFrames } from './typing.ts'
+import { nearestWord } from './textindex.ts'
 
 export interface GuideState { active: boolean; gliding: boolean; wpm: number }
 type Pending = 'start' | 'end' | null
@@ -187,7 +188,7 @@ export class Guide {
     const pos = d.caretPositionFromPoint?.(x, y), r = pos ? null : d.caretRangeFromPoint?.(x, y)
     const node = pos?.offsetNode ?? r?.startContainer, off = pos?.offset ?? r?.startOffset ?? 0
     if (!node) return false
-    const k = v.ix.words.findIndex(w => (w.sn === node && off >= w.so && off <= (w.en === node ? w.eo : Infinity)) || (w.en === node && w.sn !== node && off <= w.eo))
+    const k = nearestWord(v.ix.words, node, off)
     if (k < 0) return false
     const wr = this.rect(k) // a tap in the margin (no word within a line) is not a pointer move: it shows the controls
     if (Math.abs(y - (wr.top + wr.height / 2)) > wr.height || x < wr.left - wr.height * 2 || x > wr.right + wr.height * 2) return false

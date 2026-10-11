@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { DOMParser } from '@xmldom/xmldom'
-import { blockOffsets, indexDocument, wordAt } from '../src/lib/textindex.ts'
+import { blockOffsets, indexDocument, nearestWord, wordAt } from '../src/lib/textindex.ts'
 
 const doc = (body: string) => new DOMParser().parseFromString(`<html xmlns="http://www.w3.org/1999/xhtml"><body>${body}</body></html>`, 'application/xhtml+xml') as unknown as Document
 
@@ -65,4 +65,12 @@ test('blockOffsets maps a DOM range onto block text', () => {
   const r = { startContainer: sc, startOffset: 2, endContainer: ec, endOffset: 5, intersectsNode: (n: Node) => at(n) >= at(sc) && at(n) <= at(ec) } as unknown as Range
   const o = blockOffsets(blk, r)!
   assert.equal(blk.text.slice(o[0], o[1]), 'hmael. Som')
+})
+
+test('nearestWord: in a word, or the nearer neighbour in the space between', () => {
+  const ix = indexDocument(doc('<p>Call   me Ishmael.</p>')), n = ix.words[0].sn, ws = ix.words
+  assert.equal(nearestWord(ws, n, 2), 0)
+  assert.equal(nearestWord(ws, n, 5), 0, 'just after Call')
+  assert.equal(nearestWord(ws, n, 6), 1, 'just before me')
+  assert.equal(nearestWord(ws, n, 99), 2)
 })

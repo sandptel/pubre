@@ -146,3 +146,17 @@ export function blockOffsets(blk: Block, r: Range): [number, number] | null {
   })
   return a < 0 || b <= a ? null : [a, b]
 }
+
+/** The word at a caret position (node, offset), or the nearest one in that text node when the caret
+ *  sits in the space between words; -1 when the node holds no word. */
+export function nearestWord(words: Word[], node: Node, off: number): number {
+  let before = -1
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i]
+    if (w.sn !== node && w.en !== node) { if (before >= 0) break; continue }
+    if (w.sn === node && off < w.so) return before >= 0 && off - (words[before].en === node ? words[before].eo : 0) < w.so - off ? before : i
+    if (w.en === node && off <= w.eo) return i
+    before = i
+  }
+  return before
+}

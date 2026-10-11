@@ -10,6 +10,7 @@
   import { define, loadCommon, rarity } from '../lib/lexicon.ts'
   import { pauseAfter } from '../lib/pacing.ts'
   import { sectionOf, type Decor } from '../lib/stagetext.ts'
+  import { nearestWord } from '../lib/textindex.ts'
   import { colourOf } from '../lib/palette.ts'
   import { chapterFor, fingerprint, openerOf } from '../insights/chapters.ts'
   import { mix } from '../lib/settings.ts'
@@ -169,7 +170,7 @@
   // Pinned controls: the book makes room for them (no text under the buttons).
   $effect(() => {
     const pinned = eff.pinControls, t = Math.round(Math.min(72, Math.max(36, innerHeight * 0.065)))
-    pag?.setReserve(pinned ? Math.max(0, 76 - t) : 0, pinned ? Math.max(0, 64 - t) : 0)
+    pag?.setReserve(eff.guide || pinned ? Math.max(0, 76 - t) : 0, pinned ? Math.max(0, 64 - t) : 0) // the pad never sits on text
   })
   // Only appearance changes re-lay out the book; feature settings (guide, lenses, pace) don't.
   const LAYOUT = ['palette', 'mode', 'font', 'fontScale', 'lineHeight', 'margin', 'justify', 'bold', 'spread', 'letterSpacing', 'measure'] as const
@@ -298,16 +299,19 @@
   const speedChip = $derived(staged || gstate.active || (showChrome && wide))
   const padMoving = $derived(eff.guideStyle === 'stage' ? sstate.moving : gstate.gliding)
   /** Shuttle: a dead zone around the press, then right speeds up to 2.5×; left slows to still, then reads backwards. */
+  /** Shuttle: scaled to the room the thumb actually has. Right: up to 2.5×; left: slower → still → backwards (−2×). */
+  let shuttleX = 0
   function shuttle(dx: number) {
-    if (Math.abs(dx) < 14) return 1
-    if (dx > 0) return Math.min(2.5, 1 + (dx - 14) / 90)
-    return Math.max(-2, 1 + (dx + 14) / 64)
+    if (Math.abs(dx) < 10) return 1
+    const room = Math.max(40, dx > 0 ? innerWidth - shuttleX - 8 : shuttleX - 8)
+    const f = Math.min(1, (Math.abs(dx) - 10) / (room - 10))
+    return dx > 0 ? 1 + 1.5 * f : 1 - 3 * f
   }
   const rateLabel = (r: number) => Math.abs(r) < 0.15 ? 'Still' : r < 0 ? `◀ ${(-r).toFixed(1)}×` : Math.abs(r - 1) < 0.05 ? 'Your pace' : `${r.toFixed(1)}×`
   function padPress(e: PointerEvent) {
     e.preventDefault()
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-    pressX = e.clientX; pressY = e.clientY
+    pressX = e.clientX; pressY = e.clientY; shuttleX = e.clientX; pressUp = showChrome && !staged; pressAt0 = performance.now()
     press = { hold: false, locked: false, dx: 0, dy: 0 }
     clearTimeout(pressT)
     pressT = window.setTimeout(holdBegin, 260)
@@ -336,16 +340,19 @@
   function padRelease() {
     clearTimeout(pressT)
     if (!press) return
+    const short = performance.now() - pressAt0 < 600 && Math.hypot(press.dx, press.dy) < 12
     if (!press.hold) padTap()
+    else if (short && !press.locked) { if (stageStyle()) stage?.keep(); else guide?.lock() } // a slow tap is still a tap: keep reading
     else if (stageStyle()) stage?.holdEnd(); else guide?.holdEnd()
     press = null
   }
+  let pressUp = $state(false), pressAt0 = 0
   /** Press-and-hold on the page: read from that word while held (the same slides as the pad). */
   let pressAt = $state<{ x: number; y: number } | null>(null)
   function wordAtPoint(v: BookView, x: number, y: number) {
     const { node, off } = caretAt(v, x, y)
     if (!node) return -1
-    return v.ix.words.findIndex(w => (w.sn === node && off >= w.so && off <= (w.en === node ? w.eo : Infinity)) || (w.en === node && w.sn !== node && off <= w.eo))
+    return nearestWord(v.ix.words, node, off)
   }
   const textHold = {
     start(v: BookView, x: number, y: number) {
@@ -376,6 +383,26 @@
   }
 
   let backT = 0
+  // Quick speed closes on a tap outside (that tap does nothing else) and on Escape.
+  $effect(() => {
+    if (!speedOpen) return
+    const away = (e: PointerEvent) => { if (!(e.target as Element).closest?.('.speedpop, .speed')) { e.stopPropagation(); e.preventDefault(); speedOpen = false } }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') speedOpen = false }
+    addEventListener('pointerdown', away, true); addEventListener('keydown', esc, true)
+    const docs = [...document.querySelectorAll('iframe')].map(f => (f as HTMLIFrameElement).contentDocument).filter(Boolean) as Document[]
+    for (const d of docs) d.addEventListener('pointerdown', away, true)
+    return () => { removeEventListener('pointerdown', away, true); removeEventListener('keydown', esc, true); for (const d of docs) d.removeEventListener('pointerdown', away, true) }
+  })
+  // Android Back: the Stage and the sheets are history entries, so Back closes them instead of leaving.
+  const backStack: string[] = []
+  function pushBack(kind: string) { history.pushState({ pubre: kind }, ''); backStack.push(kind) }
+  function popBack(kind: string) { const i = backStack.lastIndexOf(kind); if (i < 0) return; backStack.splice(i, 1); if (history.state?.pubre === kind) history.back() }
+  function onPop() {
+    const kind = backStack.pop()
+    if (kind === 'stage') stage?.close()
+    else if (kind === 'sheet') panel = false
+  }
+  $effect(() => { if (panel) { pushBack('sheet'); return () => popBack('sheet') } })
   function stepBy(dir: 1 | -1) { if (stageStyle() && staged) stage?.nudge(dir); else guide?.stepBy(dir) }
   const hold = (dir: 1 | -1) => (e: PointerEvent) => { e.preventDefault(); stepBy(dir); backT = window.setTimeout(function rep() { stepBy(dir); backT = window.setTimeout(rep, 170) }, 420) }
 
@@ -709,7 +736,7 @@
   const isCurrent = (t: TocItem) => !!loc && t.label === loc.chapter
 </script>
 
-<svelte:window onkeydown={e => { if (e.key === 'Escape' && !panel && !gstate.active && !staged) chrome = !chrome }} onresize={() => (wide = innerWidth >= 720)} />
+<svelte:window onpopstate={onPop} onkeydown={e => { if (e.key === 'Escape' && !panel && !gstate.active && !staged) chrome = !chrome }} onresize={() => (wide = innerWidth >= 720)} />
 
 <div class="reader" style:--accent={drift?.accent} class:guiding={gstate.active && !!where} class:chrome={showChrome} class:padded={eff.guide} class:speedy={speedChip}>
   <div class="paper" bind:this={paperEl} style:view-transition-name="cover">
@@ -760,7 +787,7 @@
   </div>
 
   {#if eff.guide && loc && !error}
-    <div class="padgroup" class:up={showChrome && !staged}>
+    <div class="padgroup" class:up={press ? pressUp : showChrome && !staged}>
       {#if staged || (gstate.active && !showChrome)}
         <span class="steps glass">
           <button class="back" aria-label="Back a word (hold to keep going)" onpointerdown={hold(-1)}
@@ -792,7 +819,7 @@
       </div>
     {#if speedOpen}
       <div class="speedpop glass" class:up={showChrome && !staged} role="dialog" aria-label="Reading speed">
-        <div class="sp-head"><span>Reading pace</span><b>{paceName(eff.wpm)}</b></div>
+        <div class="sp-head"><span>Reading pace</span></div>
         <div class="sp-presets" role="radiogroup" aria-label="Pace presets">
           {#each PACES as [w, name]}
             <button role="radio" aria-checked={paceName(eff.wpm) === name} class:on={paceName(eff.wpm) === name} onclick={() => setPace(w)}>{name}<small>{w}</small></button>
@@ -803,12 +830,10 @@
           <input type="range" min="120" max="350" step="5" value={eff.wpm} aria-label="Words a minute" oninput={e => setPace(+e.currentTarget.value)} />
           <button aria-label="Faster" onclick={() => setPace(eff.wpm + 10)}>+</button>
         </div>
-        <span class="sp-num">{eff.wpm} words a minute</span>
       </div>
     {/if}
     {#if press?.hold}
-      <div class="shuttle glass" class:at={pressAt} role="status" aria-live="polite"
-        style:left={pressAt ? `${Math.max(12, Math.min(innerWidth - 228, pressAt.x - 108))}px` : null} style:top={pressAt ? `${Math.max(12, pressAt.y - 150)}px` : null}>
+      <div class="shuttle glass" class:at={pressAt || staged} role="status" aria-live="polite">
         <div class="sh-lock" class:near={press.dy < -24} class:on={press.locked}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5.5" y="10.5" width="13" height="9.5" rx="2.2" fill="currentColor" /><path d="M8.5 10.5V8a3.5 3.5 0 017 0v2.5" fill="none" stroke="currentColor" stroke-width="2" /></svg>
           {press.locked ? 'Locked' : 'Slide up to lock'}
@@ -821,7 +846,7 @@
     {/if}
   {/if}
   <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} page={loc?.cpage ?? 0} pages={loc?.cpages ?? 0} pageEl={paperEl} {decorate} {explain} onmark={markSentence} book={{ chapters: stripChapters, cur: stripCur }}
-    onopen={o => { staged = o; if (o) { chrome = false; hideCard(); guide?.deactivate() } else paintLenses() }} onstate={st => (sstate = st)}
+    onopen={o => { staged = o; speedOpen = false; if (o) { chrome = false; hideCard(); guide?.deactivate(); pushBack('stage') } else { paintLenses(); popBack('stage') } }} onstate={st => (sstate = st)}
     onpace={w => (settings.wpm = w)} ontoast={toast} />
   {#if bar}
     <div class="hl-bar glass" class:below={bar.below} style:left="{bar.x}px" style:top="{bar.y}px" role="toolbar" aria-label="Highlight">
@@ -1097,7 +1122,6 @@
   }
   .speedpop.up { right: calc(env(safe-area-inset-right) + var(--s3) + 52px); }
   .sp-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--muted); letter-spacing: .02em; }
-  .sp-head b { font: 600 13px system-ui; color: var(--accent); }
   .sp-presets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
   .sp-presets button { border: 0; border-radius: 10px; padding: 7px 0 6px; background: var(--hover); color: var(--fg); font: 600 12px system-ui; display: grid; gap: 1px; transition: background-color .2s, color .2s, transform .2s var(--spring); }
   .sp-presets button small { font-weight: 400; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -1105,13 +1129,13 @@
   .sp-presets button.on small { color: color-mix(in srgb, var(--bg) 75%, transparent); }
   .sp-presets button:active { transform: scale(.95); }
   .sp-fine { display: flex; align-items: center; gap: 10px; }
-  .sp-fine button { width: 36px; height: 36px; flex: none; border: 0; border-radius: 50%; background: var(--hover); color: var(--fg); font: 500 20px/1 system-ui; }
+  .sp-fine button { width: 44px; height: 44px; flex: none; border: 0; border-radius: 50%; background: var(--hover); color: var(--fg); font: 500 20px/1 system-ui; }
   .sp-fine input { flex: 1; accent-color: var(--accent); }
-  .sp-num { justify-self: center; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
   @keyframes popIn { from { opacity: 0; transform: scale(.92) translateY(8px); } }
   .pad {
     position: relative;
     width: 56px; height: 56px; border: 0; border-radius: 50%; display: grid; place-items: center; color: var(--fg);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 14%, transparent), 0 4px 14px -6px rgb(0 0 0 / .3);
     touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
     transition: transform .5s var(--spring), opacity .3s, background-color .3s, color .3s; animation: padIn .45s var(--spring);
   }
@@ -1135,7 +1159,7 @@
     width: 216px; padding: 10px 12px; border-radius: 16px; display: grid; gap: 8px; justify-items: center;
     font-size: 11.5px; color: var(--muted); pointer-events: none; animation: cardIn .25s var(--ease);
   }
-  .shuttle.at { right: auto; bottom: auto; }
+  .shuttle.at { right: 0; left: 0; margin-inline: auto; bottom: auto; top: calc(env(safe-area-inset-top) + 64px); } /* in the top fade, clear of the reading band */
   .sh-lock { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; transition: background-color .2s, color .2s, transform .3s var(--spring); }
   .sh-lock svg { width: 14px; height: 14px; }
   .sh-lock.near { color: var(--fg); transform: translateY(-2px); }
@@ -1198,7 +1222,7 @@
   .lens-card :global(.c-who) { display: flex; align-items: center; gap: 8px; }
   .lens-card :global(.c-av) { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 12px var(--serif); }
   @keyframes cardIn { from { opacity: 0; } }
-  .toast { position: absolute; z-index: 4; left: 50%; top: calc(env(safe-area-inset-top) + var(--s5)); translate: -50% 0; padding: 8px 14px; border-radius: 999px; font-size: 13px; animation: toastIn .35s var(--ease); pointer-events: none; }
+  .toast { position: absolute; z-index: 9; left: 50%; top: calc(env(safe-area-inset-top) + var(--s5)); translate: -50% 0; padding: 8px 14px; border-radius: 999px; font-size: 13px; animation: toastIn .35s var(--ease); pointer-events: none; }
   @keyframes toastIn { from { opacity: 0; transform: translateY(-6px); } }
   .error { position: absolute; inset: 0; z-index: 3; display: grid; place-content: center; justify-items: center; text-align: center; padding: var(--s5); background: var(--bg); }
   .error h2 { font: 600 1.5rem var(--serif); margin: 0 0 var(--s2); }

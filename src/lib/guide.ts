@@ -33,6 +33,8 @@ export class Guide {
   private lastTap = 0
   private playBefore = false // play state before the first of a double-tap
   holding = false            // the current glide lasts only while Space / the pad is held
+  private transientHold = false // the hold also switched the guide on: release switches it off
+  private rate = 1           // shuttle while holding: >1 faster, 0 still, <0 backwards
   private lastStep = 0
   private spaceDown = 0
   private holdT = 0
@@ -109,8 +111,22 @@ export class Guide {
   start() { this.activate(); this.startGlide() }
 
   // ---------- touch / mouse pad ----------
-  holdStart() { this.activate(); if (!this.gliding) { this.holding = true; this.startGlide() } }
-  holdEnd() { if (this.holding) { this.holding = false; this.stopGlide(); this.lastTap = 0 } }
+  holdStart() {
+    if (!this.active) { this.transientHold = true; this.activate() }
+    if (!this.gliding) { this.holding = true; this.startGlide() }
+  }
+  holdEnd() {
+    this.setRate(1)
+    if (this.transientHold) { this.transientHold = false; this.deactivate(); return }
+    if (this.holding) { this.holding = false; this.stopGlide(); this.lastTap = 0 }
+  }
+  /** Slide up while holding: keep gliding after release. */
+  lock() { this.transientHold = false; this.holding = false; this.onToast?.('Locked · tap to pause') }
+  setRate(r: number) {
+    const flip = Math.sign(r) !== Math.sign(this.rate) || (Math.abs(r) < 0.15) !== (Math.abs(this.rate) < 0.15)
+    this.rate = r
+    if (flip && this.gliding) { clearTimeout(this.timer); this.tick() }
+  }
   /** A tap on the pad: same as tapping Space (play/pause; double-tap = sentence start). */
   padTap() { if (!this.active) { this.start(); return } this.tap(performance.now()) }
   sentenceStart() { this.activate(); this.toSentenceStart() }
@@ -188,13 +204,15 @@ export class Guide {
   // punctuation and position (see pacing.ts).
   private wordMs(k: number) { return wordTime(this.v!.ix, k, this.s.wpm) }
   private startGlide() { if (this.gliding) return; this.activate(); if (!this.active) return; this.gliding = true; this.emit(); this.tick() }
-  stopGlide() { this.holding = false; if (!this.gliding) return; this.gliding = false; clearTimeout(this.timer); this.emit() }
+  stopGlide() { this.holding = false; this.rate = 1; if (!this.gliding) return; this.gliding = false; clearTimeout(this.timer); this.emit() }
   private tick() {
     if (!this.gliding || !this.v) return
-    const ws = this.v.ix.words, n = this.next(this.i)
+    if (Math.abs(this.rate) < 0.15) { this.timer = window.setTimeout(() => this.tick(), 120); return } // held still
+    const ws = this.v.ix.words, back = this.rate < 0, n = back ? this.i - 1 : this.next(this.i)
     let ms = 0
-    for (let k = this.i; k < Math.min(n, ws.length); k++) ms += this.wordMs(k)
-    this.timer = window.setTimeout(async () => { if (!this.gliding) return; await this.go(n, true); if (this.gliding && !this.resume) this.tick() }, ms)
+    if (back) ms = this.wordMs(Math.max(0, n))
+    else for (let k = this.i; k < Math.min(n, ws.length); k++) ms += this.wordMs(k)
+    this.timer = window.setTimeout(async () => { if (!this.gliding) return; await this.go(n, true); if (this.gliding && !this.resume) this.tick() }, ms / Math.abs(this.rate))
   }
   /** Space / pad tap: play or pause; a quick second tap undoes that and goes to the sentence start. */
   private tap(t: number) {

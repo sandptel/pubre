@@ -28,20 +28,24 @@
 
 <h3>Reading guide</h3>
 <div class="group">
-  {@render toggle('Reading guide', 'guide', 'Press G, or the guide button')}
+  {@render toggle('Reading guide', 'guide', 'The round pad, Space or G')}
   {#if value.guide}
     {@render choice('Style', 'guideStyle', [['stage', 'Stage'], ['pointer', 'Pointer']], value.guideStyle === 'stage' ? 'Space lifts the paragraph toward you' : 'A marker moves on the page')}
   {/if}
   {#if value.guide && value.guideStyle === 'stage'}
-    {@render choice('Paragraph end', 'paraEnd', [['breathe', 'Breathe'], ['wait', 'Wait']], value.paraEnd === 'breathe' ? 'A pause, then the next rises' : 'Waits for Space')}
-    <p class="hint">Space to start and pause, ← → sentence, ↑ ↓ paragraph, [ ] pace ({value.wpm} wpm), Esc back to the page. On touch: tap to pause, swipe up for the next sentence.</p>
+    {@render choice('Move by', 'stageStep', [['sentence', 'Sentence'], ['phrase', 'Phrase'], ['word', 'Word']], value.stageStep === 'sentence' ? 'A sentence lights up at a time' : 'Words ink in as you go')}
+    {#if value.stageStep !== 'sentence'}
+      {@render choice('Pointer', 'stagePointer', [['ink', 'Ink'], ['word', 'Word'], ['underline', 'Line'], ['dot', 'Dot'], ['outline', 'Ring']])}
+    {/if}
+    {@render choice('Paragraph end', 'paraEnd', [['breathe', 'Breathe'], ['wait', 'Wait']], value.paraEnd === 'breathe' ? 'A pause, then the next rises' : 'Waits for a tap')}
+    <p class="hint">Tap the round pad (or Space) to start and pause. Hold it to read only while you hold; let go and it goes back to the page. While holding, slide right for faster, left for slower and then backwards, up to lock. ← → step, ↑ ↓ paragraph, [ ] pace ({value.wpm} wpm).</p>
   {/if}
   {#if value.guide && value.guideStyle === 'pointer'}
     {@render choice('Pointer', 'pointer', [['word', 'Word'], ['underline', 'Line'], ['dot', 'Dot'], ['outline', 'Ring']])}
     {@render choice('Focus', 'focus', [['sentence', 'Sentence'], ['line', 'Line'], ['paragraph', 'Para']])}
     {@render choice('Step', 'step', [['word', 'Word'], ['phrase', 'Phrase']])}
     {@render toggle('Dim what you’ve read', 'dimRead')}
-    <p class="hint">The guide button, Space or G starts it at your pace ({value.wpm} wpm). Space or the round pad: tap to pause or play, double-tap for the start of the sentence, hold to glide only while held. → steps (and teaches your pace).</p>
+    <p class="hint">Tap the round pad (or Space) to start and pause; double-tap for the start of the sentence. Hold to glide only while held; slide while holding to change speed, up to lock. → steps (and teaches your pace, {value.wpm} wpm).</p>
   {/if}
 </div>
 

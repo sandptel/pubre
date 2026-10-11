@@ -21,7 +21,7 @@
   import Cover from './Cover.svelte'
   import Progress from './Progress.svelte'
   import Sheet from './Sheet.svelte'
-  import Stage from './Stage.svelte'
+  import Stage, { type StageState } from './Stage.svelte'
   import Toc from './Toc.svelte'
 
   let { record, settings = $bindable(), onclose }: { record: BookRecord; settings: Settings; onclose: () => void } = $props()
@@ -41,10 +41,11 @@
   let dir = $state(1)
   let error = $state('')
   let saveTimer = 0
-  let padT = 0, padDown = 0
   let guide: Guide | undefined
   let stage = $state<ReturnType<typeof Stage>>()
   let staged = $state(false)
+  let sstate = $state<StageState>({ open: false, moving: false })
+  let paperEl = $state<HTMLDivElement>()
   let lenses: Lenses | undefined
   let card = $state<{ x: number; y: number; below: boolean; html: string } | null>(null)
   let cardKey = '', dwellT = 0, hoverT = 0
@@ -156,6 +157,61 @@
     panel = false
     chrome = false
     pag?.goTo(href)
+  }
+
+  // ---------- the reading pad (one control for both guide styles) ----------
+  // Tap: start, then pause / play (double-tap: back to the sentence start). Hold: read only while held,
+  // let go and it goes back. While holding, slide right = faster, left = slower then backwards, up = lock.
+  let press = $state<{ hold: boolean; locked: boolean; dx: number; dy: number } | null>(null)
+  let pressX = 0, pressY = 0, pressT = 0
+  const stageStyle = () => eff.guideStyle === 'stage'
+  const padMoving = $derived(eff.guideStyle === 'stage' ? sstate.moving : gstate.gliding)
+  /** Shuttle: a dead zone around the press, then right speeds up to 2.5×; left slows to still, then reads backwards. */
+  function shuttle(dx: number) {
+    if (Math.abs(dx) < 14) return 1
+    if (dx > 0) return Math.min(2.5, 1 + (dx - 14) / 90)
+    return Math.max(-2, 1 + (dx + 14) / 64)
+  }
+  const rateLabel = (r: number) => Math.abs(r) < 0.15 ? 'Still' : r < 0 ? `◀ ${(-r).toFixed(1)}×` : Math.abs(r - 1) < 0.05 ? 'Your pace' : `${r.toFixed(1)}×`
+  function padPress(e: PointerEvent) {
+    e.preventDefault()
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    pressX = e.clientX; pressY = e.clientY
+    press = { hold: false, locked: false, dx: 0, dy: 0 }
+    clearTimeout(pressT)
+    pressT = window.setTimeout(holdBegin, 260)
+  }
+  function holdBegin() {
+    if (!press || press.hold) return
+    press = { ...press, hold: true }
+    chrome = false; hideCard()
+    if (stageStyle()) stage?.holdStart(); else guide?.holdStart()
+  }
+  function padDrag(e: PointerEvent) {
+    if (!press) return
+    const dx = e.clientX - pressX, dy = e.clientY - pressY
+    if (!press.hold) { if (Math.hypot(dx, dy) < 12) return; clearTimeout(pressT); holdBegin() }
+    let locked = press.locked
+    if (!locked && dy < -64) {
+      locked = true
+      navigator.vibrate?.(12)
+      if (stageStyle()) stage?.lock(); else guide?.lock()
+    }
+    const r = locked ? 1 : shuttle(dx), was = shuttle(press.dx)
+    if (!locked && (Math.sign(r) !== Math.sign(was) || (Math.abs(r) < 0.15) !== (Math.abs(was) < 0.15))) navigator.vibrate?.(6) // a tick into still / backwards
+    if (stageStyle()) stage?.setRate(r); else guide?.setRate(r)
+    press = { ...press, dx, dy, locked }
+  }
+  function padRelease() {
+    clearTimeout(pressT)
+    if (!press) return
+    if (!press.hold) padTap()
+    else if (stageStyle()) stage?.holdEnd(); else guide?.holdEnd()
+    press = null
+  }
+  function padTap() {
+    chrome = false; hideCard()
+    if (stageStyle()) stage?.tap(); else guide?.padTap()
   }
 
   // ---------- lenses ----------
@@ -399,7 +455,7 @@
 <svelte:window onkeydown={e => { if (e.key === 'Escape' && !panel && !gstate.active && !staged) chrome = !chrome }} />
 
 <div class="reader" class:chrome>
-  <div class="paper" style:view-transition-name="cover">
+  <div class="paper" bind:this={paperEl} style:view-transition-name="cover">
     <div class="stage" bind:this={host}></div>
     {#if !loc && !error}<div class="spinner" aria-label="Opening book"></div>{/if}
   </div>
@@ -422,30 +478,37 @@
           onjump={jump} onscrub={p => pag?.goToProgress(p)} />
       </div>
     {/if}
-    {#if eff.guide}
-      <button class="fab glass guide-btn" class:on={gstate.active} aria-label={eff.guideStyle === 'stage' ? 'Stage (Space)' : gstate.active ? 'Leave reading guide (G)' : 'Reading guide (G)'} aria-pressed={gstate.active}
-        onclick={() => { if (eff.guideStyle === 'stage') stage?.start(); else if (gstate.active) guide?.deactivate(); else guide?.start(); chrome = false }}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="9" width="9" height="6" rx="2" fill="currentColor" opacity=".35" stroke="none" /><path d="M3 18h18M15 12h6" /></svg>
-      </button>
-    {/if}
     <button class="fab glass menu" aria-label="Reading menu" onclick={() => { view = 'menu'; panel = true }} disabled={!book}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h9" /></svg>
     </button>
   </div>
 
-  {#if gstate.active}
-    <button class="pad glass" class:held={gstate.gliding} aria-label={gstate.gliding ? 'Pause (tap); double-tap for the sentence start' : 'Play (tap); hold to glide while held'}
-      onpointerdown={e => { e.preventDefault(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); padDown = performance.now(); padT = window.setTimeout(() => guide?.holdStart(), 220) }}
-      onpointerup={() => { clearTimeout(padT); if (guide?.holding) guide.holdEnd(); else if (padDown) guide?.padTap(); padDown = 0 }}
-      onpointercancel={() => { clearTimeout(padT); guide?.holdEnd(); padDown = 0 }}
+  {#if eff.guide && loc && !error}
+    <button class="pad glass" class:up={chrome && !staged} class:moving={padMoving} class:held={press?.hold} class:active={gstate.active || staged}
+      aria-label={padMoving ? 'Pause (tap). Hold and slide to change speed.' : 'Read (tap to start; hold to read while held, slide while holding to change speed, slide up to lock)'}
+      onpointerdown={padPress} onpointermove={padDrag} onpointerup={padRelease} onpointercancel={padRelease}
+      onkeydown={e => { if (e.key === 'Enter') { e.preventDefault(); padTap() } }}
       oncontextmenu={e => e.preventDefault()}>
       <span class="pad-ring"></span>
-      {#if gstate.gliding}<span class="pad-l">{gstate.wpm}<small>wpm</small></span>
-      {:else}<svg class="pad-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" /></svg>{/if}
+      {#if padMoving}<svg class="pad-i" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="3.6" height="12" rx="1.2" fill="currentColor" /><rect x="13.4" y="6" width="3.6" height="12" rx="1.2" fill="currentColor" /></svg>
+      {:else}<svg class="pad-i play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.8v12.4a.8.8 0 001.2.7l9.6-6.2a.8.8 0 000-1.4L9.7 5.1a.8.8 0 00-1.2.7z" fill="currentColor" /></svg>{/if}
     </button>
+    {#if press?.hold}
+      <div class="shuttle glass" role="status" aria-live="polite">
+        <div class="sh-lock" class:near={press.dy < -24} class:on={press.locked}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5.5" y="10.5" width="13" height="9.5" rx="2.2" fill="currentColor" /><path d="M8.5 10.5V8a3.5 3.5 0 017 0v2.5" fill="none" stroke="currentColor" stroke-width="2" /></svg>
+          {press.locked ? 'Locked' : 'Slide up to lock'}
+        </div>
+        {#if !press.locked}
+          <div class="sh-row"><span>slower</span><span class="sh-track"><i style:left="{50 + Math.max(-46, Math.min(46, press.dx / 2.4))}%"></i></span><span>faster</span></div>
+          <b class="sh-rate">{rateLabel(shuttle(press.dx))}</b>
+        {/if}
+      </div>
+    {/if}
   {/if}
-  <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title}
-    onopen={o => { staged = o; if (o) { chrome = false; hideCard(); guide?.deactivate() } }} onpace={w => (settings.wpm = w)} ontoast={toast} />
+  <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} pageEl={paperEl}
+    onopen={o => { staged = o; if (o) { chrome = false; hideCard(); guide?.deactivate() } else paintLenses() }} onstate={st => (sstate = st)}
+    onpace={w => (settings.wpm = w)} ontoast={toast} />
   {#if bar}
     <div class="hl-bar glass" class:below={bar.below} style:left="{bar.x}px" style:top="{bar.y}px" role="toolbar" aria-label="Highlight">
       <div class="hl-row">
@@ -465,7 +528,7 @@
       {#if bar.ann}<span class="hl-m">{meaning(bar.ann.color)}</span>{/if}
     </div>
   {/if}
-  {#if ending && !chrome}
+  {#if ending && !chrome && !staged}
     <div class="ending glass" role="status">
       <span class="r-eyebrow">End of {ending.chapter}</span>
       {#each ending.questions as q (q.id)}
@@ -665,23 +728,39 @@
   .reader :global(.pubre-pointer.p-outline) { border-radius: 6px; box-shadow: inset 0 0 0 1.5px var(--accent); }
   .reader :global(.pubre-pointer.p-underline) { background: var(--accent); border-radius: 2px; }
   .reader :global(.pubre-pointer.p-dot) { background: var(--accent); border-radius: 50%; }
-  .guide-btn.on { background: var(--accent); color: var(--bg); }
+  /* The reading pad: always in the thumb's corner; above the menu while the controls show; above the Stage too. */
   .pad {
-    position: absolute; z-index: 3; right: calc(env(safe-area-inset-right) + var(--s3)); bottom: calc(env(safe-area-inset-bottom) + var(--s3));
-    width: 52px; height: 52px; border: 0; border-radius: 50%; display: grid; place-items: center; color: var(--fg);
+    position: absolute; z-index: 8; right: calc(env(safe-area-inset-right) + var(--s3)); bottom: calc(env(safe-area-inset-bottom) + var(--s3));
+    width: 56px; height: 56px; border: 0; border-radius: 50%; display: grid; place-items: center; color: var(--fg);
     touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
-    transition: transform .3s var(--ease), opacity .3s; animation: padIn .4s var(--ease);
+    transition: transform .5s var(--spring), opacity .3s, background-color .3s, color .3s; animation: padIn .45s var(--spring);
   }
-  .pad.held { transform: scale(.94); }
-  .reader.chrome .pad { opacity: 0; pointer-events: none; }
-  .pad-l { display: grid; justify-items: center; line-height: 1; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .pad-l small { font-size: 9px; font-weight: 500; color: var(--muted); margin-top: 2px; }
-  .pad-play { width: 20px; height: 20px; margin-left: 2px; }
-  .pad-ring { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; }
-  .pad.held .pad-ring { opacity: 1; animation: ring 1.2s ease-out infinite; }
-  @media (hover: hover) and (pointer: fine) { .pad { opacity: .55; } .pad:hover, .pad.held { opacity: 1; } }
-  @keyframes padIn { from { opacity: 0; transform: scale(.8); } }
-  @keyframes ring { from { transform: scale(.96); opacity: .9; } to { transform: scale(1.15); opacity: 0; } }
+  .pad.up { transform: translateY(-60px); }
+  .pad.active { color: var(--accent); }
+  .pad.held { transform: scale(.92); background: color-mix(in srgb, var(--accent) 18%, var(--bg)); }
+  .pad-i { width: 22px; height: 22px; transition: transform .3s var(--spring); }
+  .pad-i.play { margin-left: 2px; }
+  .pad:active .pad-i { transform: scale(.9); }
+  .pad-ring { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; pointer-events: none; }
+  .pad.held .pad-ring { opacity: 1; animation: ring 1.4s ease-out infinite; }
+  @media (hover: hover) and (pointer: fine) { .pad { width: 48px; height: 48px; opacity: .6; } .pad:hover, .pad.held, .pad.up { opacity: 1; } }
+  @keyframes padIn { from { opacity: 0; transform: scale(.7); } }
+  @keyframes ring { from { transform: scale(.96); opacity: .9; } to { transform: scale(1.18); opacity: 0; } }
+  /* While holding: the shuttle and the lock, just above the thumb */
+  .shuttle {
+    position: absolute; z-index: 8; right: calc(env(safe-area-inset-right) + var(--s3)); bottom: calc(env(safe-area-inset-bottom) + var(--s3) + 70px);
+    width: 216px; padding: 10px 12px; border-radius: 16px; display: grid; gap: 8px; justify-items: center;
+    font-size: 11.5px; color: var(--muted); pointer-events: none; animation: cardIn .25s var(--ease);
+  }
+  .sh-lock { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; transition: background-color .2s, color .2s, transform .3s var(--spring); }
+  .sh-lock svg { width: 14px; height: 14px; }
+  .sh-lock.near { color: var(--fg); transform: translateY(-2px); }
+  .sh-lock.on { background: var(--accent); color: var(--bg); }
+  .sh-row { display: flex; align-items: center; gap: 8px; width: 100%; }
+  .sh-track { position: relative; flex: 1; height: 4px; border-radius: 2px; background: linear-gradient(90deg, color-mix(in srgb, var(--fg) 12%, transparent), color-mix(in srgb, var(--accent) 45%, transparent)); }
+  .sh-track::before { content: ''; position: absolute; left: 50%; top: -3px; width: 1px; height: 10px; background: var(--muted); opacity: .5; }
+  .sh-track i { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--accent); box-shadow: 0 1px 4px rgb(0 0 0 / .25); }
+  .sh-rate { font: 600 15px system-ui; color: var(--fg); font-variant-numeric: tabular-nums; }
   .ending { position: absolute; z-index: 6; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 64px); translate: -50% 0; width: min(420px, calc(100vw - 32px));
     padding: var(--s3) var(--s4); border-radius: 18px; display: grid; gap: var(--s2); animation: cardIn .35s var(--ease); }
   .e-q { margin: 0; font: 14.5px/1.45 var(--serif); }

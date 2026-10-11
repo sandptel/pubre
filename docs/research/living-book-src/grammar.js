@@ -29,19 +29,18 @@ const play = {
     setTimeout(() => card.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 250 }).finished.then(() => card.remove()), D(1600))
   },
   breathe(row) { row.querySelectorAll('.wash').forEach((el, k) => el.animate([{ transform: 'none', filter: 'none' }, { transform: 'scale(1.06)', filter: 'saturate(1.8) brightness(1.04)' }, { transform: 'none', filter: 'none' }], { duration: D(700), delay: k * 120, easing: 'ease-in-out' })) },
-  glide(row) {
-    const g = row.querySelector('.sp-glide'), sent = row.querySelector('.sp-sent'), words = [...g.children]
-    sent.animate([{ backgroundColor: 'color-mix(in srgb,var(--fg) 9%,transparent)' }, { backgroundColor: 'transparent' }], { duration: D(300), fill: 'forwards' })
-    g.animate([{ backgroundColor: 'transparent' }, { backgroundColor: 'color-mix(in srgb,var(--fg) 9%,transparent)' }], { duration: D(300), fill: 'forwards' })
-    const bar = document.createElement('i'); bar.style.cssText = 'position:absolute;left:0;height:3px;border-radius:2px;background:var(--accent);bottom:-3px;width:0'
-    g.style.position = 'relative'; g.append(bar)
-    const base = g.getBoundingClientRect()
-    const frames = words.map(w => { const r = w.getBoundingClientRect(); return { transform: `translateX(${r.left - base.left}px)`, width: r.width + 'px' } })
-    bar.animate(frames, { duration: D(1200), easing: 'steps(3, jump-none)', fill: 'forwards' }).finished.then(() => setTimeout(() => {
-      bar.remove(); sent.getAnimations().forEach(a => a.cancel()); g.getAnimations().forEach(a => a.cancel())
-    }, 600))
+  glide(row) { // "hop": a whole-word block springs from word to word
+    const grp = row.querySelector('.sp-glide'), words = [...grp.children], base = grp.getBoundingClientRect()
+    grp.style.position = 'relative'; grp.style.isolation = 'isolate'
+    const blk = document.createElement('i'); blk.style.cssText = 'position:absolute;left:0;top:-1px;z-index:-1;border-radius:6px;background:color-mix(in srgb,var(--accent) 22%,transparent)'
+    grp.append(blk)
+    const at = w => { const r = w.getBoundingClientRect(); return { transform: `translateX(${r.left - base.left - 3}px)`, width: r.width + 6 + 'px', height: r.height + 2 + 'px' } }
+    Object.assign(blk.style, at(words[0]))
+    let k = 0
+    const hop = () => { k++; if (k >= words.length) return setTimeout(() => blk.remove(), 700); blk.animate([at(words[k - 1]), at(words[k])], { duration: D(380), easing: getComputedStyle(document.documentElement).getPropertyValue('--spring') || 'ease-out', fill: 'forwards' }); setTimeout(hop, D(520)) }
+    setTimeout(hop, D(300))
   },
-  settle(row) { [...row.querySelectorAll('.sp-settle span')].forEach((el, k) => el.animate([{ opacity: 1 }, { opacity: .42 }], { duration: D(420), delay: k * 180, fill: 'forwards' }).finished.then(a => setTimeout(() => a.cancel(), 1400))) },
+  settle(row) { [...row.querySelectorAll('.lv')].forEach((el, k) => el.animate([{ color: 'var(--fg)' }, { color: getComputedStyle(el).color }], { duration: D(500), delay: k * 160, easing: 'ease-out', fill: 'backwards' })) },
   spark(row) { const t = row.querySelector('.sp-margin span'), d = row.querySelector('.mdot'); d.style.opacity = 0; spark(t.getBoundingClientRect(), d.getBoundingClientRect(), getComputedStyle(d).backgroundColor).then(() => { d.style.opacity = 1; d.animate([{ transform: 'scale(2.2)' }, { transform: 'scale(1)' }], { duration: D(450), easing: 'cubic-bezier(.3,1.6,.5,1)' }) }) },
 }
 $('gram').addEventListener('click', e => { const b = e.target.closest('button.verb'); if (!b) return; const row = b.closest('.gr'); play[row.dataset.verb]?.(row) })

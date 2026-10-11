@@ -322,6 +322,36 @@ kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; 
   .gr { grid-template-columns:1fr; gap:6px; padding:16px 0 }
   .verb { justify-self:start }
 }
+
+/* v3: pointer types, contrast levels, patterns */
+@property --fk { syntax:'<percentage>'; inherits:true; initial-value:100% }
+.g-opts { gap:8px 10px; padding-top:2px }
+.optl { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted) }
+.g-text { isolation:isolate }
+.g-cursor { z-index:-1; height:3px; transition-property:transform,width,height,opacity; transition-timing-function:var(--spring) }
+.g-cursor.p-word { background:color-mix(in srgb,var(--accent) 22%,transparent); border-radius:6px; box-shadow:none }
+.g-cursor.p-outline { background:transparent; border-radius:6px; box-shadow:inset 0 0 0 1.5px var(--accent) }
+.g-cursor.p-underline { border-radius:2px }
+.g-cursor.p-dot { border-radius:50% }
+::highlight(f-page) { color:color-mix(in srgb,var(--fg) 38%,var(--surface)) }
+::highlight(f-para) { color:color-mix(in srgb,var(--fg) 66%,var(--surface)) }
+::highlight(f-read) { color:color-mix(in srgb,var(--fg) 28%,var(--surface)) }
+::highlight(f-focus) { color:color-mix(in srgb,var(--fg) var(--fk),var(--surface)) }
+::highlight(f-readfocus) { color:color-mix(in srgb,var(--fg) 52%,var(--surface)) }
+::highlight(f-readpara) { color:color-mix(in srgb,var(--fg) 40%,var(--surface)) }
+::highlight(aside) { color:color-mix(in srgb,var(--fg) 60%,var(--surface)) }
+::highlight(foreign) { text-decoration:underline dashed 1.5px var(--muted); text-underline-offset:5px }
+::highlight(n-Queequeg) { color:var(--b0B); text-decoration:underline 2px color-mix(in srgb,var(--b0B) 55%,transparent); text-underline-offset:4px }
+::highlight(sp-Ahab) { color:color-mix(in srgb,var(--fg) 45%,var(--b08)) } ::highlight(q-Ahab) { color:var(--b08) }
+::highlight(sp-Stubb) { color:color-mix(in srgb,var(--fg) 45%,var(--b0A)) } ::highlight(q-Stubb) { color:var(--b0A) }
+::highlight(sp-Flask) { color:color-mix(in srgb,var(--fg) 45%,var(--b0C)) } ::highlight(q-Flask) { color:var(--b0C) }
+::highlight(sp-Starbuck) { color:color-mix(in srgb,var(--fg) 45%,var(--b0D)) } ::highlight(q-Starbuck) { color:var(--b0D) }
+::highlight(sp-Ishmael) { color:color-mix(in srgb,var(--fg) 45%,var(--b0E)) } ::highlight(q-Ishmael) { color:var(--b0E) }
+::highlight(sp-Queequeg) { color:color-mix(in srgb,var(--fg) 45%,var(--b0B)) } ::highlight(q-Queequeg) { color:var(--b0B) }
+::highlight(sp-voice) { color:color-mix(in srgb,var(--fg) 55%,var(--b0C)) } ::highlight(q-voice) { color:var(--b0C) }
+.lv { color:color-mix(in srgb,var(--fg) var(--k),var(--surface)) }
+.edge td:first-child { white-space:normal; width:38%; font-weight:600 }
+.lensdemo .g-bar { justify-content:center }
 </style>
 
 <div class="wrap">
@@ -349,18 +379,18 @@ kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; 
       <div class="gr" data-verb="draw"><b>Underline</b><span><b>Tell me more.</b> Hover or tap for help. The line’s style says what kind.</span>
         <span class="spec"><span class="sp" style="text-decoration:underline dotted 2px var(--accent);text-underline-offset:5px">spleen</span> definition · <span class="sp" style="text-decoration:underline dashed 1.5px var(--muted);text-underline-offset:5px">Nantucket</span> term or place · <span class="sp" style="text-decoration:underline double 1.5px var(--muted);text-underline-offset:4px">rope-yarn</span> note</span>
         <button class="verb sans">Draw<small>rest on the word for a moment and a peek card rises above the line; move on and it’s gone</small></button></div>
-      <div class="gr" data-verb="breathe"><b>Coloured wash</b><span><b>Yours.</b> Highlights, one colour per meaning (renamable). The system never uses a coloured wash.</span>
+      <div class="gr" data-verb="breathe"><b>Coloured wash</b><span><b>Yours.</b> Highlights, one colour per meaning (renamable). The system never uses a wash.</span>
         <span class="spec" id="washes"></span>
         <button class="verb sans">Breathe<small>the wash brightens once as the cursor passes; its note peeks only when you rest</small></button></div>
-      <div class="gr" data-verb="glide"><b>Neutral wash</b><span><b>Where you are.</b> The sentence (or line) you’re reading, plus the cursor bar.</span>
-        <span class="spec"><span class="sp-sent">Call me Ishmael.</span> <span class="sp-glide"><span>Some</span> <span>years</span> <span>ago</span></span></span>
-        <button class="verb sans">Glide<small>the wash slides to the next sentence; the bar follows words</small></button></div>
+      <div class="gr" data-verb="glide"><b>Pointer</b><span><b>The word you’re on.</b> Whole-word by default; underline, dot or outline if you prefer.</span>
+        <span class="spec"><span class="sp-glide"><span>Some</span> <span>years</span> <span>ago</span></span></span>
+        <button class="verb sans">Hop<small>springs to the next word with a little bounce</small></button></div>
       <div class="gr" data-verb="none"><b>Weight &amp; slant</b><span><b>Your emphasis.</b> Bold and italic are only ever yours. The author’s own italics are never changed.</span>
         <span class="spec"><span style="-webkit-text-stroke:.035em currentColor">bold</span> (a stroke, no reflow) · <i>italic</i></span>
         <span class="verb sans static">Still<small>emphasis never moves</small></span></div>
-      <div class="gr" data-verb="settle"><b>Opacity</b><span><b>Time.</b> Faded = already read (optional). Hidden = ahead of you; spoiler-gated things show shape only.</span>
-        <span class="spec"><span class="sp-settle"><span>the</span> <span>watery</span> <span>part</span> <span>of</span> <span>the</span> <span>world</span></span></span>
-        <button class="verb sans">Settle<small>words fade gently behind the cursor</small></button></div>
+      <div class="gr" data-verb="settle"><b>Contrast</b><span><b>Attention &amp; time.</b> Your sentence is full ink, its paragraph softer, the page quieter, and what you’ve read quietest. Asides whisper one step down.</span>
+        <span class="spec"><span class="lv" style="--k:100%">focus</span> · <span class="lv" style="--k:66%">paragraph</span> · <span class="lv" style="--k:38%">page</span> · <span class="lv" style="--k:28%">read</span></span>
+        <button class="verb sans">Settle<small>levels ease into place as you move</small></button></div>
       <div class="gr" data-verb="spark"><b>Margin mark</b><span><b>Notes &amp; structure.</b> A dot for a note, a tick at a chapter end, a ribbon for a bookmark.</span>
         <span class="spec sp-margin"><span>Call me Ishmael.</span><i class="mdot"></i></span>
         <button class="verb sans">Spark<small>a dot appears with a spark; chapter ends pulse the capsule</small></button></div>
@@ -373,7 +403,7 @@ kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; 
         <li><b>All colour comes from base16 slots</b>, so every palette and mode keeps the same grammar.</li></ul></article>
       <article class="card"><h3>Highlight meanings</h3><p class="d">Six colours, matching the W3C annotation vocabulary so exports stay portable. Rename them freely; the colour keeps its slot.</p><div class="legend6" id="legend6"></div></article>
       <article class="card"><h3>One intensity control</h3><p class="d">Instead of a dozen toggles, one setting in Themes &amp; Settings:</p><ul class="d plain">
-        <li><b>Quiet</b>: only yours and where you are.</li>
+        <li><b>Quiet</b>: only yours, the pointer and contrast.</li>
         <li><b>Guided</b>: adds who and tell-me-more. This is the default.</li>
         <li><b>Rich</b>: adds every motion verb, sparks and the living capsule.</li></ul></article>
     </div>
@@ -383,18 +413,20 @@ kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; 
   <section class="cat" id="guide">
     <div class="cat-head"><span class="label">Part II · The reading guide</span>
       <h2>A finger that waits for you</h2>
-      <p class="lede" style="margin:0">A soft cursor rides under the word you’re on, and the sentence around it glows faintly. It never runs away. <b>Hold Space</b> and it glides at your pace; <b>let go</b> and it stops. <b>Tap</b> to step one word; <b>double-tap</b> to jump back to the start of the sentence. Arrow keys and vim motions move by word, sentence and paragraph. Try it: click the passage, then use the keys.</p></div>
+      <p class="lede" style="margin:0">A pointer sits on the word you’re on, the whole word by default, and hops to the next one with a little spring. Contrast does the focusing: your sentence is full ink, the rest of its paragraph softer, the page quieter, and what you’ve read quietest. It never runs away. <b>Hold Space</b> and it glides at your pace; <b>let go</b> and it stops. <b>Tap</b> to step one word; <b>double-tap</b> to jump back to the start of the sentence. Arrow keys and vim motions move by word, sentence and paragraph. Try it: click the passage, then use the keys.</p></div>
 
     <div class="card wide guide" id="g">
       <div class="g-bar sans">
         <button class="g-start" id="gStart" aria-pressed="false"><span class="g-dot"></span><span id="gStartL">Start guide</span></button>
-        <span class="g-pill mono" id="gSpeed" title="Your pace">238 wpm</span>
+        <span class="g-pill mono" id="gSpeed" title="Your pace">260 wpm</span>
         <span class="g-pill" id="gLearn" hidden>learning from your taps</span>
         <span class="g-cast" id="gCast" aria-label="Characters met"></span>
-        <span class="g-spacer"></span>
-        <div class="seg" role="radiogroup" aria-label="Focus" id="gFocus"><button role="radio" aria-checked="true" data-v="sent" class="on">Sentence</button><button role="radio" aria-checked="false" data-v="line">Line focus</button><button role="radio" aria-checked="false" data-v="para">Paragraph</button></div>
-        <div class="seg" role="radiogroup" aria-label="Step" id="gUnit"><button role="radio" aria-checked="true" data-v="word" class="on">Word</button><button role="radio" aria-checked="false" data-v="phrase">Phrase</button></div>
-        <label class="toggle"><input type="checkbox" id="gRead"> Dim what’s read</label>
+      </div>
+      <div class="g-bar sans g-opts">
+        <span class="optl">Pointer</span><div class="seg" role="radiogroup" aria-label="Pointer" id="gPointer"><button role="radio" aria-checked="true" data-v="word" class="on">Word</button><button role="radio" aria-checked="false" data-v="underline">Underline</button><button role="radio" aria-checked="false" data-v="dot">Dot</button><button role="radio" aria-checked="false" data-v="outline">Outline</button></div>
+        <span class="optl">Focus</span><div class="seg" role="radiogroup" aria-label="Focus" id="gFocus"><button role="radio" aria-checked="true" data-v="sent" class="on">Sentence</button><button role="radio" aria-checked="false" data-v="line">Line</button><button role="radio" aria-checked="false" data-v="para">Paragraph</button></div>
+        <span class="optl">Step</span><div class="seg" role="radiogroup" aria-label="Step" id="gUnit"><button role="radio" aria-checked="true" data-v="word" class="on">Word</button><button role="radio" aria-checked="false" data-v="phrase">Phrase</button></div>
+        <label class="toggle"><input type="checkbox" id="gRead" checked> Dim what’s read</label>
       </div>
       <div class="g-text" id="gText" tabindex="0" aria-label="Reading guide demo passage. Press Space to step, hold to glide.">
         <div class="g-cursor" id="gCursor" aria-hidden="true"></div>
@@ -469,17 +501,23 @@ kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; 
   <section class="cat" id="lenses">
     <div class="cat-head"><span class="label">Part III · Word lenses &amp; highlights</span>
       <h2>Words that explain themselves</h2>
-      <p class="lede" style="margin:0">Lenses are toggles that tint certain words and give them a tooltip on hover or tap. <b>Names</b> get their character colour and a spoiler-safe card. <b>Hard words</b> get a dotted underline and a definition. <b>Select any text</b> to highlight it in a colour that carries a meaning, add your own bold or italic, and attach a note that shows on hover. All of it follows the grammar in Part I.</p></div>
+      <p class="lede" style="margin:0">Lenses tint certain words and explain them on hover or tap. <b>Names</b> get their character colour. <b>Hard words</b> (rare in English, Zipf below 3) get a dotted underline. <b>Speech</b> takes the speaker’s colour. <b>Asides</b> whisper a step quieter. <b>Foreign</b> phrases get a dashed underline. <b>Select any text</b> to highlight it in a colour that carries a meaning, add your own bold or italic, and attach a note that shows on hover. All of it follows the grammar in Part I.</p></div>
     <div class="card wide lensdemo" id="ld">
       <div class="g-bar sans">
-        <span class="label" id="ldCh"></span>
-        <span class="g-spacer"></span>
+        <span class="optl">Passage</span><div class="seg" role="radiogroup" aria-label="Passage" id="ldPass"><button role="radio" aria-checked="true" data-v="calm" class="on">Ch 36 · calm</button><button role="radio" aria-checked="false" data-v="mab">Ch 31 · all dialogue</button><button role="radio" aria-checked="false" data-v="ceto">Ch 32 · dense words</button></div>
+        <span class="optl">Intensity</span><div class="seg" role="radiogroup" aria-label="Intensity" id="ldInt"><button role="radio" aria-checked="false" data-v="quiet">Quiet</button><button role="radio" aria-checked="true" data-v="guided" class="on">Guided</button><button role="radio" aria-checked="false" data-v="rich">Rich</button></div>
+      </div>
+      <div class="g-bar sans g-opts">
         <label class="toggle"><input type="checkbox" id="lnNames" checked> Names</label>
         <label class="toggle"><input type="checkbox" id="lnHard" checked> Hard words</label>
-        <label class="toggle"><input type="checkbox" id="lnSpeech"> Speech</label>
+        <label class="toggle"><input type="checkbox" id="lnSpeech" checked> Speech</label>
+        <label class="toggle"><input type="checkbox" id="lnAsides" checked> Asides</label>
+        <label class="toggle"><input type="checkbox" id="lnForeign" checked> Foreign</label>
+        <span class="g-spacer"></span><span class="g-pill mono" id="ldCount"></span>
       </div>
+      <span class="label" id="ldCh" style="text-align:center"></span>
       <div class="l-text" id="lText"></div>
-      <p class="note">Try it: hover <i>Ahab</i>, <i>Stubb</i> or a dotted word. Select a phrase to highlight it; each colour has a meaning (Key, Beautiful, Idea, Feeling, Question, Revisit).</p>
+      <p class="note">Try the three passages and the intensity levels, and watch the counter: what doesn’t fit the budget is held back, not lost. Hover any word to reveal held marks. Select a phrase to highlight it; each colour has a meaning (Key, Beautiful, Idea, Feeling, Question, Revisit).</p>
       <div class="hl-bar glassy" id="hlBar" hidden>
         <div class="hl-colors"></div>
         <span class="hl-sep"></span>
@@ -498,7 +536,43 @@ kbd { display:inline-block; min-width:22px; padding:1px 6px; border-radius:6px; 
     </div>
   </section>
 
-  <!-- ============ PART III: FLOW ============ -->
+  <section class="cat" id="clutter" style="margin-top:56px">
+    <div class="cat-head"><span class="label">Part III · continued</span>
+      <h2>Richness without clutter</h2>
+      <p class="lede" style="margin:0">Marks should add richness, never noise. Three mechanisms keep it that way. An <b>attention budget</b> allows each intensity a number of marks per 100 words, and the most valuable win. <b>Focus scoping</b> makes the paragraph you’re reading rich and keeps everything else calm. <b>Graceful collapse</b> means a dense pattern shrinks to its minimal form instead of flooding the page.</p></div>
+    <div class="cards">
+      <article class="card wide"><h3>Edge cases and what pubre does</h3>
+        <table class="keys sans edge">
+          <tr><td>Dialogue-heavy page (more than 60% of a paragraph is speech, e.g. ch. 31)</td><td>Speech collapses to tinted quote marks “ ” in the speaker’s colour. The separation stays visible and the words stay ink.</td></tr>
+          <tr><td>Name-dense text (cast lists, Russian novels, the Extracts)</td><td>Only the first mention per paragraph is tinted; the rest are held. The guide reveals each one as it reaches it.</td></tr>
+          <tr><td>Archaic or technical prose (ch. 32: Latin, cetology)</td><td>Only the rarest words (lowest Zipf) within the budget are underlined, and at most one foreign phrase per paragraph. Everything else reveals on hover.</td></tr>
+          <tr><td>One word carries many meanings (a name, inside your highlight, under the pointer, in a quote)</td><td>Channels never collide (ink, underline, wash and pointer are separate layers). At most two system marks per word, in the order yours › pointer › who › tell-me-more › pattern.</td></tr>
+          <tr><td>Very long sentences (40+ words, often Melville)</td><td>Focus narrows to the clause between punctuation, so the contrast still points somewhere useful.</td></tr>
+          <tr><td>Verse, headings, tables, code, links, footnote references</td><td>Lenses skip them. Links and note references are already “tell me more” underlines in the grammar.</td></tr>
+          <tr><td>Low-contrast themes (Quiet, Nord, Dracula)</td><td>Dim levels compress so dimmed text never drops below 3:1 contrast with the page.</td></tr>
+          <tr><td>Small screens</td><td>The budget counts words on screen, not paragraphs. At Guided, hard-word underlines become dwell-only on phones.</td></tr>
+          <tr><td>The author’s own formatting (italics, small caps, bold)</td><td>Never overridden. Your bold adds a hairline stroke; your italic wraps a span.</td></tr>
+          <tr><td>Characters you haven’t met yet</td><td>Not tinted until their first mention; counts stop at your page.</td></tr>
+          <tr><td>Guide off</td><td>No dimming. Lenses run at the ambient budget.</td></tr>
+        </table></article>
+      <article class="card"><h3>Writing patterns</h3>
+        <ul class="d plain">
+          <li><b>Speech</b>: the speaker’s ink. Attribution from “said Stubb” / “Stubb whispered”, otherwise inherited from the previous speaker or the narration.</li>
+          <li><b>Asides</b> (parentheses, paired dashes): one contrast step quieter, like a lowered voice.</li>
+          <li><b>Foreign phrases</b>: a dashed underline, with a translation on dwell.</li>
+          <li><b>Letters, verse, songs, epigraphs</b>: block-level, handled by chapter stages (Part V).</li>
+          <li><b>Later, Rich only</b>: recurring motifs (“white”), measures and dates converted on dwell, rhetorical questions.</li>
+        </ul></article>
+      <article class="card"><h3>Budget per 100 words</h3>
+        <ul class="d plain">
+          <li><b>Quiet</b>: 0. Only yours and the pointer.</li>
+          <li><b>Guided</b>: about 2.5 (at least 1 per paragraph), doubled in the paragraph you’re guiding.</li>
+          <li><b>Rich</b>: about 5, up to 3 foreign phrases, and every motion verb.</li>
+        </ul><p class="note">Value order: first mention of a name, then the rarest hard word, then foreign phrases. Speech and asides don’t spend the budget: they recolour existing ink rather than adding marks.</p></article>
+    </div>
+  </section>
+
+  <!-- ============ PART IV: FLOW ============ -->
   <section class="cat" id="flow">
     <div class="cat-head"><span class="label">Part IV · Build order</span>
       <h2>What I’d build, in this order</h2>

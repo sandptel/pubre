@@ -34,3 +34,8 @@ Collected 2026-10-11. Add new entries with dates.
 - **Reading guide vision** (user's words): a visual cursor that replaces a finger, moving over one word at a time, with a light tint on the sentence or paragraph being read. The user controls it: press Space (or a UI button) to move forward, double-press to go back to the sentence start, arrow keys / vim / editor-like word motions. Auto-advancing pacers are rejected because getting back and adjusting speed are a pain.
 - The user loved the word highlighting for names and hard words. They want more in that direction: selective highlighting with colours **and typography** (bold, italic) and custom hover tooltips.
 - **Peeks must never block reading** (2026-10-11 comment): definition and note cards appear only after the cursor rests on a word for about 600 ms, vanish on the next move, never appear mid-glide, and sit above the current line.
+- **Plan v3 feedback (2026-10-11):**
+  - The pointer should come in types; whole-word highlight is the default (underline, dot and outline are optional). The user dislikes the moving underline and likes the springy bounce.
+  - "Dim what's read" should be on by default.
+  - Use contrast levels for focus: sentence, then paragraph, then page.
+  - Names, hard words and especially speech separation ("genius") are liked. Add more writing patterns, but **richness must never look cluttered**; the implementation must control intensity across edge cases.

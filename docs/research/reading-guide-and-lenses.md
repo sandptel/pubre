@@ -65,3 +65,31 @@ There is one intensity control instead of many toggles: **Quiet** (yours + where
 **Parts of speech (later lens):** wink-nlp is about 95% accurate on WSJ and about 1 MB; compromise is about 250 KB.
 
 **Annotations:** export Readium Annotations (a W3C Web Annotation profile) with both CFI and TextQuote selectors. Namespace pubre's extra styles as `pubre:style`.
+
+## Plan v3 changes (2026-10-11)
+
+**Pointer**
+- Types: Word (default; a whole-word block behind the text with a spring hop), Underline, Dot, Outline.
+- On a line change it fades through instead of swiping diagonally.
+
+**Contrast replaces the neutral wash**
+- Levels: focus 100%, paragraph 66%, page 38%.
+- With dim-read (default on): read before this paragraph 28%, read in this paragraph 40%, read in the focus unit 52%.
+- Asides sit at 60%.
+- Long sentences (40+ words) narrow the focus to the clause.
+
+**Attention budget**
+- Guided allows 2.5 marks per 100 words (minimum 1 per paragraph), doubled in the paragraph being guided. Rich allows 5. Quiet allows 0.
+- Value order: first mention of a name, then the rarest hard word (lowest Zipf), then foreign phrases (1 per paragraph, 3 at Rich).
+- Held marks reveal on hover.
+
+**Graceful collapse**
+- When more than 60% of a paragraph is speech, only the quote marks are tinted, in the speaker's colour.
+
+**Speaker attribution, in order**
+1. Explicit "said X" or "X whispered".
+2. Vocative: someone addressed by name isn't the speaker.
+3. An unclosed quote means the same speaker continues.
+4. Otherwise alternate between the two names from the last narration.
+
+**Writing patterns:** speech (speaker ink), asides (whisper), foreign (dashed underline).

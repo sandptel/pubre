@@ -16,6 +16,7 @@ export const ORDER = [
   ...VOICES.flatMap(k => [`v-soft-${k}`, `v-ink-${k}`, `v-under-${k}`, `v-marks-${k}`]),
   'hard', 'foreign', ...Array.from({ length: WHO_SLOTS }, (_, k) => `who-${k}`),
   ...MEANINGS.map(([c]) => `u-${c}`), 'u-bold', 'bloom', 'breathe',
+  'stage-rest', 'stage-fade', 'stage-hidden', // first-line staging: the page waits, the words to come are held back, the next one fades in
 ]
 
 type Registry = { get(n: string): { clear(): void; add(r: AbstractRange): void } | undefined; set(n: string, h: unknown): void }
@@ -65,6 +66,9 @@ export function marksCss(t: Theme): string {
   const fg = t.base[5], accent = t.base[t.accent], muted = t.base[4]
   const voice = (k: string) => whoHue(t, +k)
   return openersCss(t) + `
+::highlight(stage-hidden) { color: transparent; text-decoration-color: transparent; }
+::highlight(stage-fade) { color: ${fg}70; }
+::highlight(stage-rest) { color: ${fg}30; }
 @property --bloom { syntax: '<length>'; inherits: true; initial-value: 0px }
 @property --breathe { syntax: '<number>'; inherits: true; initial-value: 0 }
 ::highlight(c-page) { color: ${level(t, 0.72, 3.4)} }

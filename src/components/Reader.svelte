@@ -8,6 +8,7 @@
   import { Guide, type GuideState } from '../lib/guide.ts'
   import { Lenses, RARE, type Token } from '../lib/lenses.ts'
   import { define, loadCommon, rarity } from '../lib/lexicon.ts'
+  import { pauseAfter } from '../lib/pacing.ts'
   import { sectionOf, type Decor } from '../lib/stagetext.ts'
   import { colourOf } from '../lib/palette.ts'
   import { chapterFor, fingerprint, openerOf } from '../insights/chapters.ts'
@@ -137,6 +138,8 @@
           rec.progress = r.progress
           rec.chapter = r.chapter
           if (!gstate.active) paintLenses()
+          const at = `${r.index}:${r.page}`
+          if (at !== stagedAt) { stagedAt = at; stagingStop?.(); if (pag?.current) stageFirstLine(pag.current) } // only a real page change stops it
           hideCard()
           clearTimeout(saveTimer)
           saveTimer = window.setTimeout(() => { snapshotPlace(); save() }, 500)
@@ -217,6 +220,45 @@
     return { weight: Math.max(0.0005, (sections[i + 1]?.start ?? 1) - s.start), tint: c?.title ? moodTint(c.mood) : undefined }
   }))
   const stripCur = $derived(loc && sections.length ? Math.max(0, sections.findLastIndex(s => s.start <= loc!.top + 1e-6)) : 0)
+  // First-line staging: a chapter's first sentence arrives word by word, paced by its own punctuation,
+  // once, then is ordinary text. Highlights only (nothing in the book's DOM changes); any input finishes it.
+  const staged1 = new Set<string>()
+  let stagedAt = ''
+  let stagingStop: (() => void) | null = null
+  function stageFirstLine(v: BookView) {
+    if (!eff.openers || eff.motion !== 'full' || reduceMotion || gstate.active || staged || !pag) return
+    const ix = v.ix, first = pag.firstWordOnPage(v), last = pag.currentPage + 1 < v.pages ? pag.firstWordOnPage(v, pag.currentPage + 1) - 1 : ix.words.length - 1
+    for (let b = ix.words[first]?.b ?? 0; b < ix.blocks.length && ix.blocks[b].a <= last; b++) {
+      const h = ix.blocks[b]
+      if (h.kind !== 'heading' || !h.el.hasAttribute('data-pubre-opener')) continue
+      const key = `${v.index}:${b}`
+      if (staged1.has(key)) return
+      staged1.add(key)
+      let p = b + 1
+      while (p < ix.blocks.length && (ix.blocks[p].kind !== 'text' || ix.blocks[p].b < ix.blocks[p].a)) p++
+      if (p >= ix.blocks.length || ix.blocks[p].a > last) return
+      const s = ix.sentences[ix.words[ix.blocks[p].a].s], a = s.a, z = Math.min(s.b, a + 40, last)
+      const rng = (i: number, j: number) => { const r = v.doc.createRange(); r.setStart(ix.words[i].sn, ix.words[i].so); r.setEnd(ix.words[j].en, ix.words[j].eo); return r }
+      // the line's tail runs to the next word (its punctuation and closing quote stay back too)
+      const upto = (i: number, j: number) => { const r = rng(i, j), n = ix.words[j + 1]; if (n) r.setEnd(n.sn, n.so); return r }
+      const rest = z < last ? [upto(z + 1, last)] : []
+      let k = a, t = 0
+      const stop = () => { clearTimeout(t); v.marks.set('stage-hidden', []); v.marks.set('stage-fade', []); v.marks.set('stage-rest', []); stagingStop = null; removeEventListener('keydown', stop, true); v.doc.removeEventListener('pointerdown', stop, true) }
+      stagingStop?.(); stagingStop = stop
+      addEventListener('keydown', stop, true); v.doc.addEventListener('pointerdown', stop, true)
+      const tick = () => {
+        if (k > z) { v.marks.set('stage-hidden', []); v.marks.set('stage-fade', []); t = window.setTimeout(stop, 500); return } // the line is in: the page comes back
+        v.marks.set('stage-fade', [rng(k, k)])
+        v.marks.set('stage-hidden', k < z ? [upto(k + 1, z)] : [])
+        if (k === a) v.marks.set('stage-rest', rest)
+        const ms = 170 + pauseAfter(ix, k) * 0.6
+        k++
+        t = window.setTimeout(tick, ms)
+      }
+      t = window.setTimeout(tick, 380) // after the page has settled
+      return
+    }
+  }
   const tocGlyph = (label: string, href: string) => {
     const list = rec.profile?.chapters, c = list && chapterFor(list, label, book?.spineIndex(href) ?? -1)
     return c?.title ? fingerprint(c.lens, 22) : ''

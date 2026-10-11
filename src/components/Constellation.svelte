@@ -2,6 +2,7 @@
   // The cast as a sky: everyone you've met so far is a star (brighter the more they're around), and
   // every paragraph two of them share draws a thread. Nobody you haven't met yet exists here.
   import type { NameInfo } from '../insights/names.ts'
+  import { portraitUrl } from '../lib/portrait.ts'
   let { people, links = {}, upto, hue, onpick }: {
     people: NameInfo[]; links?: Record<string, Record<string, number[]>>; upto: number
     hue: (slot: number) => string; onpick?: (name: string) => void
@@ -25,8 +26,8 @@
     {#each pos as p, i (p.name)}
       <g class="star" style:animation-delay="{i * 60}ms" role="button" tabindex="0" aria-label={p.name} onclick={() => onpick?.(p.name)} onkeydown={e => { if (e.key === 'Enter') onpick?.(p.name) }}>
         <circle cx={p.x} cy={p.y} r={p.s * 2.4} fill={p.slot >= 0 ? hue(p.slot) : 'currentColor'} opacity=".16" />
-        <circle cx={p.x} cy={p.y} r={p.s} fill={p.slot >= 0 ? hue(p.slot) : 'currentColor'} />
-        <text x={p.x} y={p.y + p.s + 4.2} text-anchor="middle">{p.name}</text>
+        <image href={portraitUrl(p.name, p.slot >= 0 ? hue(p.slot) : '#ccc')} x={p.x - p.s * 1.7} y={p.y - p.s * 1.7} width={p.s * 3.4} height={p.s * 3.4} />
+        <text x={p.x} y={p.y + p.s * 1.7 + 3.6} text-anchor="middle">{p.name}</text>
       </g>
     {/each}
   </svg>

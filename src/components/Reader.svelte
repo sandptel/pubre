@@ -15,6 +15,7 @@
   import { chapterFor, fingerprint, openerOf } from '../insights/chapters.ts'
   import { companions } from '../insights/cast.ts'
   import { computeProfile, PROFILE_V } from '../lib/profile.ts'
+  import { portraitUrl } from '../lib/portrait.ts'
   import { keepsakeSvg } from '../insights/keepsake.ts'
   import { mix } from '../lib/settings.ts'
   import { blockOffsets } from '../lib/textindex.ts'
@@ -588,7 +589,7 @@
       const met = p && p.first < v.index ? chapterOfSpine(p.first) : '', mates = companions(rec.profile?.links, t.key, v.index)
       const hist = p ? p.perSpine.slice(0, v.index + 1) : [], peak = Math.max(1, ...hist)
       const spark = hist.length > 2 ? `<div class="c-hist">${hist.slice(-40).map(n => `<i style="height:${Math.max(1, Math.round(n / peak * 14))}px;background:${hue}"></i>`).join('')}</div>` : ''
-      return `<div class="c-who"><span class="c-av" style="background:${hue}">${escape(t.key[0])}</span><b>${escape(t.key)}</b></div><div class="c-def">${lead}${met ? ` First met in ${escape(met)}.` : ''}</div>${mates.length ? `<div class="c-def">Often with ${mates.map(escape).join(', ')}.</div>` : ''}${spark}`
+      return `<div class="c-who"><img class="c-av" alt="" src="${portraitUrl(t.key, mix(hue, theme.base[0], 0.55), theme.dark ? theme.base[0] : '#1d1b19', theme.dark ? theme.base[5] : '#fbf8f2')}"><b>${escape(t.key)}</b></div><div class="c-def">${lead}${met ? ` First met in ${escape(met)}.` : ''}</div>${mates.length ? `<div class="c-def">Often with ${mates.map(escape).join(', ')}.</div>` : ''}${spark}`
     }
     if (t.kind === 'speech') return `<div class="c-def">Quoted words with no speaker named nearby.</div>`
     if (t.kind === 'foreign') return `<b>${escape(lenses!.rangeOf(v, t).toString().slice(0, 60))}</b><div class="c-def">A phrase in another language (${escape(t.key)}).</div>`
@@ -1387,7 +1388,7 @@
   .lens-card :global(.c-who) { display: flex; align-items: center; gap: 8px; }
   .lens-card :global(.c-hist) { display: flex; align-items: end; gap: 1px; height: 14px; margin-top: 6px; }
   .lens-card :global(.c-hist i) { flex: 1; min-width: 1px; border-radius: 1px; opacity: .7; }
-  .lens-card :global(.c-av) { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 12px var(--serif); }
+  .lens-card :global(.c-av) { width: 44px; height: 44px; border-radius: 12px; flex: none; }
   @keyframes cardIn { from { opacity: 0; } }
   :global(.star-birth) { position: fixed; z-index: 6; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; }
   /* weather: a whisper of rain, fog at the edges, slow snow, a night vignette — all very faint */

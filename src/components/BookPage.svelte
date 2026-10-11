@@ -15,6 +15,7 @@
   import { whoHue, WHO_SLOTS, MEANINGS } from '../lib/marks.ts'
   import type { Annotation } from '../lib/annotations.ts'
   import Cover from './Cover.svelte'
+  import { portraitUrl } from '../lib/portrait.ts'
 
   let { book, settings, onread, onback }: { book: BookRecord; settings: Settings; onread: () => void; onback: () => void } = $props()
   const rec = $state(untrack(() => ({ ...book })))
@@ -110,7 +111,7 @@
         <h2>So far</h2>
         {#if met.length}
           <span class="eyebrow">Who you've met</span>
-          <div class="cast">{#each met as p}<span class="who" style:--c={whoHue(theme, p.slot % WHO_SLOTS)}><i>{p.name[0]}</i>{p.name}</span>{/each}</div>
+          <div class="cast">{#each met as p}<span class="who" style:--c={whoHue(theme, p.slot % WHO_SLOTS)}><img alt="" src={portraitUrl(p.name, mix(whoHue(theme, p.slot % WHO_SLOTS), theme.base[0], 0.55), theme.dark ? theme.base[0] : '#1d1b19', theme.dark ? theme.base[5] : '#fbf8f2')} />{p.name}</span>{/each}</div>
         {/if}
         {#if anns.length}
           <span class="eyebrow">Your marks · {anns.length}</span>
@@ -193,8 +194,8 @@
   .where b { font: 500 17px var(--serif); }
   blockquote { margin: 4px 0 0; padding-left: 12px; border-left: 3px solid var(--accent); font: italic 15px/1.5 var(--serif); color: color-mix(in srgb, var(--fg) 82%, transparent); }
   .cast { display: flex; flex-wrap: wrap; gap: 6px; }
-  .who { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: 999px; background: color-mix(in srgb, var(--c) 14%, transparent); font-size: 13px; }
-  .who i { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--c); color: var(--bg); font: 600 11px var(--serif); font-style: normal; }
+  .who { display: inline-flex; align-items: center; gap: 8px; padding: 3px 12px 3px 3px; border-radius: 13px !important; border-radius: 999px; background: color-mix(in srgb, var(--c) 14%, transparent); font-size: 13px; }
+  .who img { width: 34px; height: 34px; border-radius: 10px; }
   .mark { margin: 0; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--c) 14%, transparent); font: 14px/1.5 var(--serif); display: grid; gap: 4px; }
   .mark small { font: 10.5px var(--mono); color: var(--muted); }
   .words { display: flex; flex-wrap: wrap; gap: 8px; }

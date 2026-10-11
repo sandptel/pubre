@@ -21,3 +21,17 @@ export function bookMinutesLeft(words: number[] | undefined, index: number, frac
   const rest = words.slice(index + 1).reduce((a, n) => a + n, 0) + (words[index] ?? 0) * (1 - fraction)
   return rest / Math.max(60, wpm)
 }
+
+/** How long since you last read, in calm words ("just now", "2 hours ago", "yesterday", "4 days ago"). */
+export function since(ms: number, now = Date.now()): string {
+  const m = Math.max(0, (now - ms) / 60000)
+  if (m < 2) return 'just now'
+  if (m < 60) return `${Math.round(m)} min ago`
+  const h = m / 60
+  if (h < 20) return `${Math.round(h)} ${Math.round(h) === 1 ? 'hour' : 'hours'} ago`
+  const d = Math.round(h / 24)
+  if (d <= 1) return 'yesterday'
+  if (d < 14) return `${d} days ago`
+  const w = Math.round(d / 7)
+  return w < 9 ? `${w} weeks ago` : 'a while ago'
+}

@@ -3,10 +3,11 @@
   import { flip } from 'svelte/animate'
   import { cubicOut } from 'svelte/easing'
   import { fly, scale } from 'svelte/transition'
-  import { importFile, listBooks, removeBook, saveBook, type BookRecord } from '../lib/store.svelte.ts'
+  import { importFile, listAnnotations, listBooks, removeBook, saveBook, type BookRecord } from '../lib/store.svelte.ts'
   import type { Settings } from '../lib/settings.ts'
-  import { bookMinutesLeft, calmRange } from '../lib/calm.ts'
+  import { bookMinutesLeft, calmRange, since } from '../lib/calm.ts'
   import Cover from './Cover.svelte'
+  import MiniCapsule from './MiniCapsule.svelte'
   import Sheet from './Sheet.svelte'
   import Appearance from './Appearance.svelte'
   import ReadingAids from './ReadingAids.svelte'
@@ -25,11 +26,19 @@
 
   let settingsOpen = $state(false)
   let sview = $state<'menu' | 'look' | 'aids'>('menu')
-  const current = $derived(books.find(b => b.progress > 0 && b.progress < 0.995))
+  // Pick up where you left off: the book you read most recently comes first.
+  const lastRead = (b: BookRecord) => b.readAt ?? b.opened ?? 0
+  const reading = $derived(books.filter(b => b.progress > 0 && b.progress < 0.995).sort((x, y) => lastRead(y) - lastRead(x)))
+  const current = $derived(reading[0])
+  const away = $derived(!!current?.readAt && Date.now() - current.readAt > 3 * 864e5) // after a gap: recall first, then the reminder
+  let recalled = $state(false)
+  const chapterLeft = (b: BookRecord) => { const r = b.chapterLeft ? calmRange(b.chapterLeft / Math.max(60, settings.wpm)) : ''; return r ? `${r} left in chapter` : '' }
+  let marks = $state<Record<string, string>>({}) // your latest highlight per book you're reading
+  $effect(() => { for (const b of reading) if (!(b.id in marks)) listAnnotations(b.id).then(l => { const a = l.sort((x, y) => y.created - x.created)[0]; marks = { ...marks, [b.id]: a ? a.exact.replace(/\s+/g, ' ').slice(0, 120) : '' } }) })
   const anyStarted = $derived(books.some(b => b.progress > 0)) // a "new" dot means nothing while every book is new
   // Shelves: what you're reading, what's next, what you've finished. Empty shelves are hidden.
   const shelves = $derived([
-    { id: 'reading', title: 'Reading', list: books.filter(b => b.progress > 0 && b.progress < 0.995 && b !== current) },
+    { id: 'reading', title: 'Recently read', list: reading.filter(b => b !== current) },
     { id: 'next', title: 'Up next', list: books.filter(b => !b.progress) },
     { id: 'done', title: 'Finished', list: books.filter(b => b.progress >= 0.995) },
   ].filter(s => s.list.length))
@@ -136,17 +145,28 @@
   {#if error}<p class="error" role="alert" transition:fly={{ y: -8, duration: 250 }}>{error}</p>{/if}
 
   {#if current}
-    <button class="continue" onclick={() => open(current)} in:fly={{ y: 12, duration: 500, easing: cubicOut }}>
-      <span class="c-cover" style:view-transition-name={morphId === current.id ? 'cover' : undefined}><Cover book={current} /></span>
-      <span class="c-info">
-        <span class="eyebrow">Now reading</span>
-        <span class="c-title">{current.title}</span>
-        <span class="c-meta">{current.creator}</span>
-        {#if current.chapter}<span class="c-chapter">{current.chapter}</span>{/if}
-        <span class="c-bar"><span style:width="{current.progress * 100}%"></span></span>
-        <span class="c-meta">{pct(current.progress)}{timeLeft(current) ? ` · ${timeLeft(current)}` : ''}</span>
-      </span>
-    </button>
+    <section class="continue" in:fly={{ y: 12, duration: 500, easing: cubicOut }} aria-label="Pick up where you left off">
+      <button class="c-main" onclick={() => open(current)}>
+        <span class="c-cover" style:view-transition-name={morphId === current.id ? 'cover' : undefined}><Cover book={current} /></span>
+        <span class="c-info">
+          <span class="eyebrow">{away ? 'Welcome back' : 'Now reading'}{current.readAt ? ` · ${since(current.readAt)}` : ''}</span>
+          <span class="c-title">{current.title}</span>
+          {#if current.chapter}<span class="c-chapter">{current.chapter}</span>{/if}
+          <span class="c-cap"><MiniCapsule words={current.profile?.words} progress={current.progress} /></span>
+          <span class="c-meta">{pct(current.progress)}{chapterLeft(current) ? ` · ${chapterLeft(current)}` : timeLeft(current) ? ` · ${timeLeft(current)}` : ''}</span>
+        </span>
+      </button>
+      {#if current.lastLine}
+        {#if away && !recalled}
+          <div class="c-recall"><span>What happened last? Take a moment to recall it.</span><button onclick={() => (recalled = true)}>Remind me</button></div>
+        {:else}
+          <blockquote class="c-line" in:fly={{ y: 6, duration: 400, easing: cubicOut }}>
+            <p>“{current.lastLine}”</p>
+            {#if current.who?.length || marks[current.id]}<cite>{current.who?.length ? `with ${current.who.join(', ')}` : ''}{current.who?.length && marks[current.id] ? ' · ' : ''}{marks[current.id] ? `your last mark: “${marks[current.id]}”` : ''}</cite>{/if}
+          </blockquote>
+        {/if}
+      {/if}
+    </section>
   {/if}
 
   {#if loaded && !books.length}
@@ -162,6 +182,23 @@
     {#each shelves as shelf (shelf.id)}
       <section class="shelf" aria-label={shelf.title}>
         <h2 class="shelf-h">{shelf.title}<span>{shelf.list.length}</span></h2>
+    {#if shelf.id === 'reading'}
+      <div class="recent">
+        {#each shelf.list as b (b.id)}
+          <button class="r-card" onclick={() => open(b)} oncontextmenu={e => { e.preventDefault(); showMenu(b, e.clientX, e.clientY) }}
+            onpointerdown={e => pressStart(e, b)} onpointerup={pressEnd} onpointercancel={pressEnd} onpointerleave={pressEnd}>
+            <span class="r-cover"><Cover book={b} /></span>
+            <span class="r-info">
+              <b>{b.title}</b>
+              {#if b.chapter}<span class="c-chapter">{b.chapter}</span>{/if}
+              {#if b.lastLine}<span class="r-line">“{b.lastLine}”</span>{/if}
+              <span class="r-cap"><MiniCapsule words={b.profile?.words} progress={b.progress} /></span>
+              <span class="c-meta">{b.readAt ? since(b.readAt) : pct(b.progress)}{b.who?.length ? ` · with ${b.who.join(', ')}` : ''}</span>
+            </span>
+          </button>
+        {/each}
+      </div>
+    {:else}
     <ul class="grid">
       {#each shelf.list as b, i (b.id)}
         <li style:--i={i} animate:flip={{ duration: 450, easing: cubicOut }} out:scale={{ start: 0.85, duration: 250 }}>
@@ -178,6 +215,7 @@
         </li>
       {/each}
     </ul>
+    {/if}
       </section>
     {/each}
   {/if}
@@ -237,15 +275,33 @@
   .add.busy svg { animation: spin 1s linear infinite; }
   .error { background: color-mix(in srgb, var(--base08) 14%, transparent); color: var(--base08); padding: var(--s3) var(--s4); border-radius: 12px; margin: 0 0 var(--s5); }
 
-  /* Continue reading: a compact, fully tappable card. */
-  .continue {
-    all: unset; box-sizing: border-box; cursor: pointer; display: flex; gap: var(--s4); align-items: center;
-    width: min(100%, 460px); padding: var(--s3); margin-bottom: var(--s6); border-radius: 18px;
-    background: var(--hover); transition: transform .4s var(--spring), background-color .2s;
+  /* Pick up where you left off: the book, your place in it, and the line you stopped on. */
+  .continue { box-sizing: border-box; width: min(100%, 560px); margin-bottom: var(--s6); border-radius: 20px; background: var(--hover); overflow: hidden; }
+  .c-main {
+    all: unset; box-sizing: border-box; cursor: pointer; display: flex; gap: var(--s4); align-items: center; width: 100%;
+    padding: var(--s3); transition: transform .4s var(--spring), background-color .2s;
   }
-  .continue:hover { background: color-mix(in srgb, var(--fg) 9%, transparent); }
-  .continue:active { transform: scale(.98); }
-  .continue:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .c-main:hover { background: color-mix(in srgb, var(--fg) 5%, transparent); }
+  .c-main:active { transform: scale(.985); }
+  .c-main:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 20px; }
+  .c-cap { display: block; margin: 6px 0 2px; }
+  .c-line { margin: 0; padding: var(--s1) var(--s4) var(--s4) calc(var(--s3) + 64px + var(--s4)); }
+  .c-line p { margin: 0; font: italic 15px/1.5 var(--serif); color: color-mix(in srgb, var(--fg) 82%, var(--bg)); display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .c-line cite { display: block; margin-top: 6px; font: 12px system-ui; color: var(--muted); font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .c-recall { display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s4) var(--s4) calc(var(--s3) + 64px + var(--s4)); font: italic 14px/1.4 var(--serif); color: var(--muted); }
+  .c-recall span { flex: 1; }
+  .c-recall button { flex: none; border: 0; border-radius: 999px; padding: 8px 14px; background: var(--bg); color: var(--fg); font: 600 13px system-ui; font-style: normal; box-shadow: 0 1px 3px rgb(0 0 0 / .08); }
+  @media (max-width: 480px) { .c-line, .c-recall { padding-left: var(--s4); } }
+  .recent { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
+  .r-card { all: unset; box-sizing: border-box; cursor: pointer; display: flex; gap: var(--s3); padding: var(--s3); border-radius: 16px; background: var(--hover); -webkit-touch-callout: none; user-select: none; transition: transform .4s var(--spring), background-color .2s; }
+  .r-card:hover { background: color-mix(in srgb, var(--fg) 9%, transparent); }
+  .r-card:active { transform: scale(.98); }
+  .r-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .r-cover { width: 56px; flex: none; }
+  .r-info { display: grid; gap: 3px; min-width: 0; align-content: start; }
+  .r-info b { font: 600 16px/1.25 var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .r-line { font: italic 13.5px/1.45 var(--serif); color: color-mix(in srgb, var(--fg) 75%, var(--bg)); display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .r-cap { display: block; margin: 4px 0 1px; }
   .c-cover { width: 64px; flex: none; }
   .c-info { display: grid; gap: var(--s1); min-width: 0; flex: 1; }
   .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
@@ -264,8 +320,7 @@
   .aa { width: 20px; font: 600 15px var(--serif); color: var(--accent); text-align: center; }
   .about { font-size: 12px; color: var(--muted); line-height: 1.5; margin: var(--s4) 0 0; }
   .c-meta { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .c-bar { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; margin: var(--s1) 0 2px; }
-  .c-bar span, .bar span { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+  .bar span { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
 
   .grid {
     list-style: none; padding: 0; margin: 0;

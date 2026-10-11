@@ -21,6 +21,11 @@ export interface BookRecord {
   promptSkips?: number // consecutive dismissals of the chapter-end card
   prefs?: Partial<Settings> // this book's overrides of the global settings
   profile?: { v: number; names: NameInfo[]; words?: number[] } // on-device insights (cast, words per chapter), computed once
+  // Your place, kept for the homepage (only what you've read: spoiler-safe)
+  readAt?: number // when you last read
+  lastLine?: string // the sentence at your place
+  who?: string[] // who was around just before your place
+  chapterLeft?: number // words left in the chapter
 }
 
 let dbp: Promise<IDBDatabase> | undefined

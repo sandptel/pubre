@@ -83,6 +83,22 @@
     clearTimeout(saveTimer)
     saveBook(rec)
   }
+  /** Keep your place for the homepage: when, the sentence you're on, who was around, words left in the chapter. */
+  function snapshotPlace() {
+    const v = pag?.current
+    if (!v || !v.ix.words.length || !loc) return
+    const ix = v.ix, k = pag!.firstWordOnPage(v), sp = ix.sentences[ix.words[k]?.s ?? 0]
+    if (!sp) return
+    const r = v.doc.createRange()
+    r.setStart(ix.words[sp.a].sn, ix.words[sp.a].so); r.setEnd(ix.words[sp.b].en, ix.words[sp.b].eo)
+    const t = r.toString().replace(/\s+/g, ' ').trim()
+    rec.lastLine = t.length > 220 ? t.slice(0, 220).replace(/\s+\S*$/, '') + '…' : t
+    const b0 = ix.words[k].b, before = ix.blocks.slice(Math.max(0, b0 - 25), b0 + 1).map(bl => bl.text).join(' ')
+    rec.who = (rec.profile?.names ?? []).filter(n => n.kind === 'person' && n.slot >= 0 && new RegExp(`(?<![A-Za-z])${n.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z])`).test(before)).slice(0, 3).map(n => n.name)
+    const total = rec.profile?.words?.reduce((a, n) => a + n, 0) ?? 0
+    rec.chapterLeft = total ? Math.max(0, Math.round((loc.chapterEnd - loc.top) * total)) : undefined
+    rec.readAt = Date.now()
+  }
 
   onMount(() => {
     let gone = false
@@ -118,7 +134,7 @@
           if (!gstate.active) paintLenses()
           hideCard()
           clearTimeout(saveTimer)
-          saveTimer = window.setTimeout(save, 500)
+          saveTimer = window.setTimeout(() => { snapshotPlace(); save() }, 500)
         }
         pag.onTap = zone => { chrome = zone === 'center' ? !chrome : false }
         const away = Date.now() - (rec.opened || Date.now())
@@ -134,6 +150,7 @@
     })()
     return () => {
       gone = true
+      snapshotPlace()
       save()
       guide?.destroy()
       pag?.destroy()

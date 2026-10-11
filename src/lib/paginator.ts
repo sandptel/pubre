@@ -108,7 +108,7 @@ export class Paginator {
   private L = { V: 0, H: 0, t: 0, cols: 1, colW: 0, gap: 0, step: 0, left: 0 }
   private reserve = 0 // extra bottom margin (e.g. room for the reading guide's pad)
   private starts: number[] = [] // cumulative spine weights, for whole-book progress
-  private marks: { label: string; at: number }[] = [] // every TOC entry on the progress axis
+  private marks: Mark[] = [] // every TOC entry on the progress axis
   private wheelLock = 0
   private queued: 0 | 1 | -1 = 0 // one turn asked for while another was still moving
   private reduce = matchMedia('(prefers-reduced-motion: reduce)')
@@ -537,10 +537,10 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
       }
       return this.starts[i] + (this.starts[i + 1] - this.starts[i]) * f
     }
-    const marks: { label: string; at: number }[] = []
+    const marks: Mark[] = []
     const walk = async (items: TocItem[]) => {
       for (const t of items) {
-        if (t.href) marks.push({ label: t.label, at: await at(t.href) })
+        if (t.href) marks.push({ label: tidy(t.label), at: await at(t.href), index: this.book.spineIndex(t.href), frag: decodeURIComponent(t.href.split('#')[1] ?? '') })
         await walk(t.children)
       }
     }
@@ -562,11 +562,22 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
     const w = this.starts[v.index + 1] - this.starts[v.index]
     const progress = this.starts[v.index] + w * ((this.page + 1) / v.pages)
     const top = this.starts[v.index] + w * (this.page / v.pages) // position of this page's first line
-    const chapter = this.marks.findLast(m => m.at <= top + w / v.pages * 0.5)?.label ?? ''
+    // In the chapter on screen, a TOC entry sits where its anchor element actually is (file offsets drift).
+    const pos = (m: Mark) => {
+      if (m.index !== v.index) return m.at
+      const el = m.frag ? v.doc.getElementById(m.frag) : null
+      return el ? this.starts[v.index] + w * (this.pageOfRect(el.getBoundingClientRect()) / v.pages) : m.frag ? m.at : this.starts[v.index]
+    }
+    const placed = this.marks.map(m => ({ label: m.label, at: pos(m) }))
+    const chapter = placed.findLast(m => m.at <= top + w / v.pages * 0.5)?.label ?? ''
     let cfi: string | undefined
     const k = v.ix.words.length ? this.firstWordOnPage(v) : -1
     if (k >= 0) try { const wd = v.ix.words[k]; cfi = this.book.cfiAt(v.index, wd.sn, wd.so) } catch { /* unresolvable node */ }
-    const chapterEnd = this.marks.find(m => m.at > top + w / v.pages * 0.5)?.at ?? 1
+    const chapterEnd = placed.find(m => m.at > top + w / v.pages * 0.5)?.at ?? 1
     this.onRelocate?.({ index: v.index, page: this.page, pages: v.pages, fraction, progress, chapter, cfi, top, chapterEnd })
   }
 }
+
+interface Mark { label: string; at: number; index: number; frag: string }
+/** TOC labels sometimes carry an illustration caption before the chapter ("He rode a black horse. CHAPTER III."). */
+const tidy = (label: string) => label.match(/\bCHAPTER\s*[IVXLCDM\d]+\b.*/i)?.[0] ?? label

@@ -6,3 +6,4 @@ dist/
 .docs/
 docs
 CLAUDE.md
+.claude/

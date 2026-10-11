@@ -1,117 +1,166 @@
 <script lang="ts">
-  import { fonts, pubreThemes, themes, type Settings } from '../lib/settings.ts'
+  import { flushSync } from 'svelte'
+  import { cubicOut } from 'svelte/easing'
+  import { slide } from 'svelte/transition'
+  import { fonts, modes, palettes, resolveTheme, type Settings } from '../lib/settings.ts'
 
   let { settings = $bindable() }: { settings: Settings } = $props()
 
-  const base16 = Object.keys(themes).filter(k => !pubreThemes.includes(k))
+  let open = $state<'' | 'font' | 'custom'>('')
+  const toggle = (k: 'font' | 'custom') => (open = open === k ? '' : k)
   const size = (d: number) => (settings.fontScale = Math.min(200, Math.max(70, settings.fontScale + d)))
+
+  // Color changes crossfade the whole screen (including the page) instead of snapping.
+  function recolor(update: () => void) {
+    if (!document.startViewTransition) return update()
+    document.startViewTransition(() => { update(); flushSync() })
+  }
 </script>
 
-<div class="row size">
-  <button class="seg small" aria-label="Smaller text" onclick={() => size(-10)}>A</button>
+<div class="size" role="group" aria-label="Text size">
+  <button aria-label="Smaller text" onclick={() => size(-10)}><span class="a sm">A</span></button>
   <span class="val">{settings.fontScale}%</span>
-  <button class="seg big" aria-label="Larger text" onclick={() => size(10)}>A</button>
+  <button aria-label="Larger text" onclick={() => size(10)}><span class="a lg">A</span></button>
 </div>
 
-<h3>Themes</h3>
-<div class="themes">
-  {#each pubreThemes as id}
-    {@const t = themes[id]}
-    <button class="theme" class:on={settings.theme === id} onclick={() => (settings.theme = id)}
-      style:background={t.base[0]} style:color={t.base[5]} style:--ring={t.base[t.accent]}>
-      <span class="aa">Aa</span><span class="nm">{t.name}</span>
+<div class="modes" role="radiogroup" aria-label="Mode">
+  {#each Object.entries(modes) as [id, m]}
+    {@const t = resolveTheme(settings.palette, id)}
+    <button role="radio" aria-checked={settings.mode === id} class="mode" class:on={settings.mode === id}
+      onclick={() => recolor(() => (settings.mode = id))}>
+      <span class="swatch" style:background={t.base[0]} style:color={t.base[5]}>Aa</span>
+      <span class="label">{m.name}</span>
     </button>
   {/each}
 </div>
 
-<h3>Base16</h3>
-<div class="scroller">
-  {#each base16 as id}
-    {@const t = themes[id]}
-    <button class="b16" class:on={settings.theme === id} onclick={() => (settings.theme = id)}
-      style:background={t.base[0]} style:color={t.base[5]} title={t.name}>
-      <span class="dots">{#each t.base.slice(8, 14) as c}<i style:background={c}></i>{/each}</span>
-      <span class="nm">{t.name}</span>
+<div class="palettes" role="radiogroup" aria-label="Palette">
+  {#each Object.entries(palettes) as [id, p]}
+    {@const t = resolveTheme(id, settings.mode)}
+    <button role="radio" aria-checked={settings.palette === id} class="palette" class:on={settings.palette === id}
+      style:background={t.base[0]} style:color={t.base[5]} style:--ring={t.base[t.accent]}
+      onclick={() => recolor(() => (settings.palette = id))}>
+      <span class="dots">{#each [8, 9, 10, 11, 13, 14] as i}<i style:background={t.base[i]}></i>{/each}</span>
+      <span class="name">{p.name}</span>
     </button>
   {/each}
 </div>
 
-<h3>Font</h3>
-<div class="fonts">
-  {#each Object.entries(fonts) as [id, f]}
-    <button class="font" class:on={settings.font === id} style:font-family={f.stack || 'var(--serif)'}
-      onclick={() => (settings.font = id)}>
-      <span class="aa">Ag</span>{f.name}
-    </button>
-  {/each}
-</div>
+<div class="group">
+  <button class="row" aria-expanded={open === 'font'} onclick={() => toggle('font')}>
+    <span>Font</span>
+    <span class="value" style:font-family={fonts[settings.font]?.stack || 'inherit'}>{fonts[settings.font]?.name}</span>
+    <svg class="chev" class:open={open === 'font'} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+  </button>
+  {#if open === 'font'}
+    <div class="sub" transition:slide={{ duration: 320, easing: cubicOut }}>
+      {#each Object.entries(fonts) as [id, f]}
+        <button class="opt" style:font-family={f.stack || 'inherit'} onclick={() => (settings.font = id)}>
+          {f.name === 'Original' ? 'Publisher’s font' : f.name}
+          {#if settings.font === id}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>{/if}
+        </button>
+      {/each}
+    </div>
+  {/if}
 
-<h3>Layout</h3>
-<label class="row">
-  <span>Line spacing</span>
-  <input type="range" min="1.1" max="2.2" step="0.05" bind:value={settings.lineHeight} />
-  <span class="val">{settings.lineHeight.toFixed(2)}</span>
-</label>
-<div class="row">
-  <span>Margins</span>
-  <div class="segmented" role="radiogroup" aria-label="Margins">
-    {#each ['Narrow', 'Normal', 'Wide'] as label, i}
-      <button role="radio" aria-checked={settings.margin === i} class:on={settings.margin === i} onclick={() => (settings.margin = i)}>{label}</button>
-    {/each}
-  </div>
+  <button class="row" aria-expanded={open === 'custom'} onclick={() => toggle('custom')}>
+    <span>Customize</span>
+    <span class="value">Spacing, margins, layout</span>
+    <svg class="chev" class:open={open === 'custom'} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+  </button>
+  {#if open === 'custom'}
+    <div class="sub" transition:slide={{ duration: 320, easing: cubicOut }}>
+      <label class="line">
+        <span>Line spacing</span>
+        <input type="range" min="1.1" max="2.2" step="0.05" bind:value={settings.lineHeight} />
+      </label>
+      <div class="line">
+        <span>Margins</span>
+        <div class="segmented" role="radiogroup" aria-label="Margins">
+          {#each ['Narrow', 'Normal', 'Wide'] as label, i}
+            <button role="radio" aria-checked={settings.margin === i} class:on={settings.margin === i} onclick={() => (settings.margin = i)}>{label}</button>
+          {/each}
+        </div>
+      </div>
+      <label class="line"><span>Justify</span><input type="checkbox" role="switch" bind:checked={settings.justify} /></label>
+      <label class="line"><span>Bold text</span><input type="checkbox" role="switch" bind:checked={settings.bold} /></label>
+      <label class="line">
+        <span>Two pages when wide</span>
+        <input type="checkbox" role="switch" checked={settings.spread === 'auto'}
+          onchange={e => (settings.spread = e.currentTarget.checked ? 'auto' : 'single')} />
+      </label>
+    </div>
+  {/if}
 </div>
-<label class="row"><span>Justify text</span><input type="checkbox" role="switch" bind:checked={settings.justify} /></label>
-<label class="row"><span>Bold text</span><input type="checkbox" role="switch" bind:checked={settings.bold} /></label>
-<label class="row">
-  <span>Two pages on wide screens</span>
-  <input type="checkbox" role="switch" checked={settings.spread === 'auto'}
-    onchange={e => (settings.spread = e.currentTarget.checked ? 'auto' : 'single')} />
-</label>
 
 <style>
-  h3 { font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 22px 0 10px; }
-  .row { display: flex; align-items: center; gap: 12px; min-height: 46px; }
-  .row > span:first-child { flex: 1; }
-  .row input[type=range] { flex: 1.3; accent-color: var(--accent); }
-  .val { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 3.2em; text-align: center; }
-
-  .size { background: color-mix(in srgb, var(--fg) 6%, transparent); border-radius: 14px; padding: 4px; margin-top: 4px; }
-  .seg { flex: 1; height: 44px; border: 0; border-radius: 10px; background: transparent; font-family: var(--serif); transition: background-color .2s, transform .15s; }
-  .seg:hover { background: color-mix(in srgb, var(--fg) 7%, transparent); }
-  .seg:active { transform: scale(.95); }
-  .small { font-size: .95rem; }
-  .big { font-size: 1.5rem; }
-
-  .themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .theme {
-    border: 0; border-radius: 14px; padding: 12px 8px 10px; display: grid; gap: 2px; justify-items: center;
-    box-shadow: inset 0 0 0 1px rgb(128 128 128 / .25); transition: transform .25s var(--ease), box-shadow .2s;
+  /* Text size: one segmented capsule, value in the middle. */
+  .size {
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+    height: 44px; border-radius: 12px; background: var(--hover);
   }
-  .theme:active, .b16:active, .font:active { transform: scale(.95); }
-  .theme.on { box-shadow: inset 0 0 0 2.5px var(--ring); }
-  .aa { font: 600 1.35rem var(--serif); }
-  .nm { font-size: .74rem; font-weight: 600; }
+  .size button { height: 100%; border: 0; background: none; border-radius: 12px; transition: background-color .2s, transform .3s var(--spring); }
+  .size button:hover { background: var(--hover); }
+  .size button:active { transform: scale(.94); }
+  .a { font-family: var(--serif); }
+  .sm { font-size: 14px; }
+  .lg { font-size: 22px; }
+  .val { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 40px; text-align: center; }
 
-  .scroller { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; margin: 0 -20px; padding-inline: 20px; scrollbar-width: none; }
-  .b16 {
-    flex: none; scroll-snap-align: start; width: 104px; border: 0; border-radius: 12px; padding: 10px; display: grid; gap: 8px; text-align: left;
-    box-shadow: inset 0 0 0 1px rgb(128 128 128 / .25); transition: transform .25s var(--ease);
+  /* Modes: one row of swatches, previewed in the current palette. */
+  .modes { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--s1); margin-top: var(--s4); }
+  .mode { border: 0; background: none; padding: 0; display: grid; justify-items: center; gap: 6px; }
+  .swatch {
+    width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+    font: 600 15px var(--serif); box-shadow: inset 0 0 0 .5px rgb(128 128 128 / .5);
+    transition: transform .4s var(--spring), box-shadow .2s;
   }
-  .b16.on { box-shadow: inset 0 0 0 2.5px var(--accent); }
-  .b16 .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mode:active .swatch { transform: scale(.9); }
+  .mode.on .swatch { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+  .label { font-size: 11px; color: var(--muted); }
+  .mode.on .label { color: var(--fg); font-weight: 600; }
+
+  /* Palettes: a single scrolling strip. */
+  .palettes {
+    display: flex; gap: var(--s2); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+    margin: var(--s4) calc(-1 * var(--s5)) 0; padding: 4px var(--s5);
+  }
+  .palette {
+    flex: none; scroll-snap-align: start; border: 0; border-radius: 12px; padding: 10px 12px; display: grid; gap: 6px;
+    min-width: 92px; text-align: left; box-shadow: inset 0 0 0 .5px rgb(128 128 128 / .45);
+    transition: transform .4s var(--spring), box-shadow .2s;
+  }
+  .palette:active { transform: scale(.95); }
+  .palette.on { box-shadow: inset 0 0 0 2px var(--ring); }
   .dots { display: flex; gap: 3px; }
-  .dots i { width: 11px; height: 11px; border-radius: 50%; }
+  .dots i { width: 8px; height: 8px; border-radius: 50%; }
+  .name { font-size: 12px; font-weight: 600; white-space: nowrap; }
 
-  .fonts { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
-  .font {
-    border: 0; border-radius: 12px; padding: 10px 6px; background: color-mix(in srgb, var(--fg) 5%, transparent);
-    font-size: .82rem; display: grid; gap: 2px; justify-items: center; transition: transform .25s var(--ease), box-shadow .2s;
+  /* Disclosure rows, grouped like iOS settings. */
+  .group { margin-top: var(--s4); border-radius: 12px; background: var(--hover); overflow: hidden; }
+  .row {
+    display: flex; align-items: center; gap: var(--s3); width: 100%; min-height: 48px; padding: 0 var(--s4);
+    border: 0; background: none; text-align: left; font-size: 15px;
   }
-  .font .aa { font-family: inherit; font-weight: 400; font-size: 1.5rem; }
-  .font.on { box-shadow: inset 0 0 0 2px var(--accent); color: var(--accent); }
+  .row + .sub, .sub + .row, .row + .row { border-top: .5px solid var(--hairline); }
+  .row > span:first-child { flex: 1; }
+  .value { color: var(--muted); font-size: 14px; }
+  .chev { width: 16px; height: 16px; color: var(--muted); transition: transform .35s var(--spring); }
+  .chev.open { transform: rotate(90deg); }
+  .sub { padding: 0 var(--s4) var(--s2); }
+  .opt {
+    display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 44px;
+    border: 0; background: none; padding: 0; font-size: 17px; text-align: left;
+  }
+  .opt + .opt { border-top: .5px solid var(--hairline); }
+  .opt svg { width: 18px; height: 18px; color: var(--accent); }
+  .line { display: flex; align-items: center; gap: var(--s3); min-height: 44px; font-size: 15px; }
+  .line + .line { border-top: .5px solid var(--hairline); }
+  .line > span:first-child { flex: 1; }
+  .line input[type=range] { flex: 1; accent-color: var(--accent); }
 
-  .segmented { display: flex; background: color-mix(in srgb, var(--fg) 7%, transparent); border-radius: 9px; padding: 2px; }
-  .segmented button { border: 0; background: transparent; border-radius: 7px; padding: 6px 10px; font-size: .84rem; transition: background-color .25s var(--ease); }
+  .segmented { display: flex; background: var(--hover); border-radius: 9px; padding: 2px; }
+  .segmented button { border: 0; background: transparent; border-radius: 7px; padding: 5px 10px; font-size: 13px; transition: background-color .25s var(--ease); }
   .segmented .on { background: var(--bg); box-shadow: 0 1px 3px rgb(0 0 0 / .15); font-weight: 600; }
 
   input[role=switch] {
@@ -120,7 +169,7 @@
   }
   input[role=switch]::before {
     content: ''; position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; border-radius: 50%;
-    background: white; box-shadow: 0 2px 5px rgb(0 0 0 / .25); transition: transform .3s var(--ease);
+    background: white; box-shadow: 0 2px 5px rgb(0 0 0 / .25); transition: transform .4s var(--spring);
   }
   input[role=switch]:checked { background: var(--accent); }
   input[role=switch]:checked::before { transform: translateX(20px); }

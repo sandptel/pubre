@@ -3,9 +3,9 @@
 
   // Floating progress capsule: where you are (chapter, page) over a track split into one wedge per
   // chapter. Tap a wedge to jump to that chapter; drag anywhere to scrub; hover to preview.
-  let { sections, progress, chapter, page, pages, onjump, onscrub }: {
+  let { sections, progress, chapter, page, pages, onjump, onscrub, words = {} }: {
     sections: Section[]; progress: number; chapter: string; page: number; pages: number
-    onjump: (href: string) => void; onscrub: (p: number) => void
+    onjump: (href: string) => void; onscrub: (p: number) => void; words?: Record<string, string>
   } = $props()
 
   let track: HTMLDivElement
@@ -51,7 +51,7 @@
 
 <div class="capsule glass">
   <div class="meta">
-    <span class="chapter">{probe !== null ? at(probe)?.label : chapter}</span>
+    <span class="chapter">{probe !== null ? at(probe)?.label : chapter}{#if probe !== null && words[at(probe)?.label ?? '']}<em class="yours"> · {words[at(probe)!.label]}</em>{/if}</span>
     <span class="page">{probe !== null ? `${Math.round(probe * 100)}%` : `${page + 1} of ${pages}`}</span>
   </div>
   <div class="track" bind:this={track} role="slider" tabindex="0" aria-label="Book position"
@@ -74,6 +74,7 @@
   .capsule { border-radius: 22px; padding: 9px 16px 11px; display: grid; gap: 8px; min-width: 0; }
   .meta { display: flex; gap: var(--s3); font-size: 12px; line-height: 1; }
   .chapter { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .yours { font-style: italic; font-weight: 400; color: var(--accent); }
   .page { color: var(--muted); font-variant-numeric: tabular-nums; }
 
   .track { position: relative; display: flex; gap: 2px; height: 14px; align-items: center; cursor: pointer; touch-action: none; outline-offset: 4px; }

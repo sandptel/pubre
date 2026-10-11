@@ -100,6 +100,7 @@
         loadProfile(b)
         pag.onSections = s => (sections = s)
         pag.onRelocate = r => {
+          chapterTurn(r)
           loc = r
           rec.location = { index: r.index, fraction: r.fraction, cfi: r.cfi }
           rec.progress = r.progress
@@ -225,6 +226,33 @@
     v.doc.addEventListener('mouseleave', hideCard)
   }
   // ---------- "Previously…" ----------
+  // ---------- chapter end: three words + open questions (optional, gentle, non-modal) ----------
+  let ending = $state<{ chapter: string; questions: Annotation[] } | null>(null)
+  let endWords = $state('')
+  let words = $state<Record<string, string>>(untrack(() => rec.words ?? {}))
+  let lastLoc: { chapter: string; progress: number } | null = null
+  function chapterTurn(r: { chapter: string; progress: number }) {
+    const prev = lastLoc
+    lastLoc = { chapter: r.chapter, progress: r.progress }
+    if (ending) { ending = null; return } // the card leaves on your next page turn
+    if (!prev || !prev.chapter || prev.chapter === r.chapter || !eff.chapterPrompts || gstate.gliding) return
+    if (r.progress < prev.progress || r.progress - prev.progress > 0.02) return // only when paging forward, not jumping
+    if ((rec.promptSkips ?? 0) >= 2 && !anns.some(a => a.color === '09' && a.chapter === prev.chapter && !a.note.startsWith('✓'))) return
+    ending = { chapter: prev.chapter, questions: anns.filter(a => a.color === '09' && a.chapter === prev.chapter && !a.note.startsWith('✓')).slice(0, 1) }
+    endWords = words[prev.chapter] ?? ''
+  }
+  function keepWords() {
+    if (!ending) return
+    const w = endWords.trim().split(/\s+/).slice(0, 3).join(' ')
+    if (w) { words = rec.words = { ...words, [ending.chapter]: w }; rec.promptSkips = 0 }
+    ending = null; save()
+  }
+  function skipEnding() { rec.promptSkips = (rec.promptSkips ?? 0) + 1; ending = null; save() }
+  async function answered(a: Annotation, yes: boolean) {
+    if (yes) { a.note = `✓ ${a.note}`.trim(); await saveAnnotation(a); anns = [...anns] }
+    if (ending) ending = { ...ending, questions: [] }
+  }
+
   let recap = $state<{ stage: 'ask' | 'show'; chapter: string; lines: string[]; who: string[]; mine: string[] } | null>(null)
   function prepareRecap() {
     const v = pag?.current
@@ -386,7 +414,7 @@
   <div class="dock">
     {#if loc}
       <div class="progress">
-        <Progress {sections} progress={loc.progress} chapter={loc.chapter || rec.title} page={loc.page} pages={loc.pages}
+        <Progress {sections} {words} progress={loc.progress} chapter={loc.chapter || rec.title} page={loc.page} pages={loc.pages}
           onjump={jump} onscrub={p => pag?.goToProgress(p)} />
       </div>
     {/if}
@@ -427,6 +455,20 @@
         <input class="hl-note" placeholder="Note… (Enter to save)" bind:value={noteText} onkeydown={e => { if (e.key === 'Enter') saveNote(); if (e.key === 'Escape') bar = null }} />
       {/if}
       {#if bar.ann}<span class="hl-m">{meaning(bar.ann.color)}</span>{/if}
+    </div>
+  {/if}
+  {#if ending && !chrome}
+    <div class="ending glass" role="status">
+      <span class="r-eyebrow">End of {ending.chapter}</span>
+      {#each ending.questions as q (q.id)}
+        <p class="e-q">You asked: <i>“{q.exact.slice(0, 120)}{q.exact.length > 120 ? '…' : ''}”</i>. Answered yet?</p>
+        <div class="r-actions"><button class="pill ghost" onclick={() => answered(q, true)}>Yes</button><button class="r-skip" onclick={() => answered(q, false)}>Not yet</button></div>
+      {/each}
+      {#if !ending.questions.length}
+        <label class="e-l" for="three">Three words for this chapter?</label>
+        <div class="e-row"><input id="three" class="e-in" placeholder="e.g. storm, oath, doubloon" bind:value={endWords} onkeydown={e => { e.stopPropagation(); if (e.key === 'Enter') keepWords(); if (e.key === 'Escape') skipEnding() }} />
+          <button class="pill ghost" onclick={keepWords}>Keep</button><button class="r-skip" onclick={skipEnding}>Skip</button></div>
+      {/if}
     </div>
   {/if}
   {#if recap}
@@ -629,6 +671,12 @@
   @media (hover: hover) and (pointer: fine) { .pad { opacity: .55; } .pad:hover, .pad.held { opacity: 1; } }
   @keyframes padIn { from { opacity: 0; transform: scale(.8); } }
   @keyframes ring { from { transform: scale(.96); opacity: .9; } to { transform: scale(1.15); opacity: 0; } }
+  .ending { position: absolute; z-index: 6; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 64px); translate: -50% 0; width: min(420px, calc(100vw - 32px));
+    padding: var(--s3) var(--s4); border-radius: 18px; display: grid; gap: var(--s2); animation: cardIn .35s var(--ease); }
+  .e-q { margin: 0; font: 14.5px/1.45 var(--serif); }
+  .e-l { font-size: 13px; color: var(--muted); }
+  .e-row { display: flex; gap: var(--s2); align-items: center; }
+  .e-in { flex: 1; min-width: 0; border: 0; border-radius: 10px; padding: 8px 10px; background: var(--hover); font: 14px system-ui; color: var(--fg); outline: none; }
   .recap { position: absolute; z-index: 7; left: 50%; top: 50%; translate: -50% -50%; width: min(440px, calc(100vw - 32px)); max-height: 80dvh; overflow: auto;
     padding: var(--s5); border-radius: 24px; display: grid; gap: var(--s2); animation: cardIn .35s var(--ease); }
   .r-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }

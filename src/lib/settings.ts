@@ -129,12 +129,13 @@ export interface Settings {
   foreign: boolean
   motion: 'full' | 'calm' // calm = no bloom/spark/breathe; the OS reduced-motion setting always wins
   onlineDefinitions: boolean // off: definitions only from the offline dictionary
+  chapterPrompts: boolean // optional "three words" + open questions at chapter ends
 }
 
 export const defaults: Settings = {
   palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto', letterSpacing: 0, measure: 'normal',
   guide: true, pointer: 'word', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
-  intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'ink', asides: true, foreign: true, motion: 'full', onlineDefinitions: false,
+  intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'ink', asides: true, foreign: true, motion: 'full', onlineDefinitions: false, chapterPrompts: true,
 }
 
 /** Global settings with a book's own overrides layered on top. */

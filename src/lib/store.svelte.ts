@@ -17,6 +17,8 @@ export interface BookRecord {
   progress: number // 0..1 across the whole book
   location?: Location
   chapter?: string // label of the chapter you're in
+  words?: Record<string, string> // your "three words" per chapter
+  promptSkips?: number // consecutive dismissals of the chapter-end card
   prefs?: Partial<Settings> // this book's overrides of the global settings
   profile?: { v: number; names: NameInfo[]; words?: number[] } // on-device insights (cast, words per chapter), computed once
 }

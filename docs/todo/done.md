@@ -33,3 +33,8 @@ Verified in Chrome (desktop 1440×900) and WebKit (390×844 touch): import of 3 
 ## v1.0.0 release (2026-10-12)
 - README (live link, trailer GIF), CONTRIBUTING, 20 repo topics, homepage, release v1.0.0 with MP4 trailer.
 - Trailer source: ../pubre-samples/reel/trailer2.html (recreated UI, light gruvbox, e-ink pixel refresh); record with record2.mjs.
+
+## Punctuation beats (2026-10-12)
+- d138908 feat(guide): pacing.beat() gives each situation its own pause + cue (list, clause turn, speech tag, cut-off speech, short-sentence landing); pauses scale with pace (pauseScale).
+- 6f67dfd feat(stage): the mark hops during its pause (copy of the mark animated over the original; per-kind motion).
+- 941fab8 trailer v3: device-framed UI (phone/tablet/desktop), camera zooms, a different e-ink transition per cut. Source ../pubre-samples/reel/trailer3.html, record3.mjs.

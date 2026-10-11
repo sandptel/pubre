@@ -41,3 +41,12 @@ Each entry: date · finding · evidence · where handled.
 - **Gutenberg books end in a license:** 'finished' must also count back matter near the end, or nobody ever finishes.
 - **SVG used as an `<img>`/data URL is parsed as strict XML:** a duplicated attribute (fine inline in HTML) makes the image silently blank. Test generated SVG with an XML parser.
 - **Web fonts inside the book iframe need their own @import** (in the injected book CSS); the chapter CSP allows fonts.googleapis/gstatic.
+
+## Svelte scopes keyframe names, not names inside custom properties
+`--j: hop` + `animation-name: var(--j)` never matches a scoped `@keyframes hop`. Use `@keyframes -global-pq-hop` (prefixed) for names passed through variables.
+
+## Individual `scale`/`rotate` apply before `transform`
+They scale a `transform: translate(...)` offset too, so an element positioned by transform jumps when its keyframes use `scale`. Position with left/top when animating scale/rotate.
+
+## smoke-e2e.mjs is stale
+It waits for `.grid li:nth-child(4)`, which the redesigned library no longer has. Needs updating.

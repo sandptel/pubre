@@ -11,14 +11,16 @@ export type Cue = 'list' | 'comma' | 'turn' | 'pause' | 'dash' | 'cut' | 'paren'
 const CONJ = /^(and|but|or|nor|yet|so|for|while|though|because)$/i
 
 /** How a sentence ends: its own beat, then room for what it was (short lines land; long ones need a breath). */
-function sentenceEnd(p: string, len: number): { ms: number; cue: Cue } {
+export type How = 'short' | 'long' | 'spoken' | 'plain'
+function sentenceEnd(p: string, len: number): { ms: number; cue: Cue; how: How } {
   const [ms, cue]: [number, Cue] = /…|\.\.\./.test(p) ? [720, 'trail'] : /\?!|!\?/.test(p) ? [640, 'ask'] : /\?/.test(p) ? [620, 'ask'] : /!/.test(p) ? [560, 'bang'] : [520, 'stop']
-  return { ms: ms + (/[”"’»]/.test(p) ? 80 : 0) + (len <= 4 ? 120 : len > 30 ? 100 : 0), cue }
+  const spoken = /[”"’»]/.test(p), how: How = spoken ? 'spoken' : len <= 3 ? 'short' : len > 14 ? 'long' : 'plain' // how the sentence was used
+  return { ms: ms + (spoken ? 80 : 0) + (len <= 4 ? 120 : len > 30 ? 100 : 0), cue, how }
 }
 
 /** The pause (ms, at 260 wpm and the default length) after word k, its cue, and whether a block ends there.
  *  One ladder, always in this order: list < comma < dash < colon < semicolon < sentence < paragraph < section. */
-export function beat(ix: TextIndex, k: number): { ms: number; cue: Cue | null; end?: 'para' | 'section' } {
+export function beat(ix: TextIndex, k: number): { ms: number; cue: Cue | null; end?: 'para' | 'section'; how?: How } {
   const w = ix.words[k], next = ix.words[k + 1], p = w.punct
   const s = ix.sentences[w.s], len = s.b - s.a + 1
   if (!next || next.b !== w.b) { // end of a paragraph (or other block): the sentence ends, then the paragraph does
@@ -26,13 +28,14 @@ export function beat(ix: TextIndex, k: number): { ms: number; cue: Cue | null; e
     let ms = e.ms + 400
     if (nb && /^\s*[“"«]/.test(nb.text)) ms += 200       // a dialogue turn
     if (nb?.kind === 'heading') ms += 600                  // a new section is coming
-    return { ms, cue: p ? e.cue : null, end: nb?.kind === 'heading' ? 'section' : 'para' }
+    return { ms, cue: p ? e.cue : null, end: nb?.kind === 'heading' ? 'section' : 'para', how: e.how }
   }
   if (next.s !== w.s) return sentenceEnd(p, len)
   if (!p) return { ms: 0, cue: null }
   const quoteClose = /[”"’»]/.test(p)
   if (/…|\.\.\./.test(p)) return { ms: 460, cue: 'trail' }  // trailing off mid-sentence
   if (/[—–]/.test(p)) return quoteClose ? { ms: 420, cue: 'cut' } : { ms: 240, cue: 'dash' } // speech cut off; an aside
+  if (/[?!]/.test(p)) return { ms: /\?/.test(p) ? 440 : 400, cue: /\?/.test(p) ? 'ask' : 'bang', how: quoteClose ? 'spoken' : 'plain' } // “Is that you?” she asked
   if (/;/.test(p)) return { ms: 340, cue: 'pause' }
   if (/:/.test(p)) return { ms: 300, cue: 'pause' }
   if (/,/.test(p)) {
@@ -41,8 +44,8 @@ export function beat(ix: TextIndex, k: number): { ms: number; cue: Cue | null; e
     if (CONJ.test(next.text)) return { ms: len > 30 ? 260 : 220, cue: 'comma' } // a clause turns
     return { ms: len > 30 ? 200 : 160, cue: 'comma' }      // commas carry more weight in long sentences
   }
-  if (/[()]/.test(p)) return { ms: 120, cue: 'paren' }
-  if (quoteClose) return { ms: 90, cue: 'quote' }
+  if (/[()]/.test(p)) return { ms: 200, cue: 'paren' }
+  if (quoteClose) return { ms: 180, cue: 'quote' }
   return { ms: 0, cue: null }
 }
 

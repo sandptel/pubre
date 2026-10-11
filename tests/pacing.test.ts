@@ -75,3 +75,10 @@ test('the pause length setting stretches every pause', () => {
   assert.ok(wordTime(ix, k, 260, 2) - wordTime(ix, k, 260, 1) > 300)
   assert.equal(wordTime(ix, at('me'), 260, 2), wordTime(ix, at('me'), 260, 1), 'no punctuation, no change')
 })
+
+test('a sentence end knows how it was used: short, spoken, long or plain', () => {
+  const x = indexDocument(new DOMParser().parseFromString(`<html xmlns="http://www.w3.org/1999/xhtml"><body>
+<p>Why? “Is that you?” she asked. Was there ever a stranger night on all the long and windy coast than this one? Is it late? Go!</p></body></html>`, 'application/xhtml+xml') as unknown as Document)
+  const how = (t: string) => beat(x, x.words.findIndex(w => w.text === t)).how
+  assert.equal(how('Why'), 'short'); assert.equal(how('you'), 'spoken'); assert.equal(how('one'), 'long'); assert.equal(how('late'), 'short')
+})

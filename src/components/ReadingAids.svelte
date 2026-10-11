@@ -37,6 +37,7 @@
     {#if value.stageStep !== 'sentence'}
       {@render choice('Pointer', 'stagePointer', [['ink', 'Ink'], ['word', 'Word'], ['underline', 'Line'], ['dot', 'Dot'], ['outline', 'Ring']])}
     {/if}
+    {@render toggle('Lenses in Stage', 'stageLenses', 'Names, voices, rare words, your highlights')}
     {@render choice('Paragraph end', 'paraEnd', [['breathe', 'Breathe'], ['wait', 'Wait']], value.paraEnd === 'breathe' ? 'A pause, then the next rises' : 'Waits for a tap')}
     <p class="hint">Tap the round pad (or Space) to start and pause. Hold it to read only while you hold; let go and it goes back to the page. While holding, slide right for faster, left for slower and then backwards, up to lock. ← → step, ↑ ↓ paragraph, [ ] pace ({value.wpm} wpm).</p>
   {/if}

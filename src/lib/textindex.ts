@@ -79,8 +79,8 @@ export function indexDocument(doc: Document, lang = 'en'): TextIndex {
     if (g.kind === 'heading') sents.push({ i: 0, t: text }) // a heading reads as one unit ("CHAPTER 36. The Quarter-Deck.")
     else for (const s of sseg.segment(text.replace(/[\n\r\v\f\u0085\u2028\u2029]/g, ' '))) {
       const prev = sents[sents.length - 1]
-      // “Stern all!” exclaimed the mate: a speech tag continues the sentence after ?/! inside quotes.
-      if (prev && (ABBREV.test(prev.t) || (/[?!][”’"»]+\s*$/.test(prev.t) && /^\s*\p{Ll}/u.test(s.segment)))) prev.t += s.segment
+      // “Stern all!” exclaimed the mate / “…shipped for, men! to chase…”: after ?/! a lowercase word continues the sentence.
+      if (prev && (ABBREV.test(prev.t) || (/[?!][”’"»]*\s*$/.test(prev.t) && /^\s*\p{Ll}/u.test(s.segment)))) prev.t += s.segment
       else sents.push({ i: s.index, t: s.segment })
     }
     // An elision apostrophe (’Twill) opens the next sentence, not the end of this one.
@@ -130,4 +130,19 @@ export function blockRange(doc: Document, blk: Block, a: number, b: number): Ran
   }
   const [sn, so] = at(a, false), [en, eo] = at(b, true), r = doc.createRange()
   r.setStart(sn, so); r.setEnd(en, eo); return r
+}
+
+/** A DOM range as offsets into a block's text: [a, b), or null if it misses the block. */
+export function blockOffsets(blk: Block, r: Range): [number, number] | null {
+  let a = -1, b = -1
+  blk.nodes.forEach((n, i) => {
+    let hit = false
+    try { hit = r.intersectsNode(n) } catch { return }
+    if (!hit) return
+    const s = n === r.startContainer ? r.startOffset : 0, e = n === r.endContainer ? r.endOffset : n.data.length
+    if (e <= s) return
+    if (a < 0) a = blk.starts[i] + s
+    b = blk.starts[i] + e
+  })
+  return a < 0 || b <= a ? null : [a, b]
 }

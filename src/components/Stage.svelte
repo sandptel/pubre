@@ -16,9 +16,9 @@
   import { breath, MAX_WPM, sentenceTime, wordTime, type Breath } from '../lib/pacing.ts'
   import { prevUnit, segments, unitAt, type Decor, type Step } from '../lib/stagetext.ts'
 
-  let { pag, settings, chapter = '', pageEl, decorate, onopen, onstate, onpace, ontoast }: {
+  let { pag, settings, chapter = '', pageEl, decorate, explain, onopen, onstate, onpace, ontoast }: {
     pag: Paginator | undefined; settings: Settings; chapter?: string; pageEl?: HTMLElement
-    decorate?: (v: View, b: number) => Decor[]
+    decorate?: (v: View, b: number) => Decor[]; explain?: (key: string) => Promise<string>
     onopen?: (open: boolean) => void; onstate?: (s: StageState) => void
     onpace?: (wpm: number) => void; ontoast?: (m: string) => void
   } = $props()
@@ -31,6 +31,8 @@
   let waiting = $state<'' | Breath>('')
   let breathMs = $state(0)
   let breathAt = $state<{ x: number; y: number } | null>(null)
+  let gloss = $state<{ key: string; html: string } | null>(null) // "tell me more", when you stop at a word
+  let glossT = 0, hoverT = 0
   let root = $state<HTMLDivElement>(), veil = $state<HTMLDivElement>(), lift = $state<HTMLDivElement>(), para = $state<HTMLDivElement>()
   let flow = $state<HTMLDivElement>(), marker = $state<HTMLElement>()
   let v: View | undefined, cur = -1, ue = -1, y = 0, glideT = 0, wpm = 260, closing = false
@@ -92,6 +94,7 @@
         span.dataset.s = String(sg.s)
         if (sg.cls) span.className = sg.cls
         if (sg.css) span.style.cssText = sg.css
+        if (sg.key) span.dataset.k = sg.key
         span.dataset.st = stateOf(sg.s, sg.w)
         piece.before(span); span.append(piece)
         ownerOf.set(span, sg.w); push(sentEls, sg.s, span)
@@ -217,8 +220,8 @@
     return ms
   }
   const moving = () => playing || holdPlay
-  function play() { playing = true; schedule() }
-  function stop() { playing = false; if (!holdPlay) clearTimeout(timer) }
+  function play() { playing = true; hideGloss(); schedule() }
+  function stop() { playing = false; if (!holdPlay) { clearTimeout(timer); if (open && landed) glossHere() } }
   /** Time the current unit; when it's done, move on (or back, when shuttling backwards). */
   function schedule() {
     clearTimeout(timer)
@@ -461,11 +464,27 @@
     finish()
   }
   function finish() {
+    hideGloss()
     revealSources(0)
     recede?.cancel(); recede = null; lifting = []
     clearTimeout(timer); clearTimeout(glideT)
     playing = false; holdPlay = false; transient = false; rate = 1
     open = false; busy = false; landed = false; onopen?.(false)
+  }
+
+  // ---------- gloss: a quiet line of "tell me more" when you stop at a marked word ----------
+  async function showGloss(key: string) {
+    if (!explain || gloss?.key === key) return
+    const html = await explain(key)
+    if (!html || !open) return
+    gloss = { key, html }
+    clearTimeout(glossT); glossT = window.setTimeout(() => (gloss = null), 7000)
+  }
+  function hideGloss() { clearTimeout(glossT); clearTimeout(hoverT); gloss = null }
+  /** Paused on a sentence: offer its rare word, if it has one. */
+  function glossHere() {
+    const sp = (sentEls.get(sen()) ?? []).find(e => e.dataset.k?.startsWith('hard:'))
+    if (sp) showGloss(sp.dataset.k!)
   }
 
   // ---------- hold (the pad, or Space held) ----------
@@ -537,10 +556,19 @@
   let downY = 0, downAt = 0, wheelLock = 0
   function down(e: PointerEvent) { downY = e.clientY; downAt = e.timeStamp }
   function up(e: PointerEvent) {
-    if ((e.target as HTMLElement).closest('button')) return
+    if ((e.target as HTMLElement).closest('button, .gloss')) return
     const dy = e.clientY - downY
-    if (Math.abs(dy) > 40) sentence(dy < 0 ? 1 : -1)
-    else if (e.timeStamp - downAt < 500) toggle()
+    if (Math.abs(dy) > 40) return sentence(dy < 0 ? 1 : -1)
+    if (e.timeStamp - downAt >= 500) return
+    const k = (e.target as HTMLElement).closest<HTMLElement>('[data-k]')?.dataset.k
+    if (k) { if (playing) stop(); showGloss(k); return } // stopping at a word: tell me more
+    toggle()
+  }
+  function over(e: PointerEvent) {
+    if (e.pointerType !== 'mouse') return
+    clearTimeout(hoverT)
+    const k = (e.target as HTMLElement).closest<HTMLElement>('[data-k]')?.dataset.k
+    if (k) hoverT = window.setTimeout(() => showGloss(k), 350)
   }
   // One flick, one sentence: trackpad momentum keeps extending the lock until it settles.
   function wheel(e: WheelEvent) {
@@ -553,7 +581,7 @@
 </script>
 
 {#if open}
-  <div class="stage" bind:this={root} role="dialog" tabindex="-1" aria-label="Stage reading" onpointerdown={down} onpointerup={up} onwheel={wheel}>
+  <div class="stage" bind:this={root} role="dialog" tabindex="-1" aria-label="Stage reading" onpointerdown={down} onpointerup={up} onpointerover={over} onwheel={wheel}>
     <div class="veil" bind:this={veil}></div>
     <div class="win" style:font-family={font} style:--size="{settings.fontScale / 100}">
       <div class="lift" bind:this={lift}>
@@ -568,6 +596,7 @@
     {#if waiting && breathAt && !waits(waiting)}
       <span class="breath" style:left="{breathAt.x}px" style:top="{breathAt.y}px"><i style:animation-duration="{breathMs}ms"></i></span>
     {/if}
+    {#if gloss}<div class="gloss glass" role="note">{@html gloss.html}</div>{/if}
     <div class="foot" aria-live="polite">
       {#if landed && !transient}
         {#if waiting === 'end' && waits(waiting)}<span>End of chapter · {go_} to go on</span>
@@ -609,6 +638,29 @@
   .flow :global([data-st="read"]) { --a: 26%; --t: 1.2s; }
   .flow:global(.exhale) :global([data-st="now"]) { --a: 62%; --t: 1.4s; }
   .flow:global(.whole) :global([data-st]) { --a: 100%; transition: none; }
+  /* Lenses in the Stage: who (names, voices), tell me more (rare words, other languages), asides, yours. */
+  .flow :global(.lx-name) { --ink: var(--who); }
+  .flow :global(.lx-chip) { background: color-mix(in srgb, var(--who) 15%, transparent); border-radius: .22em; box-shadow: 0 0 0 .1em color-mix(in srgb, var(--who) 15%, transparent); transition: color var(--t, .8s) ease, background-color .8s ease, box-shadow .8s ease; }
+  .flow :global(.lx-chip[data-st="read"]), .flow :global(.lx-chip[data-st="later"]) { background: transparent; box-shadow: none; }
+  .flow :global(.lx-chip[data-st="now"]) { animation: chip 1.2s ease-out; }
+  .flow :global(.lx-vline) { text-decoration: underline 2px color-mix(in srgb, var(--who) 55%, transparent); text-underline-offset: .24em; }
+  .flow :global(.lx-qmark) { --ink: var(--who); }
+  .flow :global(.lx-hard) { text-decoration: underline dotted color-mix(in srgb, var(--accent) 75%, transparent); text-decoration-thickness: .07em; text-underline-offset: .22em; cursor: help; transition: color var(--t, .8s) ease, text-decoration-color .8s ease; }
+  .flow :global(.lx-hard[data-st="read"]), .flow :global(.lx-hard[data-st="later"]) { text-decoration-color: transparent; }
+  .flow :global(.lx-foreign) { font-style: italic; --ink: color-mix(in srgb, var(--base0C, var(--accent)) 65%, var(--fg)); }
+  .flow :global(.lx-aside) { opacity: .72; }
+  .flow :global(.lx-yours) { background: color-mix(in srgb, var(--hl) 26%, transparent); border-radius: 2px; transition: color var(--t, .8s) ease, background-color .8s ease; }
+  .flow :global(.lx-yours[data-st="read"]), .flow :global(.lx-yours[data-st="later"]) { background: color-mix(in srgb, var(--hl) 12%, transparent); }
+  .flow :global(.lx-bold) { -webkit-text-stroke: .022em currentColor; }
+  .flow :global(.lx-ital) { font-style: italic; }
+  @keyframes chip { from { background-color: color-mix(in srgb, var(--who) 38%, transparent); box-shadow: 0 0 0 .32em color-mix(in srgb, var(--who) 10%, transparent); } }
+  .gloss {
+    position: absolute; z-index: 2; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 92px); translate: -50% 0; width: max-content; max-width: min(460px, calc(100vw - 32px));
+    padding: 10px 16px; border-radius: 16px; font: 14px/1.45 system-ui; color: var(--fg); animation: glossIn .35s cubic-bezier(.22,1,.36,1);
+  }
+  .gloss :global(b) { font: 600 16px var(--serif, Georgia, serif); margin-right: 4px; }
+  .gloss :global(i) { color: var(--muted); margin-right: 4px; }
+  @keyframes glossIn { from { opacity: 0; transform: translateY(8px); } }
   /* The marker (phrase / word steps) */
   .marker { position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .25s; }
   .marker:global(.on) { opacity: 1; }

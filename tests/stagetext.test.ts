@@ -27,10 +27,10 @@ test('a gap belongs to the word before; an opening quote to the word after', () 
 
 test('decorations split segments and carry their classes', () => {
   const text = ix.blocks[0].text, a = text.indexOf('years'), b = a + 'years ago'.length
-  const segs = segments(ix, 0, [{ a, b, cls: 'lx-hard', css: '--x:1' }])
+  const segs = segments(ix, 0, [{ a, b, cls: 'lx-hard', css: '--x:1', key: 'hard:years' }])
   const marked = segs.filter(s => s.cls.includes('lx-hard')).map(s => text.slice(s.a, s.b)).join('')
   assert.equal(marked, 'years ago')
-  assert.ok(segs.filter(s => s.cls).every(s => s.css === '--x:1'))
+  assert.ok(segs.filter(s => s.cls).every(s => s.css === '--x:1' && s.key === 'hard:years'))
 })
 
 test('units: phrases end at pauses and hold at most 3 words', () => {

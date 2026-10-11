@@ -4,10 +4,10 @@ import type { TextIndex } from './textindex.ts'
 
 export type Step = 'sentence' | 'phrase' | 'word'
 /** A decoration over block-text offsets [a, b): a lens mark, a highlight… */
-export interface Decor { a: number; b: number; cls: string; css?: string }
+export interface Decor { a: number; b: number; cls: string; css?: string; key?: string }
 /** A piece of a block's text. `w` is the word it belongs to (gaps belong to the word before, except
  *  an opening quote, which belongs to the word after); `core` is true inside the word itself. */
-export interface Seg { a: number; b: number; w: number; s: number; core: boolean; cls: string; css: string }
+export interface Seg { a: number; b: number; w: number; s: number; core: boolean; cls: string; css: string; key: string }
 
 export function segments(ix: TextIndex, b: number, decor: Decor[] = []): Seg[] {
   const k = ix.blocks[b], text = k.text, len = text.length
@@ -37,7 +37,7 @@ export function segments(ix: TextIndex, b: number, decor: Decor[] = []): Seg[] {
     else if (a < ws[j].b) { w = ws[j].i; core = true }
     else w = j + 1 < ws.length && a >= tail[j] ? ws[j + 1].i : ws[j].i
     const on = decor.filter(d => d.a <= a && d.b >= e)
-    out.push({ a, b: e, w, s: ix.words[w].s, core, cls: on.map(d => d.cls).join(' '), css: on.map(d => d.css ?? '').filter(Boolean).join(';') })
+    out.push({ a, b: e, w, s: ix.words[w].s, core, cls: on.map(d => d.cls).join(' '), css: on.map(d => d.css ?? '').filter(Boolean).join(';'), key: on.find(d => d.key)?.key ?? '' })
   }
   return out
 }

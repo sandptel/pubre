@@ -10,7 +10,7 @@ import type { View } from './paginator.ts'
 import type { Settings } from './settings.ts'
 import type { NameInfo } from '../insights/names.ts'
 import { isHard, rarity, onDefs } from './lexicon.ts'
-import { blockRange } from './textindex.ts'
+import { blockOffsets, blockRange } from './textindex.ts'
 
 export type TokenKind = 'name' | 'hard' | 'foreign' | 'speech' | 'aside'
 export interface Token { kind: TokenKind; blk: number; a: number; b: number; key: string; slot: number; range?: Range }
@@ -21,7 +21,7 @@ const HON = '(?:(?:Mr|Mrs|Miss|Ms|Captain|Capt|Dr|Lady|Sir|Lord)\\.?\\s+)?'
 const QUOTES = /“[^”]*”?|"[^"\n]{1,600}"?/g
 const ASIDES = /\([^)]{2,160}\)/g // parentheses only: dash pairs are often emphasis, not asides
 const SMALL = /^(of|the|a|an|and|in|on|to|for|at|by|or|with)$/
-const RARE = 2.3 // Zipf below which a defined word is worth marking
+export const RARE = 2.3 // Zipf below which a defined word is worth marking
 /** A short quote whose words are all capitalised ("The Night Before Christmas") is a title, not speech. */
 const isTitle = (q: string) => { const w = q.replace(/[“”"]/g, '').trim().split(/\s+/); return w.length <= 6 && !/[.!?,]$/.test(q.replace(/[“”"]/g, '').trim()) && w.every(x => /^[A-Z0-9]/.test(x) || SMALL.test(x)) }
 
@@ -180,4 +180,10 @@ export class Lenses {
     return hits.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind))[0] ?? null
   }
   rangeOf(v: View, t: Token) { return t.range ?? blockRange(v.doc, v.ix.blocks[t.blk], t.a, t.b) }
+  /** Every lens token in block b, unbudgeted (the Stage shows one paragraph at a time and has room). */
+  tokensIn(v: View, b: number): Token[] { return this.parse(v).byBlock.get(b) ?? [] }
+  /** Share of block b's text inside quotes (dialogue-heavy blocks get softer Voices). */
+  shareOf(v: View, b: number) { return this.parse(v).share.get(b) ?? 0 }
+  /** A token as offsets into its block's text. */
+  offsets(v: View, t: Token): [number, number] | null { return t.range ? blockOffsets(v.ix.blocks[t.blk], t.range) : [t.a, t.b] }
 }

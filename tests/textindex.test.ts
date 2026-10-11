@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { DOMParser } from '@xmldom/xmldom'
-import { indexDocument, wordAt } from '../src/lib/textindex.ts'
+import { blockOffsets, indexDocument, wordAt } from '../src/lib/textindex.ts'
 
 const doc = (body: string) => new DOMParser().parseFromString(`<html xmlns="http://www.w3.org/1999/xhtml"><body>${body}</body></html>`, 'application/xhtml+xml') as unknown as Document
 
@@ -48,8 +48,21 @@ test('speech tags, elisions and headings keep sentences whole', () => {
   const sent = (w: string) => ix.words.find(x => x.text === w)!.s
   assert.equal(sent('CHAPTER'), sent('Deck'), 'heading is one sentence')
   assert.equal(sent('Stern'), sent('exclaimed'), 'speech tag continues the sentence')
+  const ix2 = indexDocument(doc('<p>And this is what ye have shipped for, men! to chase that white whale. Next.</p>'))
+  assert.equal(ix2.sentences.length, 2, 'lowercase after ! continues the sentence')
   assert.notEqual(sent('mate'), sent('pecks'))
   const tw = ix.words.find(x => x.text.endsWith('Twill'))!, sh = ix.words.find(x => x.text === 'shell')!
   assert.notEqual(tw.s, sh.s)
   assert.equal(ix.sentences[tw.s].a, ix.words.indexOf(tw), '’Twill opens its sentence')
+})
+
+test('blockOffsets maps a DOM range onto block text', () => {
+  const d = doc('<p>Call me <i>Ishmael</i>. Some years ago.</p>')
+  const ix = indexDocument(d), blk = ix.blocks[0]
+  // xmldom has no Range: a minimal stand-in (start/end + intersectsNode by block order)
+  const sc = d.getElementsByTagName('i')[0].firstChild as Text, ec = blk.nodes[2]
+  const at = (n: Node) => blk.nodes.indexOf(n as Text)
+  const r = { startContainer: sc, startOffset: 2, endContainer: ec, endOffset: 5, intersectsNode: (n: Node) => at(n) >= at(sc) && at(n) <= at(ec) } as unknown as Range
+  const o = blockOffsets(blk, r)!
+  assert.equal(blk.text.slice(o[0], o[1]), 'hmael. Som')
 })

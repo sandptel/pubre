@@ -6,8 +6,10 @@
   import { Paginator, type Relocation, type Section } from '../lib/paginator.ts'
   import { effective, type Settings } from '../lib/settings.ts'
   import { Guide, type GuideState } from '../lib/guide.ts'
-  import { Lenses, type Token } from '../lib/lenses.ts'
-  import { define, loadCommon } from '../lib/lexicon.ts'
+  import { Lenses, RARE, type Token } from '../lib/lenses.ts'
+  import { define, loadCommon, rarity } from '../lib/lexicon.ts'
+  import type { Decor } from '../lib/stagetext.ts'
+  import { blockOffsets } from '../lib/textindex.ts'
   import { whoHue, WHO_SLOTS } from '../lib/marks.ts'
   import { resolveTheme } from '../lib/settings.ts'
   import type { View as BookView } from '../lib/paginator.ts'
@@ -212,6 +214,57 @@
   function padTap() {
     chrome = false; hideCard()
     if (stageStyle()) stage?.tap(); else guide?.padTap()
+  }
+
+  // ---------- the Stage's own visual grammar (one paragraph at a time, so it can be richer than the page) ----------
+  const theme = $derived(resolveTheme(eff.palette, eff.mode))
+  function decorate(v: BookView, b: number): Decor[] {
+    const out: Decor[] = [], blk = v.ix.blocks[b]
+    for (const a of anns) { // yours, always
+      if (a.spine !== v.index) continue
+      const r = resolveAnnotation(v.doc, a), o = r && blockOffsets(blk, r)
+      if (o) out.push({ a: o[0], b: o[1], cls: ['lx-yours', a.bold && 'lx-bold', a.italic && 'lx-ital'].filter(Boolean).join(' '), css: `--hl: var(--base${a.color})`, key: a.note ? `note:${a.id}` : undefined })
+    }
+    if (!eff.stageLenses || eff.intensity === 'quiet' || !lenses) return out
+    const rich = eff.intensity === 'rich', seen = new Set<string>(), hardIn = new Set<number>()
+    const voiceMix = lenses.shareOf(v, b) > 0.6 ? 42 : 58 // mostly dialogue: a softer tint, so the paragraph isn't one colour
+    const hue = (slot: number) => whoHue(theme, slot % WHO_SLOTS)
+    const sentAt = (off: number) => { for (let i = blk.a; i <= blk.b; i++) { const w = v.ix.words[i]; if (blk.starts[blk.nodes.indexOf(w.sn)] + w.so >= off) return w.s } return -1 }
+    for (const t of lenses.tokensIn(v, b)) {
+      const o = lenses.offsets(v, t)
+      if (!o) continue
+      const [a, e] = o
+      if (t.kind === 'name' && eff.names && t.slot >= 0) {
+        const first = !seen.has(t.key); seen.add(t.key)
+        out.push({ a, b: e, cls: first || rich ? 'lx-name lx-chip' : 'lx-name', css: `--who: ${hue(t.slot)}`, key: `name:${t.key}` })
+      } else if (t.kind === 'speech' && eff.voices !== 'off' && t.slot >= 0) {
+        const h = hue(t.slot), key = `voice:${t.key}`
+        if (eff.voices === 'ink') out.push({ a, b: e, cls: 'lx-voice', css: `--ink: color-mix(in srgb, ${h} ${voiceMix}%, var(--fg))`, key })
+        else if (eff.voices === 'underline') out.push({ a, b: e, cls: 'lx-vline', css: `--who: ${h}`, key })
+        else {
+          if (/[“"]/.test(blk.text[a])) out.push({ a, b: a + 1, cls: 'lx-qmark', css: `--who: ${h}`, key })
+          if (/[”"]/.test(blk.text[e - 1])) out.push({ a: e - 1, b: e, cls: 'lx-qmark', css: `--who: ${h}`, key })
+        }
+      } else if (t.kind === 'hard' && eff.hardWords && eff.hardStyle === 'shown') {
+        const z = rarity(t.key), s = sentAt(a)
+        if (typeof z !== 'number' || z >= RARE || (!rich && hardIn.has(s))) continue
+        hardIn.add(s)
+        out.push({ a, b: e, cls: 'lx-hard', key: `hard:${t.key}` })
+      } else if (t.kind === 'foreign' && eff.foreign) out.push({ a, b: e, cls: 'lx-foreign', key: `foreign:${t.key}` })
+      else if (t.kind === 'aside' && eff.asides) out.push({ a, b: e, cls: 'lx-aside' })
+    }
+    return out
+  }
+  async function explain(key: string): Promise<string> {
+    const i = key.indexOf(':'), kind = key.slice(0, i), val = key.slice(i + 1)
+    if (kind === 'hard') { const d = await define(val); return `<b>${escape(val)}</b>${d ? `<i>${escape(d.pos)}</i>${escape(d.text)}` : 'A rare word.'}` }
+    if (kind === 'name' || kind === 'voice') {
+      const p = lenses?.person(val), n = p ? p.perSpine.slice(0, (pag?.current?.index ?? 0) + 1).reduce((x, y) => x + y, 0) : 0
+      return `<b>${escape(val)}</b>${kind === 'voice' ? 'is speaking.' : n > 1 ? `Mentioned ${n} times so far.` : 'You’re meeting them now.'}`
+    }
+    if (kind === 'foreign') { let name = val; try { name = new Intl.DisplayNames(['en'], { type: 'language' }).of(val) ?? val } catch { /* unknown code */ } return `A phrase in ${escape(name)}.` }
+    if (kind === 'note') { const a = anns.find(x => x.id === val); return a ? `<i>${escape(meaning(a.color))}</i>${escape(a.note)}` : '' }
+    return ''
   }
 
   // ---------- lenses ----------
@@ -506,7 +559,7 @@
       </div>
     {/if}
   {/if}
-  <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} pageEl={paperEl}
+  <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} pageEl={paperEl} {decorate} {explain}
     onopen={o => { staged = o; if (o) { chrome = false; hideCard(); guide?.deactivate() } else paintLenses() }} onstate={st => (sstate = st)}
     onpace={w => (settings.wpm = w)} ontoast={toast} />
   {#if bar}

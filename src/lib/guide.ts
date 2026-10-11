@@ -6,6 +6,7 @@
 import type { Paginator, View } from './paginator.ts'
 import type { Settings } from './settings.ts'
 import { MAX_WPM, wordTime } from './pacing.ts'
+import { edgesOnFirstLine, letterRects, typeFrames } from './typing.ts'
 
 export interface GuideState { active: boolean; gliding: boolean; wpm: number }
 type Pending = 'start' | 'end' | null
@@ -314,8 +315,9 @@ export class Guide {
     this.prevTop = r0.top
     if (this.reduce) dur = 0
     else if (newLine) { this.el.animate([{ opacity: 1 }, { opacity: 0, offset: 0.4 }, { opacity: 1 }], { duration: Math.min(260, dur || 260) }); dur = 0 }
+    if (this.s.pointer === 'type' && this.typeTo(v, k, j, dur > 0)) { this.paintFocus(); if (k !== this.lastArrive) { this.lastArrive = k; this.onArrive?.(v, k) } return }
     const x = r.left + this.pag.xOf(v), y = r.top, w = r.width, h = r.height
-    const g = ({ word: [x - 3, y - 1, w + 6, h + 2], outline: [x - 3, y - 1, w + 6, h + 2], underline: [x, y + h + 1, w, 3], dot: [x + w / 2 - 3, y + h + 2, 6, 6] } as const)[this.s.pointer]
+    const g = ({ word: [x - 3, y - 1, w + 6, h + 2], type: [x - 2, y - 1, w + 4, h + 2], outline: [x - 3, y - 1, w + 6, h + 2], underline: [x, y + h + 1, w, 3], dot: [x + w / 2 - 3, y + h + 2, 6, 6] } as const)[this.s.pointer]
     // Calm motion: position settles barely (≈0.5%), size eases monotonically, glides ease in-out.
     const move = glide ? 'cubic-bezier(.45,0,.25,1)' : 'cubic-bezier(.22,1.12,.36,1)', size = 'cubic-bezier(.25,.8,.25,1)'
     this.el.style.transition = dur ? `transform ${dur}ms ${move}, width ${Math.round(dur * 0.85)}ms ${size}, height ${Math.round(dur * 0.85)}ms ${size}, opacity .2s` : 'opacity .2s'
@@ -324,6 +326,22 @@ export class Guide {
     this.el.style.height = g[3] + 'px'
     this.paintFocus()
     if (k !== this.lastArrive) { this.lastArrive = k; this.onArrive?.(v, k) }
+  }
+
+  /** The Type pointer: it jumps to the word and grows across it one letter at a time, a caret at its edge. */
+  private typeTo(v: View, k: number, j: number, animate: boolean) {
+    const ws = v.ix.words, segs: [Text, number, number][] = []
+    for (let q = k; q <= j; q++) { const w = ws[q]; if (w.sn === w.en) segs.push([w.sn, w.so, w.eo]); else { segs.push([w.sn, w.so, w.sn.data.length], [w.en, 0, w.eo]) } }
+    const e = edgesOnFirstLine(letterRects(v.doc, segs))
+    if (!e) return false
+    this.el.getAnimations().forEach(a => a.cancel())
+    this.el.style.transition = 'opacity .2s'
+    this.el.style.transform = `translate(${e.left + this.pag.xOf(v) - 2}px, ${e.top - 1}px)`
+    this.el.style.height = e.height + 2 + 'px'
+    this.el.style.width = Math.round(e.edges[e.edges.length - 1] + 2) + 'px'
+    const total = animate && !this.reduce ? Math.min(450, this.wordMs(k) * 0.8) : 0
+    if (total && e.edges.length > 1) this.el.animate(typeFrames(e.edges), { duration: total })
+    return true
   }
 
   /** Contrast levels as disjoint ranges (no overlapping highlights; see marks.ts). */

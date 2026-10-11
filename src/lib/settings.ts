@@ -94,7 +94,7 @@ export const fonts: Record<string, { name: string; stack: string }> = {
   seravek: { name: 'Seravek', stack: 'Seravek, "Gill Sans Nova", Ubuntu, Calibri, "DejaVu Sans", sans-serif' },
 }
 
-export type Pointer = 'word' | 'underline' | 'dot' | 'outline'
+export type Pointer = 'word' | 'underline' | 'dot' | 'outline' | 'type'
 export type Focus = 'sentence' | 'line' | 'paragraph'
 export type Intensity = 'quiet' | 'guided' | 'rich'
 export type VoicesStyle = 'ink' | 'underline' | 'marks' | 'off'

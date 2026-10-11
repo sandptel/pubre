@@ -38,14 +38,14 @@
   {#if value.guide && value.guideStyle === 'stage'}
     {@render choice('Move by', 'stageStep', [['sentence', 'Sentence'], ['phrase', 'Phrase'], ['word', 'Word']], value.stageStep === 'sentence' ? 'A sentence lights up at a time' : 'Words ink in as you go')}
     {#if value.stageStep !== 'sentence'}
-      {@render choice('Pointer', 'stagePointer', [['ink', 'Ink'], ['word', 'Word'], ['underline', 'Line'], ['dot', 'Dot'], ['outline', 'Ring']])}
+      {@render choice('Pointer', 'stagePointer', [['ink', 'Ink'], ['word', 'Word'], ['type', 'Type'], ['underline', 'Line'], ['dot', 'Dot'], ['outline', 'Ring']], value.stagePointer === 'type' ? 'Letters type themselves' : '')}
     {/if}
     {@render toggle('Lenses in Stage', 'stageLenses', 'Names, voices, rare words, your highlights')}
     {@render choice('Paragraph end', 'paraEnd', [['breathe', 'Breathe'], ['wait', 'Wait']], value.paraEnd === 'breathe' ? 'A pause, then the next rises' : 'Waits for a tap')}
     <p class="hint">Tap the round pad (or Space) to start and pause. Hold it to read only while you hold; let go and it goes back to the page. In the Stage, long-press a sentence to keep it as a highlight. While holding, slide right for faster, left for slower and then backwards, up to lock. ← → step, ↑ ↓ paragraph, [ ] pace ({value.wpm} wpm).</p>
   {/if}
   {#if value.guide && value.guideStyle === 'pointer'}
-    {@render choice('Pointer', 'pointer', [['word', 'Word'], ['underline', 'Line'], ['dot', 'Dot'], ['outline', 'Ring']])}
+    {@render choice('Pointer', 'pointer', [['word', 'Word'], ['type', 'Type'], ['underline', 'Line'], ['dot', 'Dot'], ['outline', 'Ring']], value.pointer === 'type' ? 'Letters type themselves' : '')}
     {@render choice('Focus', 'focus', [['sentence', 'Sentence'], ['line', 'Line'], ['paragraph', 'Para']])}
     {@render choice('Step', 'step', [['word', 'Word'], ['phrase', 'Phrase']])}
     {@render toggle('Dim what you’ve read', 'dimRead')}

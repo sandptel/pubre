@@ -931,6 +931,7 @@
   .reader :global(.pubre-pointer.p-outline) { border-radius: 6px; box-shadow: inset 0 0 0 1.5px var(--accent); }
   .reader :global(.pubre-pointer.p-underline) { background: var(--accent); border-radius: 2px; }
   .reader :global(.pubre-pointer.p-dot) { background: var(--accent); border-radius: 50%; }
+  .reader :global(.pubre-pointer.p-type) { background: color-mix(in srgb, var(--accent) 16%, transparent); border-radius: 4px 2px 2px 4px; box-shadow: inset -2px 0 0 var(--accent); }
   /* The reading pad: always in the thumb's corner; above the menu while the controls show; above the Stage too. */
   .padgroup {
     position: absolute; z-index: 8; right: calc(env(safe-area-inset-right) + var(--s3)); bottom: calc(env(safe-area-inset-bottom) + var(--s3));

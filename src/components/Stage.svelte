@@ -16,6 +16,7 @@
   import { breath, MAX_WPM, sentenceTime, wordTime, type Breath } from '../lib/pacing.ts'
   import { prevUnit, sectionOf, segments, unitAt, type Decor, type Step } from '../lib/stagetext.ts'
   import Ticker from './Ticker.svelte'
+  import { edgesOnFirstLine, letterRects, typeFrames } from '../lib/typing.ts'
   import type { TextIndex } from '../lib/textindex.ts'
 
   let { pag, settings, chapter = '', page = 0, pages = 0, pageEl, decorate, explain, onmark, onopen, onstate, onpace, ontoast }: {
@@ -191,6 +192,7 @@
     const m = marker
     if (!m) return
     if (pointer === 'ink' || !landed) { m.classList.remove('on'); return }
+    if (pointer === 'type') return typeMarker(m, animate)
     const rs: DOMRect[] = []
     for (let k = cur; k <= ue; k++) rs.push(...rectsOf(wordEls.get(k)))
     if (!rs.length) { m.classList.remove('on'); return }
@@ -212,6 +214,24 @@
       return
     }
     set(Math.min(300, unitMs() * 0.6))
+  }
+
+  /** The Type pointer: letters type themselves — the marker grows across the unit one letter at a time, caret at its edge. */
+  function typeMarker(m: HTMLElement, animate: boolean) {
+    const segs: [Text, number, number][] = []
+    for (let k = cur; k <= ue; k++) for (const sp of wordEls.get(k) ?? []) { const t = sp.firstChild; if (t?.nodeType === 3) segs.push([t as Text, 0, (t as Text).data.length]) }
+    const e = edgesOnFirstLine(letterRects(document, segs))
+    if (!e) { m.classList.remove('on'); return }
+    const f = flow!.getBoundingClientRect()
+    m.getAnimations().forEach(a => a.cancel())
+    m.style.transition = 'opacity .25s'
+    m.style.transform = `translate(${e.left - f.left - 3}px, ${e.top - f.top - 1}px)`
+    m.style.height = e.height + 2 + 'px'
+    m.style.width = Math.round(e.edges[e.edges.length - 1] + 5) + 'px'
+    m.dataset.p = 'type'; m.classList.add('on')
+    prevTop = e.top - f.top
+    const total = animate && !reduce ? Math.min(450, unitMs() * 0.8) : 0
+    if (total && e.edges.length > 1) m.animate(typeFrames(e.edges, 5), { duration: total })
   }
 
   // ---------- moving ----------
@@ -718,6 +738,7 @@
   .marker:global([data-p="outline"]) { border-radius: 7px; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 80%, transparent); }
   .marker:global([data-p="underline"]) { background: var(--accent); border-radius: 2px; }
   .marker:global([data-p="dot"]) { background: var(--accent); border-radius: 50%; }
+  .marker:global([data-p="type"]) { background: color-mix(in srgb, var(--accent) 15%, transparent); border-radius: 6px 2px 2px 6px; box-shadow: inset -2px 0 0 var(--accent); }
   .fade { position: absolute; left: 0; right: 0; height: 26%; pointer-events: none; opacity: 0; transition: opacity .4s ease; }
   .fade.on { opacity: 1; }
   .top-fade { top: 0; background: linear-gradient(var(--bg) 40%, transparent); }

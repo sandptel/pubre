@@ -10,7 +10,7 @@
   // breathe longer, or wait for you.
   // Tap (Space, the pad) keeps it up; hold reads only while held and sets it back down on release.
   // While holding, the pad shuttles: right = faster, left = slower, then backwards (see setRate).
-  import { tick } from 'svelte'
+  import { tick, untrack } from 'svelte'
   import type { Paginator, View } from '../lib/paginator.ts'
   import { fonts, type Settings } from '../lib/settings.ts'
   import { breath, MAX_WPM, sentenceTime, wordTime, type Breath } from '../lib/pacing.ts'
@@ -50,7 +50,7 @@
   const step = $derived<Step>(settings.stageStep ?? 'sentence')
   const pointer = $derived(step === 'sentence' ? 'ink' : settings.stagePointer ?? 'ink')
   const go_ = $derived(touch ? 'tap' : 'Space')
-  $effect(() => { wpm = settings.wpm })
+  $effect(() => { const w = settings.wpm; untrack(() => { if (w !== wpm) { wpm = w; if (open) setRate(rate) } }) }) // a new pace applies mid-sentence
   $effect(() => { onstate?.({ open, moving: playing || holdPlay }) })
 
   // ---------- the text model ----------
@@ -395,12 +395,12 @@
 
   // ---------- open / close (the lift) ----------
   /** Lift the text off the page. `hold`: only while held (release sets it back down). */
-  export async function start(hold = false) {
+  export async function start(hold = false, at = -1) {
     if (open || busy || !pag?.current || !settings.guide) return
     v = pag.current
     if (!v.ix.words.length) { ontoast?.('Nothing to read on this page'); return }
     busy = true; transient = hold; holdPlay = hold; playing = false; rate = 1
-    const k = startWord(), my = ++gen
+    const k = at >= 0 && at < v.ix.words.length ? at : startWord(), my = ++gen
     open = true; landed = false; onopen?.(true)
     await tick()
     reset()
@@ -447,20 +447,21 @@
     const k = cur, r = wordRect(k)
     if (r && pag) { while (pag.isBusy) await new Promise(res => setTimeout(res, 40)); await pag.showPage(pag.pageOf(r)) }
     hideSources(0)
-    const card = blockEl(blk())
+    recede?.cancel(); recede = null // measure the page at its real size (it is under the veil, so nothing jumps)
+    const card = blockEl(blk()), home = blocks()[blk()].el as HTMLElement
     flow!.classList.add('solo'); card?.classList.add('card')
     const f = reduce ? null : flip(k)
+    for (const el of [...hiddenEls]) if (el !== home) { el.style.transition = 'opacity .2s ease'; el.style.opacity = ''; hiddenEls.splice(hiddenEls.indexOf(el), 1) } // the rest of the page is whole again
     if (f) { // set it back down: the card travels to its spot, settles into the paper, hands over to the page
       const anims = [
         lift!.animate([{ transform: 'none', opacity: 1 }, { transform: f[1], opacity: 1, offset: 0.72 }, { transform: f[0], opacity: 0 }], { duration: 640, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }),
         veil!.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 520, delay: 120, easing: 'ease-out', fill: 'forwards' }),
         ...(card ? [card.animate([...SHADOW].reverse().map(boxShadow => ({ boxShadow })), { duration: 640, easing: 'ease-in', fill: 'forwards' })] : []),
       ]
-      recede?.cancel()
       recede = pageEl?.animate([{ transform: 'scale(.94)', opacity: 0.45 }, { transform: 'none', opacity: 1 }], { duration: 640, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }) ?? null
       setTimeout(() => revealSources(160), 460)
       await anims[0].finished.catch(() => {})
-    } else recede?.cancel()
+    }
     finish()
   }
   function finish() {
@@ -489,7 +490,7 @@
 
   // ---------- hold (the pad, or Space held) ----------
   /** Press-and-hold: closed → lift and read while held; open but paused → read while held. */
-  export function holdStart() { if (!open) start(true); else { holdPlay = true; schedule() } }
+  export function holdStart(at = -1) { if (!open) start(true, at); else { holdPlay = true; schedule() } }
   /** Release: a hold-only Stage goes back to the page; otherwise reading continues as before. */
   export function holdEnd() {
     setRate(1)

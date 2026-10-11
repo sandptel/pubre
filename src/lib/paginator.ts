@@ -18,6 +18,7 @@ export type Zone = 'left' | 'center' | 'right'
 
 const XHTML_NS = 'http://www.w3.org/1999/xhtml'
 const EASE = 'cubic-bezier(.2,.75,.25,1)'
+const HOLD_MS = 380 // press-and-hold on text (before the system's own long-press, ~500 ms)
 const TURN_MS = 420
 
 const PAGE_BREAK = /^(page|always|left|right|recto|verso)$/
@@ -98,6 +99,9 @@ export class Paginator {
   keyHook?: (e: KeyboardEvent) => boolean
   /** Return true when a tap on book text was handled (e.g. the guide moved its pointer there). */
   tapHook?: (v: View, clientX: number, clientY: number) => boolean
+  /** Press-and-hold on book text (no movement for HOLD_MS): return true to take the gesture; then
+   *  `move` gets the finger's offset from where it pressed and `end` the release. */
+  holdHook?: { start: (v: View, clientX: number, clientY: number) => boolean; move: (dx: number, dy: number) => void; end: () => void }
   readonly port: HTMLDivElement // clipped, centered strip the iframes slide in (overlays live here too)
   private host: HTMLElement
   private book: Book
@@ -478,17 +482,35 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
 
     doc.addEventListener('wheel', e => this.wheel(e), { passive: true })
 
-    // Tap zones (any pointer) + drag-to-turn (touch/pen).
+    // Tap zones (any pointer) + drag-to-turn (touch/pen) + press-and-hold (holdHook).
     let start: { x: number; y: number; t: number; id: number; touch: boolean } | null = null
-    let dragging = false
+    let dragging = false, holding = false, holdT = 0
+    const root = doc.documentElement as HTMLElement
+    const selectable = (on: boolean) => { root.style.userSelect = root.style.webkitUserSelect = on ? '' : 'none' }
+    doc.addEventListener('contextmenu', e => { if (holding || holdT) e.preventDefault() }) // Android's long-press menu
     doc.addEventListener('pointerdown', e => {
       if (!e.isPrimary || this.busy) return
       start = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId, touch: e.pointerType !== 'mouse' }
       dragging = false
+      clearTimeout(holdT); holdT = 0
+      if (this.holdHook && (e.pointerType !== 'mouse' || e.button === 0) && !(e.target as Element).closest?.('a[href]')) {
+        const s0 = start
+        holdT = window.setTimeout(() => {
+          holdT = 0
+          if (start !== s0 || dragging || doc.getSelection()?.toString()) return
+          if (!this.holdHook!.start(v, s0.x, s0.y)) return
+          holding = true
+          selectable(false); doc.getSelection()?.removeAllRanges()
+          try { root.setPointerCapture(s0.id) } catch { /* pointer already gone */ }
+        }, HOLD_MS)
+      }
     })
     doc.addEventListener('pointermove', e => {
-      if (!start || e.pointerId !== start.id || !start.touch || this.view !== v) return
+      if (!start || e.pointerId !== start.id) return
       const dx = e.clientX - start.x, dy = e.clientY - start.y
+      if (holding) { this.holdHook?.move(dx, dy); return }
+      if (holdT && Math.hypot(dx, dy) > 8) { clearTimeout(holdT); holdT = 0 }
+      if (!start.touch || this.view !== v) return
       if (!dragging && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2 && !doc.getSelection()?.toString()) dragging = true
       if (!dragging) return
       const atEdge = (dx > 0 && this.page === 0 && v.index === 0) || (dx < 0 && this.page === v.pages - 1 && v.index === this.book.spine.length - 1)
@@ -498,6 +520,8 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
       if (!start || e.pointerId !== start.id) return
       const dx = e.clientX - start.x, dy = e.clientY - start.y, dt = Date.now() - start.t
       start = null
+      clearTimeout(holdT); holdT = 0
+      if (holding) { holding = false; selectable(true); this.holdHook?.end(); return }
       if (dragging) {
         dragging = false
         const fast = Math.abs(dx) / dt > 0.4

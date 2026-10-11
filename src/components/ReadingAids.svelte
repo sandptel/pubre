@@ -30,6 +30,9 @@
 <div class="group">
   {@render toggle('Reading guide', 'guide', 'The round pad, Space or G')}
   {#if value.guide}
+    <label class="line"><span>Pace<small>{value.wpm} words a minute · the speed chip by the pad changes it while you read</small></span>
+      <input class="pace" type="range" min="120" max="350" step="5" bind:value={value.wpm} aria-label="Words a minute" /></label>
+    {@render toggle('Hold the page to read', 'holdToRead', 'Off: holding selects text to highlight')}
     {@render choice('Style', 'guideStyle', [['stage', 'Stage'], ['pointer', 'Pointer']], value.guideStyle === 'stage' ? 'Space lifts the paragraph toward you' : 'A marker moves on the page')}
   {/if}
   {#if value.guide && value.guideStyle === 'stage'}
@@ -94,6 +97,7 @@
   .line > span:first-child { flex: 1; display: grid; }
   small { font-size: 12px; color: var(--muted); }
   .hint { font-size: 12px; color: var(--muted); margin: 0; padding: var(--s2) 0 var(--s3); line-height: 1.45; }
+  .pace { width: 38%; flex: none; accent-color: var(--accent); }
   .segmented { display: flex; background: var(--hover); border-radius: 9px; padding: 2px; flex: none; }
   .segmented button { border: 0; background: transparent; border-radius: 7px; padding: 5px 9px; font-size: 13px; transition: background-color .25s var(--ease); }
   .segmented .on { background: var(--bg); box-shadow: 0 1px 3px rgb(0 0 0 / .15); font-weight: 600; }

@@ -111,8 +111,8 @@ export class Guide {
   start() { this.activate(); this.startGlide() }
 
   // ---------- touch / mouse pad ----------
-  holdStart() {
-    if (!this.active) { this.transientHold = true; this.activate() }
+  holdStart(at = -1) {
+    if (!this.active) { this.transientHold = true; this.activate(); if (at >= 0 && this.v && at < this.v.ix.words.length) { this.i = at; this.render(0) } }
     if (!this.gliding) { this.holding = true; this.startGlide() }
   }
   holdEnd() {

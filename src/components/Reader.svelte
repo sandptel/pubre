@@ -13,6 +13,8 @@
   import type { View as BookView } from '../lib/paginator.ts'
   import { getFile, saveBook, type BookRecord } from '../lib/store.svelte.ts'
   import Appearance from './Appearance.svelte'
+  import ReadingAids from './ReadingAids.svelte'
+  import { calmRange } from '../lib/calm.ts'
   import Cover from './Cover.svelte'
   import Progress from './Progress.svelte'
   import Sheet from './Sheet.svelte'
@@ -20,8 +22,8 @@
 
   let { record, settings = $bindable(), onclose }: { record: BookRecord; settings: Settings; onclose: () => void } = $props()
 
-  type View = 'menu' | 'contents' | 'appearance'
-  const titles: Record<View, string> = { menu: '', contents: 'Contents', appearance: 'Themes & Settings' }
+  type View = 'menu' | 'contents' | 'appearance' | 'aids' | 'book'
+  const titles: Record<View, string> = { menu: '', contents: 'Contents', appearance: 'Themes & Settings', aids: 'Reading aids', book: 'This book' }
 
   const rec: BookRecord = untrack(() => $state.snapshot(record)) // local copy we persist
   let host: HTMLDivElement
@@ -44,10 +46,27 @@
   let gstate = $state<GuideState>({ active: false, gliding: false, wpm: 260 })
   let toastMsg = $state('')
   let toastT = 0
-  const eff = $derived(effective(settings, rec.prefs))
+  // This book's overrides (only the differences from your global settings are stored).
+  let prefs = $state<Partial<Settings>>(untrack(() => ({ ...(rec.prefs ?? {}) })))
+  let custom = $state(untrack(() => !!rec.prefs && Object.keys(rec.prefs).length > 0))
+  let bookVal = $state<Settings>(untrack(() => effective(settings, rec.prefs)))
+  const eff = $derived(custom ? effective(settings, prefs) : settings)
+  $effect(() => {
+    if (!custom) { if (Object.keys(prefs).length) { prefs = {}; rec.prefs = undefined; save() } return }
+    const b = $state.snapshot(bookVal), g = $state.snapshot(settings), diff: Partial<Settings> = {}
+    for (const k of Object.keys(b) as (keyof Settings)[]) if (k !== 'wpm' && JSON.stringify(b[k]) !== JSON.stringify(g[k])) (diff as Record<string, unknown>)[k] = b[k]
+    prefs = diff; rec.prefs = diff; clearTimeout(saveTimer); saveTimer = window.setTimeout(save, 500)
+  })
   function toast(m: string) { toastMsg = m; clearTimeout(toastT); toastT = window.setTimeout(() => (toastMsg = ''), 1800) }
 
-  const left = $derived(loc ? loc.pages - loc.page - 1 : 0)
+  // Calm time left in this chapter at your pace, as a range (never a countdown).
+  const footText = $derived.by(() => {
+    if (!loc) return ''
+    const total = rec.profile?.words?.reduce((x, n) => x + n, 0) ?? 0
+    const words = total ? (loc.chapterEnd - loc.top) * total : (pag?.current?.ix.words.length ?? 0) * (1 - loc.page / Math.max(1, loc.pages))
+    const r = calmRange(words / Math.max(60, eff.wpm))
+    return r ? `${r} left in chapter` : loc.page >= loc.pages - 1 ? 'Last page in chapter' : ''
+  })
 
   function save() {
     clearTimeout(saveTimer)
@@ -80,6 +99,7 @@
           loc = r
           rec.location = { index: r.index, fraction: r.fraction, cfi: r.cfi }
           rec.progress = r.progress
+          rec.chapter = r.chapter
           if (!gstate.active) paintLenses()
           hideCard()
           clearTimeout(saveTimer)
@@ -104,7 +124,7 @@
   })
 
   // Only appearance changes re-lay out the book; feature settings (guide, lenses, pace) don't.
-  const LAYOUT = ['palette', 'mode', 'font', 'fontScale', 'lineHeight', 'margin', 'justify', 'bold', 'spread'] as const
+  const LAYOUT = ['palette', 'mode', 'font', 'fontScale', 'lineHeight', 'margin', 'justify', 'bold', 'spread', 'letterSpacing', 'measure'] as const
   let layoutKey = ''
   $effect(() => {
     const s = $state.snapshot(eff)
@@ -142,11 +162,11 @@
     lenses.paint(v, ws[a].b, ws[b].b)
   }
   async function loadProfile(b: Book) {
-    if (rec.profile?.v === 1) { lenses?.setProfile(rec.profile.names); paintLenses(); return }
+    if (rec.profile?.v === 2) { lenses?.setProfile(rec.profile.names); paintLenses(); return }
     const texts = await Promise.all(b.spine.map(s => b.zip.text(s.href).catch(() => '')))
     const worker = new Worker(new URL('../insights/worker.ts', import.meta.url), { type: 'module' })
     worker.onmessage = e => {
-      rec.profile = { v: 1, names: e.data.names }
+      rec.profile = { v: 2, names: e.data.names, words: e.data.words }
       lenses?.setProfile(e.data.names); paintLenses(); save(); worker.terminate()
     }
     worker.postMessage({ texts })
@@ -223,7 +243,7 @@
   {#if loc}
     <div class="running head" aria-hidden="true">{loc.chapter || rec.title}</div>
     <div class="running foot" aria-hidden="true">
-      {left === 0 ? 'Last page in chapter' : `${left} ${left === 1 ? 'page' : 'pages'} left in chapter`}
+      {footText}
     </div>
   {/if}
 
@@ -296,11 +316,30 @@
               <span>Themes &amp; Settings</span>
               <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
             </button>
+            <button onclick={() => go('aids')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="9" width="9" height="6" rx="2" fill="currentColor" opacity=".35" stroke="none" /><path d="M3 18h18M15 12h6" /></svg>
+              <span>Reading aids</span>
+              <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+            </button>
+            <button onclick={() => { bookVal = effective(settings, prefs); go('book') }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h10a3 3 0 013 3v13H8a3 3 0 01-3-3z" /><path d="M5 17a3 3 0 013-3h10" /></svg>
+              <span>This book{#if custom}<small class="badge">custom</small>{/if}</span>
+              <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+            </button>
           </div>
         {:else if view === 'contents' && book}
           <Toc toc={book.toc} {isCurrent} onpick={jump} />
         {:else if view === 'appearance'}
           <Appearance bind:settings />
+        {:else if view === 'aids'}
+          <ReadingAids bind:value={settings} />
+        {:else if view === 'book'}
+          <label class="custom"><span>Custom reading aids for this book<small>{custom ? 'Changes here apply only to this book' : 'Uses your defaults'}</small></span>
+            <input type="checkbox" role="switch" bind:checked={custom} onchange={() => { if (custom) bookVal = effective(settings, prefs) }} /></label>
+          {#if custom}
+            <ReadingAids bind:value={bookVal} />
+            <button class="reset" onclick={() => { custom = false }}>Use my defaults again</button>
+          {/if}
         {/if}
       </div>
     {/key}
@@ -362,6 +401,15 @@
   .list button > span:not(.aa) { flex: 1; }
   .list svg { width: 20px; height: 20px; color: var(--accent); }
   .list .chev { width: 16px; height: 16px; color: var(--muted); }
+  .badge { margin-left: 8px; padding: 1px 6px; border-radius: 6px; font-size: 11px; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); vertical-align: 2px; }
+  .custom { display: flex; align-items: center; gap: var(--s3); min-height: 56px; padding: 0 var(--s4); border-radius: 12px; background: var(--hover); font-size: 15px; }
+  .custom > span { flex: 1; display: grid; }
+  .custom small { font-size: 12px; color: var(--muted); }
+  .custom input[role=switch] { appearance: none; flex: none; width: 50px; height: 30px; border-radius: 15px; margin: 0; position: relative; cursor: pointer; background: color-mix(in srgb, var(--fg) 18%, transparent); transition: background-color .25s; }
+  .custom input[role=switch]::before { content: ''; position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; border-radius: 50%; background: white; box-shadow: 0 2px 5px rgb(0 0 0 / .25); transition: transform .3s var(--ease); }
+  .custom input[role=switch]:checked { background: var(--accent); }
+  .custom input[role=switch]:checked::before { transform: translateX(20px); }
+  .reset { margin-top: var(--s4); border: 0; background: none; color: var(--accent); font-size: 14px; padding: var(--s2) 0; }
   .aa { width: 20px; font: 600 15px var(--serif); color: var(--accent); text-align: center; }
 
   .spinner {

@@ -33,6 +33,8 @@ export function isHard(word: string, set: Set<string>): boolean {
   if (!set.size || word.length < 4) return false
   // A hyphenated compound is hard only if one of its parts is ("cabin-gangway" isn't; "half-binnacle" would be).
   if (word.includes('-')) return word.split('-').some(p => p.length >= 4 && isHard(p, set))
+  // Contractions and possessives: judge the word before the apostrophe ("can’t", "whale’s").
+  if (/[’']/.test(word)) { const base = word.split(/[’']/)[0]; return base.length >= 4 && isHard(base, set) }
   return !lemmas(word).some(l => set.has(l))
 }
 

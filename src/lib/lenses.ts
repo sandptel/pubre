@@ -126,6 +126,8 @@ export class Lenses {
         // Voices: the speaker's ink (softer when the block is mostly dialogue)
         if (s.voices !== 'off') for (const t of list.filter(t => t.kind === 'speech')) {
           const k = t.slot >= 0 ? String(t.slot) : 'x'
+          // Unattributed quotes in blocks that are mostly quotation are citations, not conversation: leave them as ink.
+          if (k === 'x' && (p.share.get(bi) ?? 0) > 0.6) continue
           if (s.voices === 'ink') put(`${(p.share.get(bi) ?? 0) > 0.6 ? 'v-soft' : 'v-ink'}-${k}`, range(t))
           else if (s.voices === 'underline') put(`v-under-${k}`, range(t))
           else { put(`v-marks-${k}`, blockRange(v.doc, blk, t.a, t.a + 1)); if (/[”"]$/.test(blk.text.slice(t.b - 1, t.b))) put(`v-marks-${k}`, blockRange(v.doc, blk, t.b - 1, t.b)) }

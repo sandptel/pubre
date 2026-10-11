@@ -19,4 +19,5 @@ test('hard = no common lemma', () => {
   assert.equal(isHard('ship', new Set()), false) // no list loaded: never flag
   assert.equal(isHard('ship-walk', common), false)
   assert.equal(isHard('binnacle-ship', common), true)
+  assert.equal(isHard('walk’d', common), false)
 })

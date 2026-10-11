@@ -110,6 +110,8 @@ export interface Settings {
   justify: boolean
   bold: boolean
   spread: 'auto' | 'single'
+  letterSpacing: number // em; accessibility (0–0.12)
+  measure: 'normal' | 'short' // short ≈ 40 characters per line (helps some dyslexic readers)
   // Reading guide
   guide: boolean // guide available (dock button, G key)
   pointer: Pointer
@@ -130,7 +132,7 @@ export interface Settings {
 }
 
 export const defaults: Settings = {
-  palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto',
+  palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto', letterSpacing: 0, measure: 'normal',
   guide: true, pointer: 'word', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
   intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'ink', asides: true, foreign: true, motion: 'full', onlineDefinitions: false,
 }
@@ -166,7 +168,8 @@ body *:not(a) { color: inherit !important; background-color: transparent !import
 a { color: ${accent} !important; text-decoration-thickness: .06em; text-underline-offset: .15em; }
 ${font ? `body, body *${notCode} { font-family: ${font} !important; }` : ''}
 ${s.lineHeight ? `body, p, li, blockquote, dd, div { line-height: ${s.lineHeight} !important; }` : ''}
-${s.justify ? 'p { text-align: justify; hyphens: auto; -webkit-hyphens: auto; }' : ''}
+${s.justify && s.measure !== 'short' ? 'p { text-align: justify; hyphens: auto; -webkit-hyphens: auto; }' : ''}
+${s.letterSpacing ? `body, body *${notCode} { letter-spacing: ${s.letterSpacing}em !important; word-spacing: ${s.letterSpacing * 1.5}em !important; }` : ''}
 p { widows: 2; orphans: 2; }
 img, svg, video, canvas { max-width: 100% !important; max-height: ${pageHeight}px !important;
   height: auto; object-fit: contain; break-inside: avoid; }

@@ -9,7 +9,9 @@ import { Marks, marksCss } from './marks.ts'
 import { cfiToRange } from '../epub/cfi.ts'
 
 export interface View { iframe: HTMLIFrameElement; doc: Document; index: number; pages: number; ix: TextIndex; marks: Marks }
-export interface Relocation { index: number; page: number; pages: number; fraction: number; progress: number; chapter: string; cfi?: string }
+export interface Relocation { index: number; page: number; pages: number; fraction: number; progress: number; chapter: string; cfi?: string
+  /** Book-progress (0..1) at the top of this page, and where the current TOC chapter ends. */
+  top: number; chapterEnd: number }
 /** A top-level TOC entry placed on the whole-book progress axis (0..1). */
 export interface Section { label: string; href: string; start: number }
 export type Zone = 'left' | 'center' | 'right'
@@ -231,7 +233,7 @@ export class Paginator {
     const V = this.host.clientWidth, H = this.host.clientHeight, s = this.settings
     const cols = s.spread === 'auto' && V >= 900 && V > H * 1.1 ? 2 : 1
     // Measure ≈ 36em (60–75 characters); margins setting trades measure for whitespace.
-    const maxCol = Math.round(16 * s.fontScale / 100 * [40, 36, 31][s.margin])
+    const maxCol = Math.round(16 * s.fontScale / 100 * (s.measure === 'short' ? 22 : [40, 36, 31][s.margin]) * (1 + (s.letterSpacing || 0) * 4))
     const outer = Math.max(16, Math.round(V * [0.04, 0.06, 0.09][s.margin]))
     const gap = cols === 2 ? Math.min(96, Math.max(48, Math.round(V * 0.045))) : 2 * outer
     const colW = Math.floor(Math.min(maxCol, (V - 2 * outer - (cols - 1) * gap) / cols))
@@ -553,6 +555,7 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
     let cfi: string | undefined
     const k = v.ix.words.length ? this.firstWordOnPage(v) : -1
     if (k >= 0) try { const wd = v.ix.words[k]; cfi = this.book.cfiAt(v.index, wd.sn, wd.so) } catch { /* unresolvable node */ }
-    this.onRelocate?.({ index: v.index, page: this.page, pages: v.pages, fraction, progress, chapter, cfi })
+    const chapterEnd = this.marks.find(m => m.at > top + w / v.pages * 0.5)?.at ?? 1
+    this.onRelocate?.({ index: v.index, page: this.page, pages: v.pages, fraction, progress, chapter, cfi, top, chapterEnd })
   }
 }

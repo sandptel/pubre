@@ -15,8 +15,9 @@ export interface BookRecord {
   opened: number
   progress: number // 0..1 across the whole book
   location?: Location
+  chapter?: string // label of the chapter you're in
   prefs?: Partial<Settings> // this book's overrides of the global settings
-  profile?: { v: number; names: NameInfo[] } // on-device insights (cast), computed once
+  profile?: { v: number; names: NameInfo[]; words?: number[] } // on-device insights (cast, words per chapter), computed once
 }
 
 let dbp: Promise<IDBDatabase> | undefined

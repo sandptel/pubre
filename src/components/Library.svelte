@@ -3,10 +3,15 @@
   import { flip } from 'svelte/animate'
   import { cubicOut } from 'svelte/easing'
   import { fly, scale } from 'svelte/transition'
-  import { importFile, listBooks, removeBook, type BookRecord } from '../lib/store.svelte.ts'
+  import { importFile, listBooks, removeBook, saveBook, type BookRecord } from '../lib/store.svelte.ts'
+  import type { Settings } from '../lib/settings.ts'
+  import { bookMinutesLeft, calmRange } from '../lib/calm.ts'
   import Cover from './Cover.svelte'
+  import Sheet from './Sheet.svelte'
+  import Appearance from './Appearance.svelte'
+  import ReadingAids from './ReadingAids.svelte'
 
-  let { lastId, onopen }: { lastId: string; onopen: (r: BookRecord) => void } = $props()
+  let { lastId, settings = $bindable(), onopen }: { lastId: string; settings: Settings; onopen: (r: BookRecord) => void } = $props()
 
   let books = $state<BookRecord[]>([])
   let loaded = $state(false)
@@ -18,7 +23,26 @@
   let undo = $state<{ book: BookRecord; timer: number } | null>(null)
   let input: HTMLInputElement
 
+  let settingsOpen = $state(false)
+  let sview = $state<'menu' | 'look' | 'aids'>('menu')
   const current = $derived(books.find(b => b.progress > 0 && b.progress < 0.995))
+  // Shelves: what you're reading, what's next, what you've finished. Empty shelves are hidden.
+  const shelves = $derived([
+    { id: 'reading', title: 'Reading', list: books.filter(b => b.progress > 0 && b.progress < 0.995 && b !== current) },
+    { id: 'next', title: 'Up next', list: books.filter(b => !b.progress) },
+    { id: 'done', title: 'Finished', list: books.filter(b => b.progress >= 0.995) },
+  ].filter(s => s.list.length))
+  const timeLeft = (b: BookRecord) => {
+    const r = calmRange(bookMinutesLeft(b.profile?.words, b.location?.index ?? 0, b.location?.fraction ?? 0, settings.wpm))
+    return r ? `${r} left at your pace` : ''
+  }
+  async function markFinished(b: BookRecord, done: boolean) {
+    menu = null
+    b.progress = done ? 1 : 0
+    if (!done) b.location = undefined
+    await saveBook(b)
+    books = [...books]
+  }
 
   onMount(async () => {
     books = await listBooks()
@@ -98,6 +122,9 @@
 <main class="library">
   <header>
     <h1>Library</h1>
+    <button class="fab gear" aria-label="Settings" onclick={() => { sview = 'menu'; settingsOpen = true }}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></svg>
+    </button>
     <button class="fab add" aria-label="Add books" onclick={() => input.click()} disabled={busy > 0} class:busy={busy > 0}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
     </button>
@@ -111,10 +138,12 @@
     <button class="continue" onclick={() => open(current)} in:fly={{ y: 12, duration: 500, easing: cubicOut }}>
       <span class="c-cover" style:view-transition-name={morphId === current.id ? 'cover' : undefined}><Cover book={current} /></span>
       <span class="c-info">
-        <span class="eyebrow">Continue reading</span>
+        <span class="eyebrow">Now reading</span>
         <span class="c-title">{current.title}</span>
+        <span class="c-meta">{current.creator}</span>
+        {#if current.chapter}<span class="c-chapter">{current.chapter}</span>{/if}
         <span class="c-bar"><span style:width="{current.progress * 100}%"></span></span>
-        <span class="c-meta">{current.creator} · {pct(current.progress)}</span>
+        <span class="c-meta">{pct(current.progress)}{timeLeft(current) ? ` · ${timeLeft(current)}` : ''}</span>
       </span>
     </button>
   {/if}
@@ -129,8 +158,11 @@
         or <a href="https://www.gutenberg.org" target="_blank" rel="noopener">Project Gutenberg</a>.</p>
     </section>
   {:else}
+    {#each shelves as shelf (shelf.id)}
+      <section class="shelf" aria-label={shelf.title}>
+        <h2 class="shelf-h">{shelf.title}<span>{shelf.list.length}</span></h2>
     <ul class="grid">
-      {#each books as b, i (b.id)}
+      {#each shelf.list as b, i (b.id)}
         <li style:--i={i} animate:flip={{ duration: 450, easing: cubicOut }} out:scale={{ start: 0.85, duration: 250 }}>
           <button class="book" aria-label="Open {b.title}" onclick={() => open(b)}
             oncontextmenu={e => { e.preventDefault(); showMenu(b, e.clientX, e.clientY) }}
@@ -145,6 +177,8 @@
         </li>
       {/each}
     </ul>
+      </section>
+    {/each}
   {/if}
 </main>
 
@@ -152,12 +186,30 @@
   <div class="scrim" role="presentation" onclick={() => (menu = null)} oncontextmenu={e => { e.preventDefault(); menu = null }}></div>
   <div class="menu glass" role="menu" style:left="{menu.x}px" style:top="{menu.y}px" transition:scale={{ start: 0.7, duration: 220, easing: cubicOut }}>
     <span class="m-title">{menu.book.title}</span>
+    <button role="menuitem" onclick={() => markFinished(menu!.book, menu!.book.progress < 0.995)}>
+      {menu.book.progress >= 0.995 ? 'Mark as unread' : 'Mark as finished'}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+    </button>
     <button role="menuitem" class="danger" onclick={() => remove(menu!.book)}>
       Remove from library
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></svg>
     </button>
   </div>
 {/if}
+
+<Sheet bind:open={settingsOpen} title={sview === 'menu' ? 'Settings' : sview === 'look' ? 'Themes & Settings' : 'Reading aids'} back={sview !== 'menu' ? () => (sview = 'menu') : undefined}>
+  {#if sview === 'menu'}
+    <div class="slist">
+      <button onclick={() => (sview = 'look')}><span class="aa">Aa</span><span>Themes &amp; Settings<small>Palette, mode, font, layout</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg></button>
+      <button onclick={() => (sview = 'aids')}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="9" width="9" height="6" rx="2" fill="currentColor" opacity=".35" stroke="none" /><path d="M3 18h18M15 12h6" /></svg><span>Reading aids<small>Guide, lenses, comfort</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg></button>
+    </div>
+    <p class="about">pubre reads on your device: books, notes and insights never leave it. Word data: wordfreq (CC BY-SA) and Open English WordNet (CC BY).</p>
+  {:else if sview === 'look'}
+    <Appearance bind:settings />
+  {:else}
+    <ReadingAids bind:value={settings} />
+  {/if}
+</Sheet>
 
 {#if undo}
   <div class="toast glass" role="status" transition:fly={{ y: 40, duration: 450, easing: cubicOut }}>
@@ -175,7 +227,9 @@
     max-width: 1180px; margin: 0 auto;
     padding: max(var(--s6), env(safe-area-inset-top)) max(var(--s5), env(safe-area-inset-right)) var(--s7) max(var(--s5), env(safe-area-inset-left));
   }
-  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--s5); }
+  header { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s5); }
+  header h1 { flex: 1; }
+  .gear { background: var(--hover); }
   h1 { font: 700 34px/1.1 var(--serif); letter-spacing: -.02em; margin: 0; }
   .add { background: var(--accent); color: var(--bg); box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--accent) 60%, transparent); }
   .add:hover { background: var(--accent); filter: brightness(1.06); }
@@ -195,6 +249,19 @@
   .c-info { display: grid; gap: var(--s1); min-width: 0; flex: 1; }
   .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
   .c-title { font: 600 18px/1.25 var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .c-chapter { font-size: 13px; font-style: italic; font-family: var(--serif); color: color-mix(in srgb, var(--fg) 75%, var(--bg)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .shelf + .shelf { margin-top: var(--s6); }
+  .shelf-h { font: 600 13px var(--sans, system-ui); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 var(--s4); display: flex; gap: var(--s2); align-items: baseline; }
+  .shelf-h span { font-weight: 400; }
+  .slist { border-radius: 12px; background: var(--hover); overflow: hidden; }
+  .slist button { display: flex; align-items: center; gap: var(--s3); width: 100%; min-height: 58px; padding: 0 var(--s4); border: 0; background: none; text-align: left; font-size: 16px; }
+  .slist button + button { border-top: .5px solid var(--hairline); }
+  .slist button > span:not(.aa) { flex: 1; display: grid; }
+  .slist small { font-size: 12px; color: var(--muted); }
+  .slist svg { width: 20px; height: 20px; color: var(--accent); }
+  .slist .chev { width: 16px; height: 16px; color: var(--muted); }
+  .aa { width: 20px; font: 600 15px var(--serif); color: var(--accent); text-align: center; }
+  .about { font-size: 12px; color: var(--muted); line-height: 1.5; margin: var(--s4) 0 0; }
   .c-meta { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .c-bar { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; margin: var(--s1) 0 2px; }
   .c-bar span, .bar span { display: block; height: 100%; background: var(--accent); border-radius: 2px; }

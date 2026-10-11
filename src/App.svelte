@@ -26,5 +26,5 @@
 {#if open}
   <Reader record={open} bind:settings onclose={() => swap(() => { lastId = open!.id; open = null })} />
 {:else}
-  <Library {lastId} onopen={r => swap(() => { open = r })} />
+  <Library {lastId} bind:settings onopen={r => swap(() => { open = r })} />
 {/if}

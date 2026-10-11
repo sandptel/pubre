@@ -6,5 +6,6 @@ self.onmessage = (e: MessageEvent<{ texts: string[] }>) => {
     .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#8217;|&rsquo;/g, '’').replace(/&#8220;|&ldquo;/g, '“').replace(/&#8221;|&rdquo;/g, '”').replace(/&[a-z#0-9]+;/gi, ' '))
-  self.postMessage({ names: findNames(texts) })
+  const words = texts.map(t => (t.match(/[A-Za-z’'-]+/g) || []).length)
+  self.postMessage({ names: findNames(texts), words })
 }

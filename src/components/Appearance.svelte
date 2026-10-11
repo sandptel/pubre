@@ -63,29 +63,6 @@
     </div>
   {/if}
 
-  <button class="row" aria-expanded={open === 'guide'} onclick={() => toggle('guide')}>
-    <span>Reading guide</span>
-    <span class="value">{settings.guide ? `${({ word: 'Word', underline: 'Underline', dot: 'Dot', outline: 'Outline' })[settings.pointer]} · ${settings.wpm} wpm` : 'Off'}</span>
-    <svg class="chev" class:open={open === 'guide'} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
-  </button>
-  {#if open === 'guide'}
-    <div class="sub" transition:slide={{ duration: 320, easing: cubicOut }}>
-      <label class="line"><span>Show the guide (G)</span><input type="checkbox" role="switch" bind:checked={settings.guide} /></label>
-      {#each [['Pointer', 'pointer', [['word', 'Word'], ['underline', 'Line'], ['dot', 'Dot'], ['outline', 'Ring']]], ['Focus', 'focus', [['sentence', 'Sentence'], ['line', 'Line'], ['paragraph', 'Para']]], ['Step', 'step', [['word', 'Word'], ['phrase', 'Phrase']]]] as [label, key, opts]}
-        <div class="line">
-          <span>{label}</span>
-          <div class="segmented" role="radiogroup" aria-label={label as string}>
-            {#each opts as [v, l]}
-              <button role="radio" aria-checked={(settings as any)[key as string] === v} class:on={(settings as any)[key as string] === v} onclick={() => ((settings as any)[key as string] = v)}>{l}</button>
-            {/each}
-          </div>
-        </div>
-      {/each}
-      <label class="line"><span>Dim what’s read</span><input type="checkbox" role="switch" bind:checked={settings.dimRead} /></label>
-      <p class="hint">Hold Space to glide, tap to step, double-tap for the sentence start. Your pace ({settings.wpm} wpm) is learned from your taps.</p>
-    </div>
-  {/if}
-
   <button class="row" aria-expanded={open === 'custom'} onclick={() => toggle('custom')}>
     <span>Customize</span>
     <span class="value">Spacing, margins, layout</span>
@@ -182,7 +159,6 @@
   .line > span:first-child { flex: 1; }
   .line input[type=range] { flex: 1; accent-color: var(--accent); }
 
-  .hint { font-size: 12px; color: var(--muted); margin: 6px 0 4px; line-height: 1.45; }
   .segmented { display: flex; background: var(--hover); border-radius: 9px; padding: 2px; }
   .segmented button { border: 0; background: transparent; border-radius: 7px; padding: 5px 10px; font-size: 13px; transition: background-color .25s var(--ease); }
   .segmented .on { background: var(--bg); box-shadow: 0 1px 3px rgb(0 0 0 / .15); font-weight: 600; }

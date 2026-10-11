@@ -29,7 +29,7 @@
 </div>
 
 {#if page === 'main'}
-  <div class="cc" in:fly={{ x: -24, duration: 320, easing: cubicOut }}>
+  <div class="cc" in:fly={{ x: -14, duration: 200, easing: cubicOut }}>
     <div class="tile modes" role="radiogroup" aria-label="Mode">
       {#each Object.entries(modes) as [id, m]}
         {@const t = resolveTheme(settings.palette, id)}
@@ -71,7 +71,7 @@
     {/each}
   </div>
 {:else}
-  <div in:fly={{ x: 24, duration: 320, easing: cubicOut }}>
+  <div in:fly={{ x: 14, duration: 200, easing: cubicOut }}>
     <button class="back" onclick={() => (page = 'main')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>Back</button>
     <span class="label">Font</span>
     <div class="fonts" role="radiogroup" aria-label="Font">

@@ -201,7 +201,8 @@ export class Guide {
     if (this.s.step === 'word') return from + 1
     const ws = this.v!.ix.words
     let k = from
-    for (let c = 1; c < 3 && !ws[k].pause && ws[k + 1]; c++) k++
+    const top = this.rect(from).top // a phrase never runs onto the next line: every word gets the marker
+    for (let c = 1; c < 3 && !ws[k].pause && ws[k + 1] && Math.abs(this.rect(k + 1).top - top) < 4; c++) k++
     return k + 1
   }
   // Glide is a ceiling, not a pacer (reading research): ≤ 350 wpm, with smart pauses for

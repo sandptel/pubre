@@ -243,6 +243,10 @@
     const x = ix(), oldS = cur >= 0 ? sen() : -1, oldB = cur >= 0 ? blk() : -1
     ;[cur, ue] = unitAt(x, Math.max(0, Math.min(k, x.words.length - 1)), step)
     ensure(blk())
+    if (step === 'phrase') { // a phrase stops at the end of its line, so the marker covers every word
+      const top = rectsOf(wordEls.get(cur))[0]?.top
+      if (top !== undefined) for (let j = cur + 1; j <= ue; j++) { const t = rectsOf(wordEls.get(j))[0]?.top; if (t === undefined || Math.abs(t - top) > 4) { ue = j - 1; break } }
+    }
     const ns = sen()
     if (oldS < 0) paint(Math.max(0, ns - 3), ns + 3)
     else paint(Math.min(oldS, ns) - 1, Math.max(oldS, ns) + 1)

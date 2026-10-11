@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte'
   import { cubicOut } from 'svelte/easing'
-  import { fly } from 'svelte/transition'
+  import { fade, fly } from 'svelte/transition'
   import { Book, type TocItem } from '../lib/epub.ts'
   import { Paginator, type Relocation, type Section } from '../lib/paginator.ts'
   import { effective, type Settings } from '../lib/settings.ts'
@@ -951,7 +951,7 @@
 <Sheet bind:open={panel} title={titles[view]} back={view !== 'menu' ? () => go('menu') : undefined} seeThrough={view === 'appearance'}>
   <div class="views">
     {#key view}
-      <div class="view" in:fly={{ x: dir * 40, duration: 380, easing: cubicOut }} out:fly={{ x: -dir * 40, duration: 180 }}>
+      <div class="view" in:fly={{ x: dir * 18, duration: 220, delay: 70, easing: cubicOut }} out:fade={{ duration: 70 }}>
         {#if view === 'menu'}
           <div class="book">
             <div class="thumb"><Cover book={rec} /></div>

@@ -86,7 +86,7 @@
   .nav svg { width: 15px; height: 15px; }
   .body {
     max-height: min(72dvh, 620px); overflow: auto; overscroll-behavior: contain;
-    transition: height .45s var(--spring);
+    transition: height .24s cubic-bezier(.2,.8,.2,1); /* quick and settled: no spring on a page change */
   }
   .inner { padding: var(--s3) var(--s5) var(--s5); }
   header.bare + .body .inner { padding-top: var(--s5); }

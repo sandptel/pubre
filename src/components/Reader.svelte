@@ -24,6 +24,7 @@
   import Progress from './Progress.svelte'
   import Sheet from './Sheet.svelte'
   import Stage, { type StageState } from './Stage.svelte'
+  import Ticker from './Ticker.svelte'
   import Toc from './Toc.svelte'
 
   let { record, settings = $bindable(), onclose }: { record: BookRecord; settings: Settings; onclose: () => void } = $props()
@@ -46,7 +47,7 @@
   let guide: Guide | undefined
   let stage = $state<ReturnType<typeof Stage>>()
   let staged = $state(false)
-  let sstate = $state<StageState>({ open: false, moving: false })
+  let sstate = $state<StageState>({ open: false, moving: false, progress: 0 })
   let paperEl = $state<HTMLDivElement>()
   let lenses: Lenses | undefined
   let card = $state<{ x: number; y: number; below: boolean; html: string } | null>(null)
@@ -585,9 +586,9 @@
   </div>
 
   {#if loc}
-    <div class="running head" aria-hidden="true">{loc.chapter || rec.title}</div>
+    <div class="running head" aria-hidden="true"><Ticker value={loc.chapter || rec.title} /></div>
     <div class="running foot" aria-hidden="true">
-      {footText}
+      {#if loc.cpages > 1}<span class="pgn"><Ticker value={loc.cpage + 1} /> of {loc.cpages}</span>{#if footText}<span class="sep">·</span>{/if}{/if}{footText}
     </div>
   {/if}
 
@@ -602,7 +603,7 @@
   <div class="dock">
     {#if loc}
       <div class="progress">
-        <Progress {sections} {words} progress={loc.progress} chapter={loc.chapter || rec.title} page={loc.page} pages={loc.pages}
+        <Progress {sections} {words} progress={loc.progress} chapter={loc.chapter || rec.title} page={loc.cpage} pages={loc.cpages}
           onjump={jump} onscrub={p => pag?.goToProgress(p)} />
       </div>
     {/if}
@@ -625,6 +626,7 @@
         onkeydown={e => { if (e.key === 'Enter') { e.preventDefault(); padTap() } }}
         oncontextmenu={e => e.preventDefault()}>
         <span class="pad-ring"></span>
+        {#if staged}<span class="pad-progress" style:--p={sstate.progress} aria-hidden="true"></span>{/if}
         {#if padMoving}<svg class="pad-i" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="3.6" height="12" rx="1.2" fill="currentColor" /><rect x="13.4" y="6" width="3.6" height="12" rx="1.2" fill="currentColor" /></svg>
         {:else}<svg class="pad-i play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.8v12.4a.8.8 0 001.2.7l9.6-6.2a.8.8 0 000-1.4L9.7 5.1a.8.8 0 00-1.2.7z" fill="currentColor" /></svg>{/if}
       </button>
@@ -659,7 +661,7 @@
       </div>
     {/if}
   {/if}
-  <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} pageEl={paperEl} {decorate} {explain} onmark={markSentence}
+  <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} page={loc?.cpage ?? 0} pages={loc?.cpages ?? 0} pageEl={paperEl} {decorate} {explain} onmark={markSentence}
     onopen={o => { staged = o; if (o) { chrome = false; hideCard(); guide?.deactivate() } else paintLenses() }} onstate={st => (sstate = st)}
     onpace={w => (settings.wpm = w)} ontoast={toast} />
   {#if bar}
@@ -819,6 +821,10 @@
   }
   .head { top: calc(env(safe-area-inset-top) + var(--s4)); font-family: var(--serif); font-style: italic; }
   .foot { bottom: calc(env(safe-area-inset-bottom) + var(--s4)); font-variant-numeric: tabular-nums; }
+  .running { display: flex; justify-content: center; align-items: baseline; gap: 4px; }
+  .running :global(.ticker) { min-width: 0; }
+  .pgn { display: inline-flex; gap: 3px; align-items: baseline; }
+  .sep { margin: 0 4px; }
   .chrome .running { opacity: 0; }
 
   /* Floating chrome springs in from its edge; the dock trails slightly. */
@@ -930,6 +936,10 @@
   .pad-i { width: 22px; height: 22px; transition: transform .3s var(--spring); }
   .pad-i.play { margin-left: 2px; }
   .pad:active .pad-i { transform: scale(.9); }
+  /* While the Stage is up: a hairline ring that fills through the chapter. */
+  .pad-progress { position: absolute; inset: 3px; border-radius: 50%; pointer-events: none; opacity: .55;
+    background: conic-gradient(var(--accent) calc(var(--p) * 1turn), color-mix(in srgb, var(--fg) 10%, transparent) 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px)); }
   .pad-ring { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; pointer-events: none; }
   .pad.held .pad-ring { opacity: 1; animation: ring 1.4s ease-out infinite; }
   @media (hover: hover) and (pointer: fine) { .pad { width: 48px; height: 48px; opacity: .6; } .pad:hover, .pad.held, .padgroup.up .pad { opacity: 1; } }

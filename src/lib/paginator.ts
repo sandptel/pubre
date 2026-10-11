@@ -11,7 +11,9 @@ import { cfiToRange } from '../epub/cfi.ts'
 export interface View { iframe: HTMLIFrameElement; doc: Document; index: number; pages: number; ix: TextIndex; marks: Marks }
 export interface Relocation { index: number; page: number; pages: number; fraction: number; progress: number; chapter: string; cfi?: string
   /** Book-progress (0..1) at the top of this page, and where the current TOC chapter ends. */
-  top: number; chapterEnd: number }
+  top: number; chapterEnd: number
+  /** The page within the current section (chapter), and how many pages the section has in this file. */
+  cpage: number; cpages: number }
 /** A top-level TOC entry placed on the whole-book progress axis (0..1). */
 export interface Section { label: string; href: string; start: number }
 export type Zone = 'left' | 'center' | 'right'
@@ -600,12 +602,16 @@ body > div, body > section, body > p, body > figure { text-align: center !import
       return el ? this.starts[v.index] + w * (this.pageOfRect(el.getBoundingClientRect()) / v.pages) : m.frag ? m.at : this.starts[v.index]
     }
     const placed = this.marks.map(m => ({ label: m.label, at: pos(m) }))
-    const chapter = placed.findLast(m => m.at <= top + w / v.pages * 0.5)?.label ?? ''
+    const here = placed.findLast(m => m.at <= top + w / v.pages * 0.5)
+    const chapter = here?.label ?? ''
     let cfi: string | undefined
     const k = v.ix.words.length ? this.firstWordOnPage(v) : -1
     if (k >= 0) try { const wd = v.ix.words[k]; cfi = this.book.cfiAt(v.index, wd.sn, wd.so) } catch { /* unresolvable node */ }
     const chapterEnd = placed.find(m => m.at > top + w / v.pages * 0.5)?.at ?? 1
-    this.onRelocate?.({ index: v.index, page: this.page, pages: v.pages, fraction, progress, chapter, cfi, top, chapterEnd })
+    // Pages of this section within this file (a section that began in an earlier file counts from here).
+    const pageAt = (at: number) => Math.round((at - this.starts[v.index]) / w * v.pages)
+    const s0 = here ? Math.max(0, Math.min(this.page, pageAt(here.at))) : 0, s1 = Math.max(s0 + 1, Math.min(v.pages, pageAt(chapterEnd)))
+    this.onRelocate?.({ index: v.index, page: this.page, pages: v.pages, fraction, progress, chapter, cfi, top, chapterEnd, cpage: this.page - s0, cpages: Math.max(this.page - s0 + 1, s1 - s0) })
   }
 }
 

@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  export interface StageState { open: boolean; moving: boolean }
+  export interface StageState { open: boolean; moving: boolean; progress: number }
 </script>
 
 <script lang="ts">
@@ -15,9 +15,11 @@
   import { fonts, type Settings } from '../lib/settings.ts'
   import { breath, MAX_WPM, sentenceTime, wordTime, type Breath } from '../lib/pacing.ts'
   import { prevUnit, segments, unitAt, type Decor, type Step } from '../lib/stagetext.ts'
+  import Ticker from './Ticker.svelte'
+  import type { TextIndex } from '../lib/textindex.ts'
 
-  let { pag, settings, chapter = '', pageEl, decorate, explain, onmark, onopen, onstate, onpace, ontoast }: {
-    pag: Paginator | undefined; settings: Settings; chapter?: string; pageEl?: HTMLElement
+  let { pag, settings, chapter = '', page = 0, pages = 0, pageEl, decorate, explain, onmark, onopen, onstate, onpace, ontoast }: {
+    pag: Paginator | undefined; settings: Settings; chapter?: string; page?: number; pages?: number; pageEl?: HTMLElement
     decorate?: (v: View, b: number) => Decor[]; explain?: (key: string) => Promise<string>
     /** Long-press a sentence: keep it (true) or let it go again (false). */
     onmark?: (v: View, s: number) => Promise<boolean | null>
@@ -53,7 +55,25 @@
   const pointer = $derived(step === 'sentence' ? 'ink' : settings.stagePointer ?? 'ink')
   const go_ = $derived(touch ? 'tap' : 'Space')
   $effect(() => { const w = settings.wpm; untrack(() => { if (w !== wpm) { wpm = w; if (open) setRate(rate) } }) }) // a new pace applies mid-sentence
-  $effect(() => { onstate?.({ open, moving: playing || holdPlay }) })
+  let progress = $state(0) // through this chapter's text, for the pad's ring and the line under the label
+  let sections = $state<number[]>([]) // paragraph starts within this section (ticks on the line)
+  let span: [number, number, View?] = [0, 0] // this section's word range [a, b) in its view
+  /** The line under the label is this section (from its heading to the next): fill = how far in, ticks = paragraphs. */
+  function sectionLine(x: TextIndex) {
+    const heads = (b: number) => x.blocks[b]?.kind === 'heading' && /^h[12]$/i.test(x.blocks[b].el.localName)
+    if (span[2] !== v || cur < span[0] || cur >= span[1]) {
+      let a = blk(), e = blk() + 1
+      while (a > 0 && !heads(a)) a--
+      while (e < x.blocks.length && !heads(e)) e++
+      const wa = x.blocks[a].a, wb = e < x.blocks.length ? x.blocks[e].a : x.words.length
+      span = [wa, wb, v]
+      const starts: number[] = []
+      for (let i = a + 1; i < e; i++) if (readable(i)) starts.push((x.blocks[i].a - wa) / Math.max(1, wb - wa))
+      sections = starts.length <= 48 ? starts : []
+    }
+    progress = Math.min(1, Math.max(0, (cur - span[0]) / Math.max(1, span[1] - span[0] - 1)))
+  }
+  $effect(() => { onstate?.({ open, moving: playing || holdPlay, progress }) })
 
   // ---------- the text model ----------
   const ix = () => v!.ix
@@ -210,6 +230,7 @@
     else paint(Math.min(oldS, ns) - 1, Math.max(oldS, ns) + 1)
     flow!.classList.remove('exhale')
     const newBlock = blk() !== oldB
+    sectionLine(x)
     place(animate, newBlock ? 800 : 600)
     placeMarker(animate)
     if (newBlock && sync) syncPage()
@@ -616,7 +637,14 @@
     </div>
     <div class="fade top-fade" class:on={landed}></div>
     <div class="fade bottom-fade" class:on={landed}></div>
-    <div class="top" class:on={landed}>{chapter}</div>
+    <div class="top" class:on={landed}>
+      <span class="where"><span class="ch"><Ticker value={chapter} /></span>{#if pages > 1}<span class="pg">· p. <Ticker value={page + 1} /> of {pages}</span>{/if}</span>
+      <span class="line" aria-hidden="true">
+        <i style:transform="scaleX({progress})"></i>
+        {#each sections as at}<b style:left="{at * 100}%"></b>{/each}
+        {#key chapter}<em></em>{/key}
+      </span>
+    </div>
     {#if waiting && breathAt && !waits(waiting)}
       <span class="breath" style:left="{breathAt.x}px" style:top="{breathAt.y}px"><i style:animation-duration="{breathMs}ms"></i></span>
     {/if}
@@ -699,8 +727,19 @@
   .fade.on { opacity: 1; }
   .top-fade { top: 0; background: linear-gradient(var(--bg) 40%, transparent); }
   .bottom-fade { bottom: 0; height: 30%; background: linear-gradient(transparent, var(--bg) 70%); }
-  .top { position: absolute; top: calc(env(safe-area-inset-top) + 22px); left: 56px; right: 56px; text-align: center; font: 600 11px system-ui; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transition: opacity .4s ease; }
+  /* Where am I: the section and page (they roll when they change) over a hairline that fills through the chapter. */
+  .top { position: absolute; top: calc(env(safe-area-inset-top) + 20px); left: 56px; right: 56px; display: grid; justify-items: center; gap: 7px; pointer-events: none; opacity: 0; transition: opacity .4s ease; }
+  .where { display: flex; align-items: baseline; justify-content: center; gap: 6px; max-width: 100%; font: 600 11px system-ui; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .ch { min-width: 0; display: inline-grid; }
+  .pg { flex: none; font-weight: 500; letter-spacing: .06em; text-transform: none; font-variant-numeric: tabular-nums; }
+  .line { position: relative; width: min(240px, 60vw); height: 2px; border-radius: 1px; background: color-mix(in srgb, var(--fg) 10%, transparent); overflow: visible; }
+  .line i { position: absolute; inset: 0; border-radius: 1px; background: color-mix(in srgb, var(--accent) 70%, transparent); transform-origin: left; transition: transform .8s cubic-bezier(.22,1,.36,1); }
+  .line b { position: absolute; top: -2px; width: 1px; height: 6px; background: color-mix(in srgb, var(--fg) 30%, transparent); }
+  /* crossing into a new section: a soft light runs along the line */
+  .line em { position: absolute; inset: -3px 0; border-radius: 3px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 55%, transparent), transparent); background-size: 40% 100%; background-repeat: no-repeat; animation: sweep 1.1s cubic-bezier(.4,0,.2,1) both; opacity: 0; }
+  @keyframes sweep { 0% { background-position: -60% 0; opacity: 0; } 15% { opacity: 1; } 100% { background-position: 160% 0; opacity: 0; } }
   .top.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .line em { animation: none; } }
   .foot { position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 28px); display: grid; place-items: center; font: 12px system-ui; color: var(--muted); pointer-events: none; min-height: 16px; }
   .foot span { animation: fade .5s ease both; }
   .breath { position: absolute; width: 56px; height: 2px; border-radius: 1px; background: color-mix(in srgb, var(--fg) 10%, transparent); overflow: hidden; opacity: .4; pointer-events: none; animation: fade .4s ease both; }

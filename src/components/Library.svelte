@@ -1,5 +1,8 @@
 <script lang="ts">
   import { flushSync, onMount, untrack } from 'svelte'
+  import { flip } from 'svelte/animate'
+  import { cubicOut } from 'svelte/easing'
+  import { fly, scale } from 'svelte/transition'
   import { importFile, listBooks, removeBook, type BookRecord } from '../lib/store.svelte.ts'
   import Cover from './Cover.svelte'
 
@@ -11,6 +14,8 @@
   let dragging = $state(false)
   let error = $state('')
   let morphId = $state(untrack(() => lastId))
+  let menu = $state<{ book: BookRecord; x: number; y: number } | null>(null)
+  let undo = $state<{ book: BookRecord; timer: number } | null>(null)
   let input: HTMLInputElement
 
   const current = $derived(books.find(b => b.progress > 0 && b.progress < 0.995))
@@ -18,8 +23,7 @@
   onMount(async () => {
     books = await listBooks()
     loaded = true
-    // Let the cover morph land, then stop naming it so a different book can morph next.
-    setTimeout(() => (morphId = ''), 700)
+    setTimeout(() => (morphId = ''), 700) // let the cover morph land, then free the name
   })
 
   async function add(files: Iterable<File>) {
@@ -40,21 +44,52 @@
   }
 
   function open(r: BookRecord) {
+    if (pressed) return
     morphId = r.id
     flushSync() // the cover must carry its view-transition-name before the snapshot
     onopen(r)
   }
 
-  async function remove(r: BookRecord) {
-    if (!confirm(`Remove “${r.title}” from your library?`)) return
-    await removeBook(r.id)
+  // Remove immediately; delete for real only if not undone.
+  function remove(r: BookRecord) {
+    menu = null
+    commitUndo()
     books = books.filter(b => b.id !== r.id)
+    undo = { book: r, timer: window.setTimeout(commitUndo, 5000) }
+  }
+  function commitUndo() {
+    if (!undo) return
+    clearTimeout(undo.timer)
+    removeBook(undo.book.id)
+    undo = null
+  }
+  function restore() {
+    if (!undo) return
+    clearTimeout(undo.timer)
+    const b = undo.book
+    books = [...books, b].sort((x, y) => y.opened - x.opened)
+    undo = null
   }
 
-  const pct = (p: number) => (p >= 0.995 ? 'Finished' : p > 0 ? `${Math.round(p * 100)}%` : 'New')
+  // Item actions: right-click, or long-press on touch (iOS has no contextmenu event).
+  let pressTimer = 0, pressed = false
+  function showMenu(book: BookRecord, x: number, y: number) {
+    menu = { book, x: Math.min(x, innerWidth - 220), y: Math.min(y, innerHeight - 120) }
+    navigator.vibrate?.(8)
+  }
+  function pressStart(e: PointerEvent, b: BookRecord) {
+    pressed = false
+    if (e.pointerType === 'mouse') return
+    const { clientX: x, clientY: y } = e
+    pressTimer = window.setTimeout(() => { pressed = true; showMenu(b, x, y) }, 480)
+  }
+  const pressEnd = () => { clearTimeout(pressTimer); setTimeout(() => (pressed = false), 0) }
+
+  const pct = (p: number) => (p >= 0.995 ? 'Finished' : p > 0 ? `${Math.round(p * 100)}%` : '')
 </script>
 
 <svelte:window
+  onkeydown={e => { if (e.key === 'Escape') menu = null }}
   ondragover={e => { e.preventDefault(); dragging = true }}
   ondragleave={e => { if (!e.relatedTarget) dragging = false }}
   ondrop={e => { e.preventDefault(); dragging = false; if (e.dataTransfer) add(e.dataTransfer.files) }}
@@ -62,136 +97,167 @@
 
 <main class="library">
   <header>
-    <div>
-      <h1>Library</h1>
-      {#if loaded}<p class="sub">{books.length} {books.length === 1 ? 'book' : 'books'}</p>{/if}
-    </div>
-    <button class="pill" onclick={() => input.click()} disabled={busy > 0}>
-      {busy ? 'Adding…' : 'Add books'}
+    <h1>Library</h1>
+    <button class="fab add" aria-label="Add books" onclick={() => input.click()} disabled={busy > 0} class:busy={busy > 0}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
     </button>
     <input bind:this={input} type="file" accept=".epub,application/epub+zip" multiple hidden
       onchange={e => { add(e.currentTarget.files ?? []); e.currentTarget.value = '' }} />
   </header>
 
-  {#if error}<p class="error" role="alert">{error}</p>{/if}
+  {#if error}<p class="error" role="alert" transition:fly={{ y: -8, duration: 250 }}>{error}</p>{/if}
 
   {#if current}
-    <section class="hero" aria-label="Continue reading">
-      <button class="hero-cover" onclick={() => open(current)}
-        style:view-transition-name={morphId === current.id ? 'cover' : undefined}>
-        <Cover book={current} />
-      </button>
-      <div class="hero-info">
-        <p class="eyebrow">Continue reading</p>
-        <h2>{current.title}</h2>
-        <p class="author">{current.creator}</p>
-        <div class="bar"><span style:width="{current.progress * 100}%"></span></div>
-        <p class="sub">{pct(current.progress)} read</p>
-        <button class="pill" onclick={() => open(current)}>Resume</button>
-      </div>
-    </section>
+    <button class="continue" onclick={() => open(current)} in:fly={{ y: 12, duration: 500, easing: cubicOut }}>
+      <span class="c-cover" style:view-transition-name={morphId === current.id ? 'cover' : undefined}><Cover book={current} /></span>
+      <span class="c-info">
+        <span class="eyebrow">Continue reading</span>
+        <span class="c-title">{current.title}</span>
+        <span class="c-bar"><span style:width="{current.progress * 100}%"></span></span>
+        <span class="c-meta">{current.creator} · {pct(current.progress)}</span>
+      </span>
+    </button>
   {/if}
 
   {#if loaded && !books.length}
-    <section class="empty">
-      <div class="empty-art" aria-hidden="true"><span></span><span></span><span></span></div>
+    <section class="empty" in:fly={{ y: 16, duration: 600, easing: cubicOut }}>
+      <div class="art" aria-hidden="true"><span></span><span></span><span></span></div>
       <h2>Your library is empty</h2>
-      <p>Drop an <strong>.epub</strong> anywhere on this page, or use <em>Add books</em>.<br />
-        pubre opens DRM-free books — try <a href="https://standardebooks.org" target="_blank" rel="noopener">Standard Ebooks</a>
+      <p>Drop an <strong>.epub</strong> here, or add one from your device.</p>
+      <button class="pill" onclick={() => input.click()}>Add books</button>
+      <p class="hint">DRM-free books work — try <a href="https://standardebooks.org" target="_blank" rel="noopener">Standard Ebooks</a>
         or <a href="https://www.gutenberg.org" target="_blank" rel="noopener">Project Gutenberg</a>.</p>
     </section>
   {:else}
     <ul class="grid">
       {#each books as b, i (b.id)}
-        <li style:--i={i}>
-          <button class="cover-btn" onclick={() => open(b)} aria-label="Open {b.title}"
-            style:view-transition-name={morphId === b.id && b !== current ? 'cover' : undefined}>
-            <Cover book={b} />
+        <li style:--i={i} animate:flip={{ duration: 450, easing: cubicOut }} out:scale={{ start: 0.85, duration: 250 }}>
+          <button class="book" aria-label="Open {b.title}" onclick={() => open(b)}
+            oncontextmenu={e => { e.preventDefault(); showMenu(b, e.clientX, e.clientY) }}
+            onpointerdown={e => pressStart(e, b)} onpointerup={pressEnd} onpointercancel={pressEnd} onpointerleave={pressEnd}>
+            <span class="cover" style:view-transition-name={morphId === b.id && b !== current ? 'cover' : undefined}>
+              <Cover book={b} />
+              {#if b.progress > 0 && b.progress < 0.995}<span class="bar"><span style:width="{b.progress * 100}%"></span></span>{/if}
+            </span>
+            <span class="title">{#if !b.progress}<i class="dot" title="New"></i>{/if}{b.title}</span>
+            <span class="author">{b.creator}{b.progress >= 0.995 ? ' · Finished' : ''}</span>
           </button>
-          <div class="meta">
-            <div class="text">
-              <span class="title">{b.title}</span>
-              <span class="status" class:new={!b.progress}>{pct(b.progress)}</span>
-            </div>
-            <button class="icon-btn more" aria-label="Remove {b.title}" onclick={() => remove(b)}>
-              <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
-            </button>
-          </div>
         </li>
       {/each}
     </ul>
   {/if}
 </main>
 
+{#if menu}
+  <div class="scrim" role="presentation" onclick={() => (menu = null)} oncontextmenu={e => { e.preventDefault(); menu = null }}></div>
+  <div class="menu glass" role="menu" style:left="{menu.x}px" style:top="{menu.y}px" transition:scale={{ start: 0.7, duration: 220, easing: cubicOut }}>
+    <span class="m-title">{menu.book.title}</span>
+    <button role="menuitem" class="danger" onclick={() => remove(menu!.book)}>
+      Remove from library
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></svg>
+    </button>
+  </div>
+{/if}
+
+{#if undo}
+  <div class="toast glass" role="status" transition:fly={{ y: 40, duration: 450, easing: cubicOut }}>
+    <span>Removed “{undo.book.title}”</span>
+    <button onclick={restore}>Undo</button>
+  </div>
+{/if}
+
 {#if dragging}
-  <div class="drop" aria-hidden="true"><div>Drop to add to your library</div></div>
+  <div class="drop" aria-hidden="true"><div>Drop to add</div></div>
 {/if}
 
 <style>
   .library {
     max-width: 1180px; margin: 0 auto;
-    padding: max(28px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) 64px max(20px, env(safe-area-inset-left));
+    padding: max(var(--s6), env(safe-area-inset-top)) max(var(--s5), env(safe-area-inset-right)) var(--s7) max(var(--s5), env(safe-area-inset-left));
   }
-  header { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin: 12px 0 28px; }
-  h1 { font: 700 clamp(2rem, 5vw, 2.6rem)/1.05 var(--serif); letter-spacing: -.02em; margin: 0; }
-  .sub { color: var(--muted); margin: 6px 0 0; font-size: .92rem; }
-  .error { background: color-mix(in srgb, var(--base08) 14%, transparent); color: var(--base08); padding: 10px 14px; border-radius: 10px; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--s5); }
+  h1 { font: 700 34px/1.1 var(--serif); letter-spacing: -.02em; margin: 0; }
+  .add { background: var(--accent); color: var(--bg); box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--accent) 60%, transparent); }
+  .add:hover { background: var(--accent); filter: brightness(1.06); }
+  .add.busy svg { animation: spin 1s linear infinite; }
+  .error { background: color-mix(in srgb, var(--base08) 14%, transparent); color: var(--base08); padding: var(--s3) var(--s4); border-radius: 12px; margin: 0 0 var(--s5); }
 
-  .hero {
-    display: grid; grid-template-columns: minmax(120px, 190px) 1fr; gap: clamp(20px, 4vw, 44px); align-items: center;
-    padding: clamp(20px, 3vw, 32px); margin-bottom: 40px; border-radius: 24px;
-    background: linear-gradient(135deg, var(--surface), color-mix(in srgb, var(--accent) 7%, var(--surface)));
-    animation: rise .6s var(--ease) both;
+  /* Continue reading: a compact, fully tappable card. */
+  .continue {
+    all: unset; box-sizing: border-box; cursor: pointer; display: flex; gap: var(--s4); align-items: center;
+    width: min(100%, 460px); padding: var(--s3); margin-bottom: var(--s6); border-radius: 18px;
+    background: var(--hover); transition: transform .4s var(--spring), background-color .2s;
   }
-  .hero-cover { all: unset; cursor: pointer; display: block; width: 100%; transition: transform .35s var(--ease); }
-  .hero-cover:hover { transform: translateY(-4px) rotate(-.6deg); }
-  .eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: .72rem; font-weight: 700; color: var(--accent); margin: 0 0 8px; }
-  .hero h2 { font: 600 clamp(1.4rem, 3.4vw, 2rem)/1.15 var(--serif); margin: 0; }
-  .author { color: var(--muted); margin: 6px 0 18px; }
-  .bar { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; max-width: 320px; }
-  .bar span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
-  .hero .pill { margin-top: 16px; }
+  .continue:hover { background: color-mix(in srgb, var(--fg) 9%, transparent); }
+  .continue:active { transform: scale(.98); }
+  .continue:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .c-cover { width: 64px; flex: none; }
+  .c-info { display: grid; gap: var(--s1); min-width: 0; flex: 1; }
+  .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .c-title { font: 600 18px/1.25 var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .c-meta { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .c-bar { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; margin: var(--s1) 0 2px; }
+  .c-bar span, .bar span { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
 
   .grid {
     list-style: none; padding: 0; margin: 0;
-    display: grid; gap: 36px clamp(16px, 3vw, 32px);
-    grid-template-columns: repeat(auto-fill, minmax(clamp(132px, 22vw, 170px), 1fr));
+    display: grid; gap: var(--s6) var(--s5);
+    grid-template-columns: repeat(auto-fill, minmax(clamp(128px, 20vw, 160px), 1fr));
   }
   .grid li { animation: rise .5s var(--ease) both; animation-delay: calc(min(var(--i), 12) * 35ms); }
-  .cover-btn { all: unset; cursor: pointer; display: block; width: 100%; border-radius: 4px; transition: transform .35s var(--ease); }
-  .cover-btn:hover { transform: translateY(-6px); }
-  .cover-btn:active { transform: scale(.97); }
-  .cover-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
-  .meta { display: flex; align-items: start; gap: 4px; margin-top: 10px; }
-  .text { flex: 1; min-width: 0; display: grid; gap: 2px; }
-  .title { font-size: .9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .status { font-size: .78rem; color: var(--muted); }
-  .status.new { color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: .68rem; }
-  .more { width: 30px; height: 30px; color: var(--muted); flex: none; }
-  .more svg { width: 18px; height: 18px; }
+  .book { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 2px; width: 100%; -webkit-touch-callout: none; user-select: none; }
+  .book:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+  .cover { position: relative; display: block; margin-bottom: var(--s2); transition: transform .45s var(--spring); }
+  .book:hover .cover { transform: translateY(-6px) rotate(-.4deg); }
+  .book:active .cover { transform: scale(.96); }
+  .bar { position: absolute; left: 8%; right: 8%; bottom: 7px; height: 3px; border-radius: 2px; background: rgb(255 255 255 / .45); overflow: hidden; box-shadow: 0 1px 3px rgb(0 0 0 / .3); }
+  .dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--accent); vertical-align: 1px; }
+  .title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .author { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  .empty { text-align: center; padding: 10vh 16px; animation: rise .6s var(--ease) both; }
-  .empty h2 { font: 600 1.6rem var(--serif); margin: 28px 0 10px; }
-  .empty p { color: var(--muted); line-height: 1.6; }
+  .empty { text-align: center; padding: 12vh var(--s4); display: grid; justify-items: center; }
+  .empty h2 { font: 600 24px var(--serif); margin: var(--s6) 0 var(--s2); }
+  .empty p { color: var(--muted); margin: 0 0 var(--s5); line-height: 1.5; }
+  .empty .hint { font-size: 13px; margin-top: var(--s5); }
   .empty a { color: var(--accent); }
-  .empty-art { display: inline-flex; gap: 8px; align-items: end; height: 120px; }
-  .empty-art span { width: 52px; border-radius: 4px 8px 8px 4px; box-shadow: var(--shadow-cover); animation: float 4s ease-in-out infinite; }
-  .empty-art span:nth-child(1) { height: 92px; background: var(--base0D); }
-  .empty-art span:nth-child(2) { height: 116px; background: var(--base09); animation-delay: -1.3s; }
-  .empty-art span:nth-child(3) { height: 100px; background: var(--base0B); animation-delay: -2.6s; }
+  .art { display: inline-flex; gap: var(--s2); align-items: end; height: 120px; }
+  .art span { width: 52px; border-radius: 4px 8px 8px 4px; box-shadow: var(--shadow-cover); animation: float 4s ease-in-out infinite; }
+  .art span:nth-child(1) { height: 92px; background: var(--base0D); }
+  .art span:nth-child(2) { height: 116px; background: var(--base09); animation-delay: -1.3s; }
+  .art span:nth-child(3) { height: 100px; background: var(--base0B); animation-delay: -2.6s; }
+
+  .scrim { position: fixed; inset: 0; z-index: 9; }
+  .menu {
+    position: fixed; z-index: 10; width: 210px; border-radius: 14px; padding: var(--s1); transform-origin: top left;
+    background: var(--glass-solid);
+  }
+  .m-title { display: block; padding: var(--s2) var(--s3); font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .menu button {
+    display: flex; align-items: center; justify-content: space-between; width: 100%; padding: var(--s3); border: 0; border-radius: 10px;
+    background: none; font-size: 15px; text-align: left;
+  }
+  .menu button:hover { background: var(--hover); }
+  .menu svg { width: 18px; height: 18px; }
+  .danger { color: var(--base08); }
+
+  .toast {
+    position: fixed; z-index: 10; left: 50%; translate: -50% 0; bottom: calc(env(safe-area-inset-bottom) + var(--s5));
+    display: flex; align-items: center; gap: var(--s4); padding: var(--s2) var(--s2) var(--s2) var(--s5); border-radius: 999px;
+    font-size: 14px; max-width: calc(100vw - 32px); white-space: nowrap;
+  }
+  .toast span { overflow: hidden; text-overflow: ellipsis; }
+  .toast button { border: 0; border-radius: 999px; padding: var(--s2) var(--s4); background: var(--accent); color: var(--bg); font-weight: 600; }
 
   .drop {
     position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; pointer-events: none;
     background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(10px);
     animation: fade .2s ease-out;
   }
-  .drop div { padding: 28px 40px; border: 2px dashed var(--accent); border-radius: 24px; font: 600 1.2rem var(--serif); color: var(--accent); }
+  .drop div { padding: var(--s6) var(--s7); border: 2px dashed var(--accent); border-radius: 24px; font: 600 20px var(--serif); color: var(--accent); animation: pop .4s var(--spring); }
 
-  @media (max-width: 560px) {
-    .hero { grid-template-columns: 110px 1fr; }
-    .hero .pill { display: none; }
-  }
   @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
   @keyframes fade { from { opacity: 0; } }
+  @keyframes pop { from { transform: scale(.9); } }
   @keyframes float { 50% { transform: translateY(-8px); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>

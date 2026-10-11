@@ -889,26 +889,22 @@
   </div>
 
   {#if eff.guide && loc && !error}
-    <div class="padgroup" class:up={press ? pressUp : showChrome && !staged}>
-      {#if staged || (gstate.active && !showChrome)}
-        <span class="steps glass">
-          <button class="back" aria-label="Back a word (hold to keep going)" onpointerdown={hold(-1)}
-            onpointerup={() => clearTimeout(backT)} onpointercancel={() => clearTimeout(backT)} onpointerleave={() => clearTimeout(backT)} oncontextmenu={e => e.preventDefault()}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-          </button>
-          <button class="back" aria-label="Next word (hold to keep going)" onpointerdown={hold(1)}
-            onpointerup={() => clearTimeout(backT)} onpointercancel={() => clearTimeout(backT)} onpointerleave={() => clearTimeout(backT)} oncontextmenu={e => e.preventDefault()}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-          </button>
-        </span>
-      {/if}
+    <div class="padgroup transport glass" class:up={press ? pressUp : showChrome && !staged} class:reading={staged || gstate.active} class:solo={!speedChip && !(staged || (gstate.active && !showChrome))}>
       {#if speedChip}
-        <button class="speed glass" class:on={speedOpen} aria-label="Reading speed, {eff.wpm} words a minute" aria-expanded={speedOpen}
+        <button class="speed" class:on={speedOpen} aria-label="Reading speed, {eff.wpm} words a minute" aria-expanded={speedOpen}
           onclick={() => { speedOpen = !speedOpen; clearTimeout(speedT); if (speedOpen) speedT = window.setTimeout(() => (speedOpen = false), 5000) }}>
           <b>{eff.wpm}</b><small>wpm</small>
         </button>
       {/if}
-      <button class="pad glass" class:moving={padMoving} class:held={press?.hold} class:active={gstate.active || staged}
+      {#if staged || (gstate.active && !showChrome)}
+        <span class="steps">
+          <button class="back" aria-label="Back a word (hold to keep going)" onpointerdown={hold(-1)}
+            onpointerup={() => clearTimeout(backT)} onpointercancel={() => clearTimeout(backT)} onpointerleave={() => clearTimeout(backT)} oncontextmenu={e => e.preventDefault()}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </button>
+        </span>
+      {/if}
+      <button class="pad" class:moving={padMoving} class:held={press?.hold} class:active={gstate.active || staged}
         aria-label={padMoving ? 'Pause (tap). Hold and slide to change speed.' : 'Read (tap to start; hold to read while held, slide while holding to change speed, slide up to lock)'}
         onpointerdown={padPress} onpointermove={padDrag} onpointerup={padRelease} onpointercancel={padRelease}
         onkeydown={e => { if (e.key === 'Enter') { e.preventDefault(); padTap() } }}
@@ -918,6 +914,12 @@
         {#if padMoving}<svg class="pad-i" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="3.6" height="12" rx="1.2" fill="currentColor" /><rect x="13.4" y="6" width="3.6" height="12" rx="1.2" fill="currentColor" /></svg>
         {:else}<svg class="pad-i play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.8v12.4a.8.8 0 001.2.7l9.6-6.2a.8.8 0 000-1.4L9.7 5.1a.8.8 0 00-1.2.7z" fill="currentColor" /></svg>{/if}
       </button>
+      {#if staged || (gstate.active && !showChrome)}
+        <button class="back" aria-label="Next word (hold to keep going)" onpointerdown={hold(1)}
+          onpointerup={() => clearTimeout(backT)} onpointercancel={() => clearTimeout(backT)} onpointerleave={() => clearTimeout(backT)} oncontextmenu={e => e.preventDefault()}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        </button>
+      {/if}
       </div>
     {#if speedOpen}
       <div class="speedpop glass" class:up={showChrome && !staged} role="dialog" aria-label="Reading speed">
@@ -1224,12 +1226,11 @@
   .padgroup.up { transform: translateX(-52px); } /* inline in the bottom bar, just left of the menu */
   @media (max-width: 719px) {
     .reader.chrome.padded .progress { margin-right: 64px; transition: margin .3s var(--ease); }
-    .reader.chrome.padded.speedy .progress { margin-right: 150px; }
+    .reader.chrome.padded.speedy .progress { margin-right: 186px; }
   }
   .steps { display: flex; border-radius: 999px; animation: padIn .4s var(--spring); }
   .back { width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; display: grid; place-items: center; color: var(--fg); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .back svg { width: 20px; height: 20px; }
-  .back + .back { margin-left: -6px; }
   .back:active { transform: scale(.92); }
   @media (hover: hover) and (pointer: fine) { .back { opacity: .6; height: 34px; width: 34px; } .back:hover { opacity: 1; } }
   .speed { height: 40px; min-width: 64px; padding: 0 12px; border: 0; border-radius: 999px; display: flex; align-items: baseline; justify-content: center; gap: 3px; color: var(--fg); font-variant-numeric: tabular-nums; animation: padIn .4s var(--spring); transition: background-color .2s, color .2s; }
@@ -1275,6 +1276,26 @@
   @media (hover: hover) and (pointer: fine) { .pad { width: 48px; height: 48px; opacity: .6; } .pad:hover, .pad.held, .padgroup.up .pad { opacity: 1; } }
   @keyframes padIn { from { opacity: 0; transform: scale(.7); } }
   @keyframes ring { from { transform: scale(.96); opacity: .9; } to { transform: scale(1.18); opacity: 0; } }
+  /* The transport: one capsule — speed · ‹ ▶ › — like a player's controls, the play button the clear centre */
+  .transport { display: flex; align-items: center; gap: 2px; padding: 5px; border-radius: 999px; height: 58px; box-sizing: border-box; }
+  .transport.solo { padding: 0; height: auto; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .transport .speed { height: 48px; min-width: 52px; padding: 0 10px 0 14px; border-radius: 999px; background: none; box-shadow: none; animation: none;
+    display: grid; place-content: center; justify-items: center; gap: 1px; line-height: 1; }
+  .transport .speed b { font: 600 15px var(--mono); }
+  .transport .speed small { font: 500 9px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+  .transport .speed.on { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--fg); }
+  .transport .speed.on small { color: var(--muted); }
+  .transport .speed { position: relative; margin-right: 4px; }
+  .transport .speed::after { content: ''; position: absolute; right: -3px; top: 12px; bottom: 12px; width: 1px; background: var(--hairline); }
+  .transport .steps { display: contents; }
+  .transport .back { width: 44px; height: 48px; border-radius: 999px; margin: 0; color: var(--fg); transition: background-color .15s, transform .25s var(--spring); }
+  .transport .back:active { background: var(--hover); }
+  .transport .pad { width: 48px; height: 48px; flex: none; background: var(--ink); color: var(--on-ink); box-shadow: none; opacity: 1; animation: none; }
+  .transport.solo .pad { width: 56px; height: 56px; box-shadow: var(--e2); }
+  .transport .pad.active { color: var(--on-ink); }
+  .transport .pad.held { background: var(--accent); transform: scale(.94); }
+  .transport .pad-progress { inset: -3px; opacity: .9; }
+  .transport .pad-i { width: 20px; height: 20px; }
   /* While holding: the shuttle and the lock, just above the thumb */
   .shuttle {
     position: absolute; z-index: 8; right: calc(env(safe-area-inset-right) + var(--s3)); bottom: calc(env(safe-area-inset-bottom) + var(--s3) + 70px);

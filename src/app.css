@@ -1,3 +1,6 @@
+/* Registered so the accent can drift smoothly between chapter tints (Reader: ambient palette drift). */
+@property --accent { syntax: '<color>'; inherits: true; initial-value: #c4572a; }
+
 /* Design tokens: see docs/instructions/product-design.md. Colors come only from base16 vars set on :root. */
 :root {
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;

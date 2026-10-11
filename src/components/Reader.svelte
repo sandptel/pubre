@@ -9,6 +9,8 @@
   import { Lenses, RARE, type Token } from '../lib/lenses.ts'
   import { define, loadCommon, rarity } from '../lib/lexicon.ts'
   import { sectionOf, type Decor } from '../lib/stagetext.ts'
+  import { colourOf } from '../lib/palette.ts'
+  import { mix } from '../lib/settings.ts'
   import { blockOffsets } from '../lib/textindex.ts'
   import { whoHue, WHO_SLOTS } from '../lib/marks.ts'
   import { resolveTheme } from '../lib/settings.ts'
@@ -185,6 +187,24 @@
     chrome = false
     pag?.goTo(href)
   }
+
+  // ---------- ambient palette drift: a colourful chapter lends the accent its colour, at the crossing ----------
+  let drift = $state<{ name: string; accent: string } | null>(null)
+  let driftKey = ''
+  $effect(() => {
+    const at = loc, v = pag?.current
+    if (!at || !v || !v.ix.words.length) return
+    const on = eff.chapterColour && eff.intensity !== 'quiet', t = resolveTheme(eff.palette, eff.mode)
+    const key = `${v.index}:${at.chapter}:${on}:${eff.palette}:${eff.mode}`
+    if (key === driftKey) return
+    driftKey = key
+    if (!on) { drift = null; return }
+    const sec = sectionOf(v.ix, v.ix.words[pag!.firstWordOnPage(v)]?.b ?? 0)
+    const tint = colourOf(v.ix.blocks.slice(sec.from, sec.to).map(b => b.text).join(' '), t.dark)
+    const was = drift?.name
+    drift = tint ? { name: tint.name, accent: mix(t.base[t.accent], tint.hex, 0.65) } : null
+    if (tint && tint.name !== was) toast(`This chapter leans ${tint.name}`)
+  })
 
   // ---------- the reading pad (one control for both guide styles) ----------
   // Tap: start, then pause / play (double-tap: back to the sentence start). Hold: read only while held,
@@ -609,7 +629,7 @@
 
 <svelte:window onkeydown={e => { if (e.key === 'Escape' && !panel && !gstate.active && !staged) chrome = !chrome }} onresize={() => (wide = innerWidth >= 720)} />
 
-<div class="reader" class:guiding={gstate.active && !!where} class:chrome={showChrome} class:padded={eff.guide} class:speedy={speedChip}>
+<div class="reader" style:--accent={drift?.accent} class:guiding={gstate.active && !!where} class:chrome={showChrome} class:padded={eff.guide} class:speedy={speedChip}>
   <div class="paper" bind:this={paperEl} style:view-transition-name="cover">
     <div class="stage" bind:this={host}></div>
     {#if !loc && !error}<div class="spinner" aria-label="Opening book"></div>{/if}
@@ -846,7 +866,7 @@
 </Sheet>
 
 <style>
-  .reader { position: fixed; inset: 0; overflow: hidden; background: var(--bg); }
+  .reader { position: fixed; inset: 0; overflow: hidden; background: var(--bg); transition: --accent 2.6s ease; } /* --accent is a registered <color> (app.css): it drifts */
   .paper { position: absolute; inset: 0; background: var(--bg); }
   .stage {
     position: absolute; overflow: hidden;

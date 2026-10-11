@@ -13,7 +13,8 @@
   import { tick, untrack } from 'svelte'
   import type { Paginator, View } from '../lib/paginator.ts'
   import { fonts, type Settings } from '../lib/settings.ts'
-  import { beat, breath, MAX_WPM, pauseScale, sentenceTime, wordTime, type Breath } from '../lib/pacing.ts'
+  import { beat, breath, MAX_WPM, pauseName, pauseScale, sentenceTime, wordTime, type Breath } from '../lib/pacing.ts'
+  import PauseBars from './PauseBars.svelte'
   import { prevUnit, sectionOf, segments, unitAt, type Decor, type Step } from '../lib/stagetext.ts'
   import Ticker from './Ticker.svelte'
   import { POINTERS, pointerBox, type PointerType } from '../lib/pointers.ts'
@@ -32,7 +33,7 @@
     onopen?: (open: boolean) => void; onstate?: (s: StageState) => void
     onpace?: (wpm: number) => void; ontoast?: (m: string) => void
     /** The quick switcher changed a reading setting (pointer, step). */
-    onsetting?: (key: 'stagePointer' | 'stageStep' | 'inkRead' | 'inkNow' | 'inkAhead' | 'fontScale', value: string | number) => void
+    onsetting?: (key: 'stagePointer' | 'stageStep' | 'inkRead' | 'inkNow' | 'inkAhead' | 'fontScale' | 'pauses', value: string | number) => void
   } = $props()
 
   let open = $state(false)
@@ -275,9 +276,9 @@
   }
   function unitMs() {
     const x = ix()
-    if (step === 'sentence') return sentenceTime(x, sen(), wpm)
+    if (step === 'sentence') return sentenceTime(x, sen(), wpm, settings.pauses ?? 1)
     let ms = 0
-    for (let k = cur; k <= ue; k++) ms += wordTime(x, k, wpm)
+    for (let k = cur; k <= ue; k++) ms += wordTime(x, k, wpm, settings.pauses ?? 1)
     return ms
   }
   const moving = () => playing || holdPlay
@@ -299,13 +300,13 @@
     const c = cueEl, x = ix()
     if (!c || step === 'sentence' || reduce || !landed) return
     const { ms, cue: kind } = beat(x, ue)
-    if (!kind || !ms || kind === 'para' || kind === 'section') return
+    if (!kind || !ms) return
     const all = (sentEls.get(x.words[ue].s) ?? []).filter(sp => ownerOf.get(sp) === ue && !wordEls.get(ue)?.includes(sp) && /\S/.test(sp.textContent ?? ''))
     const r = rectsOf(all.slice(0, 1))[0]
     if (!r) return
     const marks = all.filter(m => { const q = rectsOf([m]); return q.length === 1 && Math.abs(q[0].top - r.top) < 4 }) // one line: a pair split by a wrap leaves its tail still
     if (!marks.length) return
-    const pause = ms * pauseScale(wpm) / Math.abs(rate), lead = Math.max(0, tDur - pause)
+    const pause = ms * pauseScale(wpm) * (settings.pauses ?? 1) / Math.abs(rate), lead = Math.max(0, tDur - pause)
     for (const m of marks) { m.style.setProperty('--d', pause + 'ms'); m.style.setProperty('--w', lead + 'ms'); m.classList.add('pq') }
     c.textContent = marks.map(m => m.textContent).join('').trimEnd() // an exact copy over the mark: it moves, the line never reflows
     c.style.left = r.left + 'px'; c.style.top = r.top + 'px'; c.style.lineHeight = r.height + 'px'
@@ -342,7 +343,7 @@
     waiting = br.kind
     trim()
     if (waits(br.kind)) return
-    breathMs = rate > 1 ? br.ms / rate : br.ms
+    breathMs = br.ms * (settings.pauses ?? 1) / Math.max(1, rate)
     timer = window.setTimeout(onward, breathMs)
   }
   function retreat() {
@@ -757,6 +758,15 @@
           </div>
           <button aria-label="Larger text" onclick={() => onsetting?.('fontScale', Math.min(200, (settings.fontScale ?? 100) + 10))}><span style:font-size="22px">A</span></button>
         </div>
+        <div class="q-size" aria-label="Pauses">
+          <PauseBars row pauses={settings.pauses ?? 1} />
+          <div class="qs-mid qs-p">
+            <span class="qs-l">Pauses</span>
+            <input type="range" min="0.5" max="3" step="0.1" value={settings.pauses ?? 1} aria-label="Pause length" oninput={e => onsetting?.('pauses', +e.currentTarget.value)} />
+            <b>{(settings.pauses ?? 1).toFixed(1)}×</b>
+          </div>
+          <span class="qs-name">{pauseName(settings.pauses ?? 1)}</span>
+        </div>
         <div class="q-ink" aria-label="Contrast">
           {#each [['inkRead', 'Read', 4, 70, settings.inkRead ?? 10], ['inkNow', 'Now', 60, 100, settings.inkNow ?? 100], ['inkAhead', 'Ahead', 8, 90, settings.inkAhead ?? 20]] as [k, l, lo, hi, val]}
             <label><span>{l}<b>{val}%</b></span><input type="range" min={lo} max={hi} step="2" value={val} oninput={e => onsetting?.(k as 'inkRead', +e.currentTarget.value)} /></label>
@@ -904,6 +914,8 @@
   .qs-aa { font-family: var(--serif); line-height: 1; text-align: center; transition: font-size .15s; }
   .qs-mid input { width: 100%; accent-color: var(--accent); margin: 0; }
   .qs-mid b { font: 600 11px var(--mono); min-width: 38px; text-align: right; }
+  .qs-l, .qs-name { font: 600 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .qs-name { flex: none; min-width: 64px; text-align: right; }
   .q-ink { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 2px 4px; }
   .q-ink label { display: grid; gap: 4px; }
   .q-ink span { display: flex; justify-content: space-between; font: 600 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }

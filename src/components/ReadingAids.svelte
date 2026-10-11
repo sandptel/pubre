@@ -2,6 +2,8 @@
   import type { Settings } from '../lib/settings.ts'
   import { POINTERS } from '../lib/pointers.ts'
   import ReadPreview from './ReadPreview.svelte'
+  import PauseBars from './PauseBars.svelte'
+  import { pauseName } from '../lib/pacing.ts'
 
   // Every reading aid, opt-in or out. Used for the global defaults and for one book's overrides.
   /** part: 'guide' = reading guide + contrast (Reading aids); 'look' = lenses + comfort (Themes & Settings); 'all' = both (one book's overrides). */
@@ -47,13 +49,16 @@
 {#if value.guide}
   <!-- what your choices look like in action, live -->
   <div class="live"><ReadPreview step={pstep ?? 'word'} pointer={value[pkey] ?? 'outline'} read={value.inkRead ?? 10} now={value.inkNow ?? 100} ahead={value.inkAhead ?? 20}
-    lenses={value.intensity !== 'quiet' && (stage ? value.stageLenses : true)} wpm={value.wpm} /><span class="live-l">Preview · your settings, in action</span></div>
+    lenses={value.intensity !== 'quiet' && (stage ? value.stageLenses : true)} wpm={value.wpm} pauses={value.pauses ?? 1} /><span class="live-l">Preview · your settings, in action</span></div>
 {/if}
 <div class="group">
   {@render toggle('Reading guide', 'guide', 'The round pad, Space or G')}
   {#if value.guide}
     <label class="line"><span>Pace<small>{value.wpm} words a minute · the speed chip by the pad changes it while you read</small></span>
       <input class="pace" type="range" min="120" max="350" step="5" bind:value={value.wpm} aria-label="Words a minute" /></label>
+    <label class="line"><span>Pauses<small>{pauseName(value.pauses ?? 1)} · {(value.pauses ?? 1).toFixed(1)}× · how long it rests at each mark</small></span>
+      <input class="pace" type="range" min="0.5" max="3" step="0.1" bind:value={value.pauses} aria-label="Pause length" /></label>
+    <div class="line col"><PauseBars pauses={value.pauses ?? 1} /></div>
     {@render toggle('Hold the page to read', 'holdToRead', 'Off: holding selects text. In the Stage, long-press a sentence to highlight it')}
     {@render choice('Style', 'guideStyle', [['stage', 'Stage'], ['pointer', 'Pointer']], value.guideStyle === 'stage' ? 'The pad (or Space) lifts the paragraph toward you' : 'A marker moves on the page')}
   {/if}

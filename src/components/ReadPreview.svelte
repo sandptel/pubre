@@ -4,9 +4,9 @@
   import { onMount, untrack } from 'svelte'
   import { pointerBox, type PointerType } from '../lib/pointers.ts'
 
-  let { step = 'word', pointer = 'outline', read = 10, now = 100, ahead = 20, lenses = false, mini = false, wpm = 240 }: {
+  let { step = 'word', pointer = 'outline', read = 10, now = 100, ahead = 20, lenses = false, mini = false, wpm = 240, pauses = 1 }: {
     step?: 'sentence' | 'phrase' | 'word'; pointer?: PointerType | 'ink'; read?: number; now?: number; ahead?: number
-    lenses?: boolean; mini?: boolean; wpm?: number
+    lenses?: boolean; mini?: boolean; wpm?: number; pauses?: number
   } = $props()
 
   // [word, sentence, kind]  kind: n = a name, h = a rare word
@@ -45,7 +45,8 @@
   })
   onMount(() => {
     if (reduce) return
-    const tick = () => { const [, b] = unit(k); k = b + 1 >= WORDS.length ? 0 : b + 1; t = window.setTimeout(tick, (step === 'sentence' ? 2200 : 60000 / wpm * (u[1] - u[0] + 1)) + (k === 0 ? 700 : 0)) }
+    const tick = () => { const [, b] = unit(k); k = b + 1 >= WORDS.length ? 0 : b + 1; t = window.setTimeout(tick, (step === 'sentence' ? 2200 : 60000 / wpm * (u[1] - u[0] + 1) + rest(WORDS[u[1]][0])) + (k === 0 ? 700 : 0)) }
+    const rest = (w: string) => (/[.?!]$/.test(w) ? 520 : /;$/.test(w) ? 340 : /,$/.test(w) ? 160 : 0) * pauses // the same ladder as the guide
     let t = window.setTimeout(tick, 600)
     return () => clearTimeout(t)
   })

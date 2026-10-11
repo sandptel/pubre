@@ -208,7 +208,7 @@ export class Guide {
   }
   // Glide is a ceiling, not a pacer (reading research): ≤ 350 wpm, with smart pauses for
   // punctuation and position (see pacing.ts).
-  private wordMs(k: number) { return wordTime(this.v!.ix, k, this.s.wpm) }
+  private wordMs(k: number) { return wordTime(this.v!.ix, k, this.s.wpm, this.s.pauses ?? 1) }
   private startGlide() { if (this.gliding) return; this.activate(); if (!this.active) return; this.gliding = true; this.emit(); this.tick() }
   stopGlide() { this.holding = false; this.rate = 1; if (!this.gliding) return; this.gliding = false; clearTimeout(this.timer); this.emit() }
   private tick() {

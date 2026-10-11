@@ -52,7 +52,7 @@ test('each situation gets its own beat and cue', () => {
   assert.equal(b('said').cue, 'comma'); assert.ok(b('said').ms > beat(x, k('long')).ms - 1, 'a comma before "and" turns a clause')
   assert.equal(b('Wait').cue, 'cut'); assert.ok(b('Wait').ms > 200, 'cut-off speech hangs')
   assert.equal(b('Stop').cue, 'bang'); assert.equal(b('Why').cue, 'ask')
-  assert.equal(b('done').cue, 'para')
+  assert.equal(b('done').cue, 'stop'); assert.equal(b('done').end, 'para')
   assert.equal(b('He').cue, null)
 })
 
@@ -60,4 +60,18 @@ test('pauses stretch at a slow pace, tighten at a fast one', () => {
   assert.ok(pauseScale(150) > 1 && pauseScale(350) < 1)
   const w = at('you'), slow = wordTime(ix, w, 150) - wordTime(ix, at('Is'), 150), fast = wordTime(ix, w, 350) - wordTime(ix, at('Is'), 350)
   assert.ok(slow > fast)
+})
+
+test('one ladder: a paragraph end always rests longer than a sentence end, which beats any comma', () => {
+  const x = indexDocument(new DOMParser().parseFromString(`<html xmlns="http://www.w3.org/1999/xhtml"><body>
+<p>It was a long road, and we walked it slowly through the night; nobody spoke. We stopped.</p><p>Then we went on.</p></body></html>`, 'application/xhtml+xml') as unknown as Document)
+  const b = (t: string) => beat(x, x.words.findIndex(w => w.text === t)).ms
+  assert.ok(b('road') < b('night') && b('night') < b('spoke') && b('spoke') < b('stopped'), 'comma < semicolon < sentence < paragraph')
+  assert.ok(b('spoke') >= 500, 'a full stop is a real rest')
+})
+
+test('the pause length setting stretches every pause', () => {
+  const k = at('you')
+  assert.ok(wordTime(ix, k, 260, 2) - wordTime(ix, k, 260, 1) > 300)
+  assert.equal(wordTime(ix, at('me'), 260, 2), wordTime(ix, at('me'), 260, 1), 'no punctuation, no change')
 })

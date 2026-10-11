@@ -38,7 +38,7 @@ test('stage: sentences take their words’ time; blocks breathe before the next 
   assert.ok(sentenceTime(ix, s1, 260) > 0)
   const b = (w: string) => breath(ix, ix.words[at(w)].b)
   assert.equal(b('Ishmael').kind, 'paragraph')
-  assert.equal(b('mate').kind, 'section', 'a heading is next')
+  assert.equal(b('mate').kind, 'chapter', 'an h2 is next: a new chapter')
   assert.equal(b('Next').kind, 'section', 'after a heading')
   assert.equal(b('End').kind, 'end')
 })

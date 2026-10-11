@@ -42,3 +42,14 @@ test('source line breaks inside a paragraph do not end sentences', () => {
   assert.equal(ix.sentences.length, 2)
   assert.equal(ix.words.find(w => w.text === 'horrid')!.pause, 0)
 })
+
+test('speech tags, elisions and headings keep sentences whole', () => {
+  const ix = indexDocument(doc('<h2>CHAPTER 36. The Quarter-Deck.</h2><p>“Stern all!” exclaimed the mate. It pecks the shell. ’Twill soon be out.</p>'))
+  const sent = (w: string) => ix.words.find(x => x.text === w)!.s
+  assert.equal(sent('CHAPTER'), sent('Deck'), 'heading is one sentence')
+  assert.equal(sent('Stern'), sent('exclaimed'), 'speech tag continues the sentence')
+  assert.notEqual(sent('mate'), sent('pecks'))
+  const tw = ix.words.find(x => x.text.endsWith('Twill'))!, sh = ix.words.find(x => x.text === 'shell')!
+  assert.notEqual(tw.s, sh.s)
+  assert.equal(ix.sentences[tw.s].a, ix.words.indexOf(tw), '’Twill opens its sentence')
+})

@@ -53,15 +53,18 @@ export function sentenceTime(ix: TextIndex, s: number, wpm: number): number {
   const { a, b } = ix.sentences[s]
   let ms = 200
   for (let k = a; k <= b; k++) ms += wordTime(ix, k, wpm)
-  return ms
+  return Math.max(ms, 1100) // even "Strange!" gets time to land before the next rises
 }
+
+export type Breath = 'paragraph' | 'section' | 'chapter' | 'end'
 
 /** The breath after a block before the next one rises (on top of its last word's pause):
  *  'section' before a heading, 'paragraph' otherwise; 'end' when the chapter is over (wait for the reader). */
-export function breath(ix: TextIndex, blk: number): { kind: 'paragraph' | 'section' | 'end'; ms: number } {
+export function breath(ix: TextIndex, blk: number): { kind: Breath; ms: number } {
   const next = ix.blocks.slice(blk + 1).findIndex(b => b.kind !== 'skip' && b.b >= b.a)
-  if (next < 0) return { kind: 'end', ms: Infinity }
+  if (next < 0) return { kind: 'end', ms: 2400 }
   const nb = ix.blocks[blk + 1 + next], here = ix.blocks[blk]
+  if (nb.kind === 'heading' && /^h[12]$/i.test(nb.el.localName)) return { kind: 'chapter', ms: 2400 } // a new chapter in the same file
   if (nb.kind === 'heading' || here.kind === 'heading') return { kind: 'section', ms: 1200 }
   return { kind: 'paragraph', ms: 500 }
 }

@@ -76,10 +76,17 @@ export function indexDocument(doc: Document, lang = 'en'): TextIndex {
     const sents: { i: number; t: string }[] = []
     // Source line breaks inside a paragraph are just spaces; Intl.Segmenter would end a sentence at
     // every LF (UAX #29). Same length, so offsets still match the DOM text.
-    for (const s of sseg.segment(text.replace(/[\n\r\v\f\u0085\u2028\u2029]/g, ' '))) {
+    if (g.kind === 'heading') sents.push({ i: 0, t: text }) // a heading reads as one unit ("CHAPTER 36. The Quarter-Deck.")
+    else for (const s of sseg.segment(text.replace(/[\n\r\v\f\u0085\u2028\u2029]/g, ' '))) {
       const prev = sents[sents.length - 1]
-      if (prev && ABBREV.test(prev.t)) prev.t += s.segment
+      // “Stern all!” exclaimed the mate: a speech tag continues the sentence after ?/! inside quotes.
+      if (prev && (ABBREV.test(prev.t) || (/[?!][”’"»]+\s*$/.test(prev.t) && /^\s*\p{Ll}/u.test(s.segment)))) prev.t += s.segment
       else sents.push({ i: s.index, t: s.segment })
+    }
+    // An elision apostrophe (’Twill) opens the next sentence, not the end of this one.
+    for (let j = 1; j < sents.length; j++) {
+      const m = sents[j - 1].t.match(/\s([’'])$/)
+      if (m && /^\p{L}/u.test(sents[j].t)) { sents[j - 1].t = sents[j - 1].t.slice(0, -1); sents[j].i -= 1; sents[j].t = m[1] + sents[j].t }
     }
     for (const s of sents) {
       const sa = words.length

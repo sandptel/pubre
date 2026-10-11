@@ -27,7 +27,8 @@ export interface BookRecord {
   lastLine?: string // the sentence at your place
   who?: string[] // who was around just before your place
   chapterLeft?: number // words left in the chapter
-  tint?: string // the cover's colour (Up next cards)
+  tint?: string // the cover's colour (Up next cards, the landing page)
+  about?: { description: string; language: string; publisher: string; date: string; subjects: string[] } // from the book's metadata
   keepsake?: string // the finish keepsake (an SVG), drawn when you finish
   born?: string[] // characters whose first appearance you've seen (star-birth plays once)
   sessionFrom?: number // progress when this reading session began (the library's arc reveal)
@@ -84,6 +85,11 @@ async function thumbnail(blob: Blob): Promise<Blob> {
   }
 }
 
+/** The book's own description of itself (metadata), with the markup stripped. */
+export function aboutOf(m: { description?: string; language?: string; publisher?: string; date?: string; subjects?: { value: string }[] }) {
+  const text = (m.description ?? '').replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim()
+  return { description: text, language: m.language ?? '', publisher: m.publisher ?? '', date: m.date ?? '', subjects: (m.subjects ?? []).map(s => s.value).slice(0, 6) }
+}
 export async function importFile(file: File): Promise<BookRecord> {
   const bytes = new Uint8Array(await file.arrayBuffer())
   const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
@@ -103,6 +109,7 @@ export async function importFile(file: File): Promise<BookRecord> {
     added: Date.now(),
     opened: Date.now(),
     progress: 0,
+    about: aboutOf(book.metadata),
   }
   book.destroy()
   await run('files', 'readwrite', s => s.put(bytes.buffer, id))

@@ -14,6 +14,7 @@
   import { colourOf } from '../lib/palette.ts'
   import { chapterFor, fingerprint, openerOf } from '../insights/chapters.ts'
   import { companions } from '../insights/cast.ts'
+  import { computeProfile, PROFILE_V } from '../lib/profile.ts'
   import { keepsakeSvg } from '../insights/keepsake.ts'
   import { mix } from '../lib/settings.ts'
   import { blockOffsets } from '../lib/textindex.ts'
@@ -567,17 +568,13 @@
     lenses.paint(v, ws[a].b, ws[b].b)
   }
   async function loadProfile(b: Book) {
-    if (rec.profile?.v === 5) { lenses?.setProfile(rec.profile.names); if (lenses) lenses.hapax = rec.profile.hapax ?? {}; paintLenses(); return }
-    const texts = await Promise.all(b.spine.map(s => b.zip.text(s.href).catch(() => '')))
-    const worker = new Worker(new URL('../insights/worker.ts', import.meta.url), { type: 'module' })
-    worker.onmessage = e => {
-      rec.profile = { v: 5, names: e.data.names, words: e.data.words, chapters: e.data.chapters, links: e.data.links, hapax: e.data.hapax, punct: e.data.punct }
-      if (lenses) lenses.hapax = e.data.hapax ?? {}
-      profileChapters = e.data.chapters
-      if (pag?.current && eff.openers && applyOpeners(pag.current.doc, pag.current.index)) pag.refresh()
-      lenses?.setProfile(e.data.names); paintLenses(); save(); worker.terminate()
-    }
-    worker.postMessage({ texts })
+    if (rec.profile?.v === PROFILE_V) { lenses?.setProfile(rec.profile.names); if (lenses) lenses.hapax = rec.profile.hapax ?? {}; paintLenses(); return }
+    const pr = await computeProfile(b)
+    rec.profile = pr
+    if (lenses) lenses.hapax = pr.hapax ?? {}
+    profileChapters = pr.chapters
+    if (pag?.current && eff.openers && applyOpeners(pag.current.doc, pag.current.index)) pag.refresh()
+    lenses?.setProfile(pr.names); paintLenses(); save()
   }
   const escape = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
   async function cardHtml(v: BookView, t: Token): Promise<string> {

@@ -84,10 +84,13 @@ export function themeVars(t: Theme) {
     + `;color-scheme:${t.dark ? 'dark' : 'light'}`
 }
 
-export const fonts: Record<string, { name: string; stack: string }> = {
+export const fonts: Record<string, { name: string; stack: string; web?: string }> = {
   original: { name: 'Original', stack: '' },
   newyork: { name: 'New York', stack: 'ui-serif, "New York", "Iowan Old Style", Georgia, serif' },
-  literata: { name: 'Literata', stack: 'Literata, Georgia, serif' },
+  literata: { name: 'Literata', stack: 'Literata, Georgia, serif', web: 'Literata:ital,opsz,wght@0,7..72,400..700;1,7..72,400..700' },
+  geistmono: { name: 'Geist Mono', stack: '"Geist Mono", ui-monospace, monospace', web: 'Geist+Mono:wght@400..700' },
+  plexmono: { name: 'Plex Mono', stack: '"IBM Plex Mono", ui-monospace, monospace', web: 'IBM+Plex+Mono:ital,wght@0,400;0,600;1,400' },
+  jetbrains: { name: 'JetBrains Mono', stack: '"JetBrains Mono", ui-monospace, monospace', web: 'JetBrains+Mono:ital,wght@0,400..700;1,400..700' },
   charter: { name: 'Charter', stack: 'Charter, "Bitstream Charter", "Charis SIL", Georgia, serif' },
   iowan: { name: 'Iowan', stack: '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif' },
   palatino: { name: 'Palatino', stack: 'Palatino, "Palatino Linotype", "Book Antiqua", serif' },
@@ -179,7 +182,8 @@ export function bookCss(s: Settings, pageHeight: number) {
   const fg = t.base[5], accent = t.base[t.accent]
   const font = fonts[s.font]?.stack
   const notCode = ':not(code):not(pre):not(kbd):not(samp):not(tt)'
-  return `
+  const web = fonts[s.font]?.web // web fonts load inside the book (the chapter CSP allows Google Fonts)
+  return `${web ? `@import url("https://fonts.googleapis.com/css2?family=${web}&display=swap");` : ''}
 html { color-scheme: ${t.dark ? 'dark' : 'light'}; font-size: ${s.fontScale}% !important;
   -webkit-text-size-adjust: none; text-size-adjust: none; }
 html, body { background: transparent !important; color: ${fg} !important; }

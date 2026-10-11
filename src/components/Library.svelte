@@ -6,6 +6,7 @@
   import { importFile, listAnnotations, listBooks, removeBook, saveBook, type BookRecord } from '../lib/store.svelte.ts'
   import type { Settings } from '../lib/settings.ts'
   import { bookMinutesLeft, calmRange, since } from '../lib/calm.ts'
+  import { tintOf } from '../lib/tint.ts'
   import Cover from './Cover.svelte'
   import MiniCapsule from './MiniCapsule.svelte'
   import Skyline from './Skyline.svelte'
@@ -13,7 +14,7 @@
   import Appearance from './Appearance.svelte'
   import ReadingAids from './ReadingAids.svelte'
 
-  let { lastId, settings = $bindable(), onopen }: { lastId: string; settings: Settings; onopen: (r: BookRecord) => void } = $props()
+  let { lastId, settings = $bindable(), onopen, onview }: { lastId: string; settings: Settings; onopen: (r: BookRecord) => void; onview: (r: BookRecord) => void } = $props()
 
   let books = $state<BookRecord[]>([])
   let loaded = $state(false)
@@ -39,21 +40,6 @@
   const recent = $derived(books.filter(b => b !== current && b.progress < 0.995 && (b.progress > 0 || b.readAt)).sort((x, y) => lastRead(y) - lastRead(x)).slice(0, 12))
   // Up next as tinted cards: each takes its cover's own colour (averaged once, cached on the record).
   let tints = $state<Record<string, string>>({})
-  async function tintOf(b: BookRecord) {
-    if (b.tint) return b.tint
-    if (!b.cover) return ''
-    try {
-      const bmp = await createImageBitmap(new Blob([b.cover], { type: b.coverType }), { resizeWidth: 12, resizeHeight: 18 })
-      const c = new OffscreenCanvas(12, 18), x = c.getContext('2d')!
-      x.drawImage(bmp, 0, 0)
-      const d = x.getImageData(0, 0, 12, 18).data
-      let r = 0, g = 0, bl = 0, n = 0
-      for (let i = 0; i < d.length; i += 4) { const s = Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]); const w = 1 + s / 40; r += d[i] * w; g += d[i + 1] * w; bl += d[i + 2] * w; n += w } // favour coloured pixels
-      const hex = '#' + [r, g, bl].map(v => Math.round(v / n).toString(16).padStart(2, '0')).join('')
-      b.tint = hex; saveBook(b)
-      return hex
-    } catch { return '' }
-  }
   $effect(() => { for (const b of books) if (!b.progress && !(b.id in tints)) tintOf(b).then(t => (tints = { ...tints, [b.id]: t })) })
   const anyStarted = $derived(books.some(b => b.progress > 0)) // a "new" dot means nothing while every book is new
   // Shelves: what you're reading, what's next, what you've finished. Empty shelves are hidden.
@@ -97,11 +83,12 @@
     }
   }
 
-  function open(r: BookRecord) {
+  /** A book: its landing page first. Continue reading goes straight in. */
+  function open(r: BookRecord, direct = false) {
     if (pressed) return
     morphId = r.id
     flushSync() // the cover must carry its view-transition-name before the snapshot
-    onopen(r)
+    if (direct) onopen(r); else onview(r)
   }
 
   // Remove immediately; delete for real only if not undone.
@@ -184,7 +171,7 @@
           </blockquote>
         {/if}
       {/if}
-      <button class="go" onclick={() => open(current)}>Continue reading
+      <button class="go" onclick={() => open(current, true)}>Continue reading
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
     </section>
   {/if}

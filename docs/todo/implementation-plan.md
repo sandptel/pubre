@@ -30,21 +30,23 @@ The source of truth for *what* to build is plan v3.2: https://claude.ai/artifact
 - [x] Reader UI: a guide button in the dock (tap toggles, press-and-hold glides), with options in Themes & Settings.
 
 ### C3 · Insights + lenses
-- [ ] `src/insights/`: a worker that scans the whole book. It finds names (capitalised tokens that aren't sentence-initial, frequency, alias merge), dialogue share, asides and foreign phrases (lang attributes). The resulting `BookProfile` is cached in IDB.
-- [ ] Hard words: `public/data/common-en.txt` (wordfreq words with Zipf ≥ 3, CC-BY-SA, with attribution). A word is hard if it's absent from that list.
-- [ ] Lens painter: attention budget, focus scoping, Voices (ink, underline, marks, off) with speaker attribution, asides, foreign phrases, names, hard words.
-- [ ] Tooltip layer in the parent (hover or tap, dwell-only while guiding). Definitions come from sharded offline WordNet glosses if feasible, otherwise a rarity card and an opt-in online lookup.
-- [ ] Arrival verbs: bloom on names and a cast chip on first mention, kept modest.
+- [x] `src/insights/`: a worker that scans the whole book. It finds names (capitalised tokens that aren't sentence-initial, frequency, alias merge), dialogue share, asides and foreign phrases (lang attributes). The resulting `BookProfile` is cached in IDB.
+- [x] Hard words: `public/data/common-en.txt` (wordfreq words with Zipf ≥ 3, CC-BY-SA, with attribution). A word is hard if it's absent from that list.
+- [x] Lens painter: attention budget, focus scoping, Voices (ink, underline, marks, off) with speaker attribution, asides, foreign phrases, names, hard words.
+- [x] Tooltip layer in the parent (hover or tap, dwell-only while guiding). Definitions come from sharded offline WordNet glosses if feasible, otherwise a rarity card and an opt-in online lookup.
+- [x] Arrival verbs: bloom on names and a cast chip on first mention, kept modest.
 
 ### ⟶ Critic pass #1 (agent): screenshots plus a feel review of the guide and lenses; fix what it finds
 
 ### C4 · Homepage redesign + Settings UI
-- [ ] Library redesign: a now-reading hero with time left at your pace, shelves (Reading, Up next, Finished), progress rings, and a Settings entry point.
-- [ ] Global Settings sheet with every feature toggle and defaults. In the reader menu, a per-book "This book" section with overrides and a reset.
+- [x] Library redesign: a now-reading hero with time left at your pace, shelves (Reading, Up next, Finished), progress rings, and a Settings entry point.
+- [x] Global Settings sheet with every feature toggle and defaults. In the reader menu, a per-book "This book" section with overrides and a reset.
 
 ### C5 · Highlights & notes
-- [ ] Selection toolbar in the reader: 6 meaning colours, bold (stroke), italic (span + CFI ignore), note, remove.
-- [ ] Persistence by CFI + TextQuote. Margin dots for notes. A Highlights list in the menu. Export as Markdown and Readium annotations JSON.
+- [x] Selection toolbar in the reader: 6 meaning colours, bold (stroke), italic (span + CFI ignore), note, remove.
+- [x] Persistence by CFI + TextQuote. A Highlights list in the menu. Export as Markdown and Readium annotations JSON.
+- [ ] Margin dots for notes, and highlight dots on the capsule (later)
+- [ ] Research items: "Previously…" retrieval-first card, chapter-end three words, Question highlights resurfacing
 
 ### ⟶ Critic pass #2 (agent)
 
@@ -53,3 +55,8 @@ The source of truth for *what* to build is plan v3.2: https://claude.ai/artifact
 
 ## Status
 - 2026-10-11: C1 and C2 landed. The research pass (cognitive-reading.md) added: glide cap at 350 wpm with pauses (done), a gentler contrast ramp (done), and caps/modes for C3 (see the adoption table).
+- 2026-10-11: C3, C4 and the C5 core landed and are deployed. User feedback applied:
+  - never dim upcoming text
+  - smart punctuation and position pauses
+  - names as a soft tint with an underline (plan-demo style)
+  - the latest iteration is always hosted (push after each chunk)

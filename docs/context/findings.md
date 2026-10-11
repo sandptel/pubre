@@ -17,3 +17,9 @@ Each entry: date · finding · evidence · where handled.
 - **2026-10-11 · Protocol tests run on `@xmldom/xmldom`, which tolerates more broken XML than browsers do.** Always verify parser changes in a real browser too (smoke e2e in Chrome and WebKit). The XML repair step is only unit-tested.
 - **2026-10-11 · Setting `Highlight.priority` crashes WebKit when highlights overlap** (Playwright WebKit: the page crashed on the first step; disabling the priority setter fixed it). Never use priority. Register every highlight once at startup, in grammar order (later registrations paint on top), and mutate it with `clear()` / `add()`. Make contrast levels disjoint ranges.
 - **2026-10-11 · Truncated excerpts can drop a closing ”**, which fools the "unclosed quote means the same speaker continues" rule. Attribution heuristics need whole paragraphs.
+- **2026-10-11 · Svelte 5 deep `$state` proxies copy objects.** Mutating the original object (or a proxy held elsewhere) doesn't update the other copy, which is why bold and italic only appeared after a reload. Keep records that you mutate in place in `$state.raw` and reassign arrays/objects to trigger updates.
+- **2026-10-11 · Book-scale name finding:**
+  - What failed: possessives ("Ahab’s"), contractions ("I’ll"), ships ("the Pequod"), capitalised common phrases ("Sperm Whale"), demonyms and Gutenberg boilerplate all showed up as names.
+  - Fixes that worked: prepositions mark places; "the" marks things; two-word phrases made of common words are dropped; possessives fold into the base name.
+- **2026-10-11 · Hard-word false positives:** hyphenated compounds of common words, and contractions. A word now counts as hard only if a part, or its base before the apostrophe, is hard.
+- **2026-10-11 · Calm time estimates must use TOC chapters, not spine files.** Gutenberg files contain many chapters ("~0.5–1 h left" was wrong). Estimate to the next TOC entry.

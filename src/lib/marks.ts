@@ -1,3 +1,5 @@
+// Names: a soft tint in the character's hue + a hue underline, text in normal ink (user preference);
+// your highlights stay a stronger, flat wash with no underline, so the two never read alike.
 // The visual grammar's marks inside a book document, via the CSS Custom Highlight API.
 // Stacking = registration order (later paints on top); every highlight is registered once, in
 // ORDER, and only its ranges change. Highlight.priority is never used: it crashes WebKit when
@@ -72,7 +74,7 @@ ${VOICES.map(k => `::highlight(v-ink-${k}) { color: ${mix(fg, voice(k), 0.55)} }
 ::highlight(v-marks-${k}) { color: ${voice(k)} }`).join('\n')}
 ::highlight(hard) { text-decoration: underline dotted 2px ${alpha(accent, 0.8)}; text-underline-offset: 5px }
 ::highlight(foreign) { text-decoration: underline dashed 1.5px ${alpha(muted, 0.8)}; text-underline-offset: 5px }
-${Array.from({ length: WHO_SLOTS }, (_, k) => `::highlight(who-${k}) { color: ${whoHue(t, k)}; text-decoration: underline 2px ${alpha(whoHue(t, k), 0.45)}; text-underline-offset: 4px }`).join('\n')}
+${Array.from({ length: WHO_SLOTS }, (_, k) => `::highlight(who-${k}) { background-color: ${alpha(whoHue(t, k), t.dark ? 0.22 : 0.16)}; text-decoration: underline 2px ${alpha(whoHue(t, k), 0.85)}; text-underline-offset: 3px }`).join('\n')}
 ${MEANINGS.map(([c]) => `::highlight(u-${c}) { background-color: ${alpha(t.base[parseInt(c, 16)], t.dark ? 0.34 : 0.3)} }`).join('\n')}
 ::highlight(u-bold) { -webkit-text-stroke-width: .035em; -webkit-text-stroke-color: currentColor; text-shadow: .02em 0 currentColor }
 ::highlight(bloom) { text-shadow: 0 0 var(--bloom) currentColor }

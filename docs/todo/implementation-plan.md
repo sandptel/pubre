@@ -13,21 +13,21 @@ The source of truth for *what* to build is plan v3.2: https://claude.ai/artifact
 ## Chunks
 
 ### C1 · Foundation
-- [ ] `settings.ts`: a feature-settings model (guide, lenses, voices, motion, definitions) plus per-book overrides (`BookRecord.prefs`) and an `effective()` merge.
-- [ ] `src/lib/textindex.ts`: a per-document index of words, sentences and blocks built with Intl.Segmenter, with text-node offset maps and an abbreviation merge. It skips headings, pre, code and tables for lenses. Tests.
-- [ ] `src/lib/marks.ts`: a highlight registry per book document (fixed order, clear/add) plus the grammar CSS injected into books.
-- [ ] Reading position as a **CFI** (first word on the page). Restore by CFI, with fraction as the fallback.
+- [x] `settings.ts`: a feature-settings model (guide, lenses, voices, motion, definitions) plus per-book overrides (`BookRecord.prefs`) and an `effective()` merge.
+- [x] `src/lib/textindex.ts`: a per-document index of words, sentences and blocks built with Intl.Segmenter, with text-node offset maps and an abbreviation merge. It skips headings, pre, code and tables for lenses. Tests.
+- [x] `src/lib/marks.ts`: a highlight registry per book document (fixed order, clear/add) plus the grammar CSS injected into books.
+- [x] Reading position as a **CFI** (first word on the page). Restore by CFI, with fraction as the fallback.
 
 ### C2 · Reading guide
-- [ ] `src/lib/guide.ts` controller:
+- [x] `src/lib/guide.ts` controller:
   - pointer overlay with Word, Underline, Dot and Outline styles
   - contrast levels as disjoint ranges, including a clause focus for long sentences
   - Space hold, tap, double-tap and Shift+Space; arrows and vim motions; `[` `]` for speed
   - G toggles guide mode
   - pace learned with an EMA
   - dead-man's switch on blur
-- [ ] The page turns when the next word is off-page, and the pointer follows across chapter turns.
-- [ ] Reader UI: a guide button in the dock (tap toggles, press-and-hold glides), with options in Themes & Settings.
+- [x] The page turns when the next word is off-page, and the pointer follows across chapter turns.
+- [x] Reader UI: a guide button in the dock (tap toggles, press-and-hold glides), with options in Themes & Settings.
 
 ### C3 · Insights + lenses
 - [ ] `src/insights/`: a worker that scans the whole book. It finds names (capitalised tokens that aren't sentence-initial, frequency, alias merge), dialogue share, asides and foreign phrases (lang attributes). The resulting `BookProfile` is cached in IDB.
@@ -52,4 +52,4 @@ The source of truth for *what* to build is plan v3.2: https://claude.ai/artifact
 - [ ] Mood-tinted wedges from insights, time left at your pace, and a crossing pulse.
 
 ## Status
-Updated as each chunk lands.
+- 2026-10-11: C1 and C2 landed. The research pass (cognitive-reading.md) added: glide cap at 350 wpm with pauses (done), a gentler contrast ramp (done), and caps/modes for C3 (see the adoption table).

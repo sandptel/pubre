@@ -933,7 +933,7 @@
         </div>
         <!-- what this pace feels like: a sample line, reading at it -->
         <ReadPreview step={eff.guideStyle === 'stage' ? (eff.stageStep === 'sentence' ? 'phrase' : eff.stageStep) : eff.step} pointer={(eff.guideStyle === 'stage' ? eff.stagePointer : eff.pointer) as any}
-          read={eff.inkRead ?? 22} now={eff.inkNow ?? 100} ahead={eff.inkAhead ?? 46} wpm={eff.wpm} />
+          read={eff.inkRead ?? 10} now={eff.inkNow ?? 100} ahead={eff.inkAhead ?? 20} wpm={eff.wpm} />
         <div class="sp-dial">
           <button aria-label="Slower" onclick={() => setPace(eff.wpm - 10)}>−</button>
           <div class="sp-track">

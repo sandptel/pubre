@@ -154,7 +154,7 @@ export interface Settings {
 
 export const defaults: Settings = {
   palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto', letterSpacing: 0, measure: 'normal',
-  guide: true, guideStyle: 'stage', paraEnd: 'breathe', stageStep: 'sentence', stagePointer: 'outline', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, v: 3, brightness: 100, inkRead: 22, inkNow: 100, inkAhead: 46, weather: true, pointer: 'outline', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
+  guide: true, guideStyle: 'stage', paraEnd: 'breathe', stageStep: 'word', stagePointer: 'outline', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, v: 3, brightness: 100, inkRead: 10, inkNow: 100, inkAhead: 20, weather: true, pointer: 'outline', focus: 'sentence', step: 'word', dimRead: true, wpm: 260,
   intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'ink', asides: true, foreign: true, motion: 'full', onlineDefinitions: false, chapterPrompts: true,
 }
 

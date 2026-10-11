@@ -4,7 +4,7 @@
   import { onMount, untrack } from 'svelte'
   import { pointerBox, type PointerType } from '../lib/pointers.ts'
 
-  let { step = 'word', pointer = 'outline', read = 22, now = 100, ahead = 46, lenses = false, mini = false, wpm = 240 }: {
+  let { step = 'word', pointer = 'outline', read = 10, now = 100, ahead = 20, lenses = false, mini = false, wpm = 240 }: {
     step?: 'sentence' | 'phrase' | 'word'; pointer?: PointerType | 'ink'; read?: number; now?: number; ahead?: number
     lenses?: boolean; mini?: boolean; wpm?: number
   } = $props()
@@ -29,10 +29,10 @@
     const [a, b] = u, s = WORDS[i][1], cs = WORDS[a][1]
     if (i >= a && i <= b) return 'now'
     if (step === 'sentence') return s < cs ? 'read' : s === cs + 1 ? 'next' : 'later'
-    if (s === cs) return i < a ? 'done' : i <= b + 2 ? 'near' : i <= b + 6 ? 'ahead' : 'far'
+    if (s === cs) return i < a ? 'done' : i <= b + 2 ? 'near' : i <= b + 4 ? 'mid' : i <= b + 8 ? 'ahead' : 'far'
     return s < cs ? 'read' : 'later'
   }
-  const level = (st: string) => ({ now, near: ahead + (now - ahead) * 0.35, ahead, far: ahead * 0.72, next: ahead, later: ahead * 0.6, done: read * 1.35, read }[st] ?? ahead)
+  const level = (st: string) => ({ now, near: ahead + (now - ahead) * 0.35, mid: ahead + (now - ahead) * 0.14, ahead, far: ahead * 0.72, next: ahead, later: ahead * 0.6, done: read * 1.35, read }[st] ?? ahead)
 
   $effect(() => {
     void u; void pointer; void els.length

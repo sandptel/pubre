@@ -35,10 +35,10 @@
 {#snippet pointers()}
   <div class="tiles" role="radiogroup" aria-label="Pointer">
     {#if stage}<button role="radio" aria-checked={value.stagePointer === 'ink'} class="tile" class:on={value.stagePointer === 'ink'} onclick={() => (value.stagePointer = 'ink')}>
-      <ReadPreview mini step="word" pointer="ink" read={value.inkRead ?? 22} now={value.inkNow ?? 100} ahead={value.inkAhead ?? 46} wpm={150} /><b>Ink</b></button>{/if}
+      <ReadPreview mini step="word" pointer="ink" read={value.inkRead ?? 10} now={value.inkNow ?? 100} ahead={value.inkAhead ?? 20} wpm={150} /><b>Ink</b></button>{/if}
     {#each POINTERS as [id, name, hint]}
       <button role="radio" aria-checked={value[pkey] === id} class="tile" class:on={value[pkey] === id} title={hint} onclick={() => ((value as any)[pkey] = id)}>
-        <ReadPreview mini step="word" pointer={id} read={value.inkRead ?? 22} now={value.inkNow ?? 100} ahead={value.inkAhead ?? 46} wpm={150} /><b>{name}</b></button>
+        <ReadPreview mini step="word" pointer={id} read={value.inkRead ?? 10} now={value.inkNow ?? 100} ahead={value.inkAhead ?? 20} wpm={150} /><b>{name}</b></button>
     {/each}
   </div>
 {/snippet}
@@ -46,7 +46,7 @@
 <h3>Reading guide</h3>
 {#if value.guide}
   <!-- what your choices look like in action, live -->
-  <div class="live"><ReadPreview step={pstep ?? 'word'} pointer={value[pkey] ?? 'outline'} read={value.inkRead ?? 22} now={value.inkNow ?? 100} ahead={value.inkAhead ?? 46}
+  <div class="live"><ReadPreview step={pstep ?? 'word'} pointer={value[pkey] ?? 'outline'} read={value.inkRead ?? 10} now={value.inkNow ?? 100} ahead={value.inkAhead ?? 20}
     lenses={value.intensity !== 'quiet' && (stage ? value.stageLenses : true)} wpm={value.wpm} /><span class="live-l">Preview · your settings, in action</span></div>
 {/if}
 <div class="group">
@@ -78,9 +78,9 @@
 {#if value.guide}
   <h3>Contrast</h3>
   <div class="group">
-    <label class="line"><span>Already read<small>{value.inkRead ?? 22}%</small></span><input class="pace" type="range" min="8" max="70" step="2" bind:value={value.inkRead} aria-label="Already read" /></label>
+    <label class="line"><span>Already read<small>{value.inkRead ?? 10}%</small></span><input class="pace" type="range" min="4" max="70" step="2" bind:value={value.inkRead} aria-label="Already read" /></label>
     <label class="line"><span>Being read<small>{value.inkNow ?? 100}%</small></span><input class="pace" type="range" min="60" max="100" step="2" bind:value={value.inkNow} aria-label="Being read" /></label>
-    <label class="line"><span>To read<small>{value.inkAhead ?? 46}%</small></span><input class="pace" type="range" min="12" max="90" step="2" bind:value={value.inkAhead} aria-label="To read" /></label>
+    <label class="line"><span>To read<small>{value.inkAhead ?? 20}%</small></span><input class="pace" type="range" min="8" max="90" step="2" bind:value={value.inkAhead} aria-label="To read" /></label>
     <p class="hint">How bright each is, against the page. The preview above follows as you slide.</p>
   </div>
 {/if}

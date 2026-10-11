@@ -99,7 +99,7 @@
       // word / phrase: a focus gradient — the words you're on, the next few fading ahead, what you've read stepping back
       if (w < cur) return 'done'
       if (w <= ue) return 'now'
-      return w <= ue + 2 ? 'near' : w <= ue + 6 ? 'ahead' : 'far'
+      return w <= ue + 2 ? 'near' : w <= ue + 4 ? 'mid' : w <= ue + 8 ? 'ahead' : 'far' // to read: fading with distance
     }
     return s === cs - 1 ? 'prev' : s < cs ? 'read' : s === cs + 1 ? 'next' : 'later'
   }
@@ -684,7 +684,7 @@
     <div class="win" style:font-family={font} style:--size="{settings.fontScale / 100}">
       <div class="lift" bind:this={lift}>
         <div class="para" bind:this={para}>
-          <div class="flow" class:fine={step !== 'sentence'} style:--in-read={settings.inkRead ?? 22} style:--in-now={settings.inkNow ?? 100} style:--in-ahead={settings.inkAhead ?? 46} bind:this={flow} aria-live="polite"><i class="marker ptr" bind:this={marker} aria-hidden="true"></i></div>
+          <div class="flow" class:fine={step !== 'sentence'} style:--in-read={settings.inkRead ?? 10} style:--in-now={settings.inkNow ?? 100} style:--in-ahead={settings.inkAhead ?? 20} bind:this={flow} aria-live="polite"><i class="marker ptr" bind:this={marker} aria-hidden="true"></i></div>
         </div>
       </div>
     </div>
@@ -731,7 +731,7 @@
           <button aria-label="Larger text" onclick={() => onsetting?.('fontScale', Math.min(200, (settings.fontScale ?? 100) + 10))}><span style:font-size="22px">A</span></button>
         </div>
         <div class="q-ink" aria-label="Contrast">
-          {#each [['inkRead', 'Read', 8, 70, settings.inkRead ?? 22], ['inkNow', 'Now', 60, 100, settings.inkNow ?? 100], ['inkAhead', 'Ahead', 12, 90, settings.inkAhead ?? 46]] as [k, l, lo, hi, val]}
+          {#each [['inkRead', 'Read', 4, 70, settings.inkRead ?? 10], ['inkNow', 'Now', 60, 100, settings.inkNow ?? 100], ['inkAhead', 'Ahead', 8, 90, settings.inkAhead ?? 20]] as [k, l, lo, hi, val]}
             <label><span>{l}<b>{val}%</b></span><input type="range" min={lo} max={hi} step="2" value={val} oninput={e => onsetting?.(k as 'inkRead', +e.currentTarget.value)} /></label>
           {/each}
         </div>
@@ -739,7 +739,7 @@
           <div class="q-tiles" role="radiogroup" aria-label="Pointer">
             {#each [['ink', 'Ink'], ...POINTERS.map(p => [p[0], p[1]])] as [id, name]}
               <button role="radio" aria-checked={pointer === id} class:on={pointer === id} onclick={() => onsetting?.('stagePointer', id)}>
-                <ReadPreview mini step="word" pointer={id as PointerType | 'ink'} read={settings.inkRead ?? 22} now={settings.inkNow ?? 100} ahead={settings.inkAhead ?? 46} wpm={150} /><b>{name}</b>
+                <ReadPreview mini step="word" pointer={id as PointerType | 'ink'} read={settings.inkRead ?? 10} now={settings.inkNow ?? 100} ahead={settings.inkAhead ?? 20} wpm={150} /><b>{name}</b>
               </button>
             {/each}
           </div>
@@ -784,6 +784,7 @@
   .flow:global(.fine) :global([data-st]) { --a: calc(var(--in-read) * .7%); }
   .flow:global(.fine) :global([data-st="now"]) { --a: calc(var(--in-now) * 1%); --t: .12s; -webkit-text-stroke: .018em currentColor; text-shadow: 0 0 .6em color-mix(in srgb, var(--accent) 35%, transparent); }
   .flow:global(.fine) :global([data-st="near"]) { --a: calc((var(--in-ahead) + (var(--in-now) - var(--in-ahead)) * .35) * 1%); --t: .2s; }
+  .flow:global(.fine) :global([data-st="mid"]) { --a: calc((var(--in-ahead) + (var(--in-now) - var(--in-ahead)) * .14) * 1%); --t: .22s; }
   .flow:global(.fine) :global([data-st="ahead"]) { --a: calc(var(--in-ahead) * 1%); --t: .25s; }
   .flow:global(.fine) :global([data-st="far"]) { --a: calc(var(--in-ahead) * .72%); --t: .3s; }
   .flow:global(.fine) :global([data-st="done"]) { --a: calc(var(--in-read) * 1.35%); --t: .3s; }

@@ -62,7 +62,7 @@ export function whoHue(t: Theme, slot: number) {
 const alpha = (hex: string, a: number) => hex + Math.round(a * 255).toString(16).padStart(2, '0')
 
 /** Grammar styles for a book document (inline CSS, so they follow the theme without app CSS vars). */
-export function marksCss(t: Theme, inkRead = 22): string {
+export function marksCss(t: Theme, inkRead = 10): string {
   const rd = Math.min(0.95, 0.3 + inkRead / 100) // your 'already read' level, on the page
   const fg = t.base[5], accent = t.base[t.accent], muted = t.base[4]
   const voice = (k: string) => whoHue(t, +k)

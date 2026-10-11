@@ -1,6 +1,6 @@
 # Content → UI: turning book content into reader UI (researched 2026-10-11)
 
-This is a background research agent's report, kept for reference. The pubre proposal built from it is in the "pubre: what the book can do" artifact and in `features.md`.
+This is a background research agent's report, kept for reference. The pubre proposal built from it is **The Living Book** (artifact: https://claude.ai/artifact/2ZbuGXiqwUCNJcr2AtdPEs; local copy `research/living-book-proposal.html`; data script `research/living-book-compute.mjs`, run on Gutenberg #2701). The proposal has three waves: (1) the capsule comes alive, (2) meet the cast, (3) atmosphere and keepsakes. The user picks.
 
 ## Key takeaways
 - Shipping readers keep content intelligence in side panels: Kindle X-Ray, Recaps and "Ask this Book"; Kobo "Beyond the Book". Progress bars stay dumb or show chapter ticks (Foliate), or time spent per page (KOReader Book Map). **pubre's per-chapter capsule can carry content signals in peripheral vision. That is the gap.**

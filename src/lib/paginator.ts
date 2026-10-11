@@ -3,10 +3,13 @@
 // translated horizontally, so page turns are GPU transforms we can animate and drag.
 // ponytail: LTR horizontal text only; RTL / vertical-rl / fixed-layout books need their own layout paths.
 import { type Book, type TocItem } from './epub.ts'
-import { bookCss, type Settings } from './settings.ts'
+import { bookCss, resolveTheme, type Settings } from './settings.ts'
+import { indexDocument, type TextIndex } from './textindex.ts'
+import { Marks, marksCss } from './marks.ts'
+import { cfiToRange } from '../epub/cfi.ts'
 
-interface View { iframe: HTMLIFrameElement; doc: Document; index: number; pages: number }
-export interface Relocation { index: number; page: number; pages: number; fraction: number; progress: number; chapter: string }
+export interface View { iframe: HTMLIFrameElement; doc: Document; index: number; pages: number; ix: TextIndex; marks: Marks }
+export interface Relocation { index: number; page: number; pages: number; fraction: number; progress: number; chapter: string; cfi?: string }
 /** A top-level TOC entry placed on the whole-book progress axis (0..1). */
 export interface Section { label: string; href: string; start: number }
 export type Zone = 'left' | 'center' | 'right'
@@ -87,8 +90,14 @@ export class Paginator {
   onRelocate?: (r: Relocation) => void
   onTap?: (zone: Zone) => void
   onSections?: (s: Section[]) => void
+  /** Fires when a different chapter view becomes current, and after every relayout. */
+  onView?: (v: View) => void
+  /** Return true to take a key event (keydown or keyup, window or book) away from page turning. */
+  keyHook?: (e: KeyboardEvent) => boolean
+  /** Return true when a tap on book text was handled (e.g. the guide moved its pointer there). */
+  tapHook?: (v: View, clientX: number, clientY: number) => boolean
+  readonly port: HTMLDivElement // clipped, centered strip the iframes slide in (overlays live here too)
   private host: HTMLElement
-  private port: HTMLDivElement // clipped, centered strip the iframes slide in
   private book: Book
   private settings: Settings
   private view?: View
@@ -102,6 +111,7 @@ export class Paginator {
   private ro: ResizeObserver
   private resizeTimer = 0
   private onKey = (e: KeyboardEvent) => this.key(e)
+  private onKeyUp = (e: KeyboardEvent) => { this.keyHook?.(e) }
 
   constructor(host: HTMLElement, book: Book, settings: Settings) {
     this.host = host
@@ -123,11 +133,13 @@ export class Paginator {
     })
     this.ro.observe(host)
     window.addEventListener('keydown', this.onKey)
+    window.addEventListener('keyup', this.onKeyUp)
   }
 
   destroy() {
     this.ro.disconnect()
     window.removeEventListener('keydown', this.onKey)
+    window.removeEventListener('keyup', this.onKeyUp)
     this.host.replaceChildren()
   }
 
@@ -135,6 +147,40 @@ export class Paginator {
 
   async open(index: number, fraction = 0) {
     await this.show(index, v => Math.round(fraction * (v.pages - 1)))
+  }
+
+  /** Open at a CFI (exact word); falls back to the chapter start if it no longer resolves. */
+  async openCfi(cfi: string) {
+    const index = this.book.cfiSpineIndex(cfi)
+    if (index < 0) return this.open(0)
+    await this.show(index, v => {
+      try { const r = cfiToRange(v.doc, cfi).getClientRects()[0]; return r ? this.pageOfRect(r) : 0 } catch { return 0 }
+    })
+  }
+
+  // ---------- for overlays (reading guide, lenses) ----------
+
+  get current() { return this.view }
+  get currentPage() { return this.page }
+  get isBusy() { return this.busy }
+  /** Horizontal offset of a view's iframe inside the port (its translateX). */
+  xOf(v: View) { return this.currentX(v) }
+  /** Page (screen) a client rect inside the book document falls on. */
+  pageOf(r: DOMRect) { return this.pageOfRect(r) }
+  /** Slide to a page of the current chapter. */
+  async showPage(page: number) {
+    const v = this.view
+    if (!v || this.busy || page === this.page || page < 0 || page >= v.pages) return
+    await this.slide(page)
+  }
+  /** Index of the first word on the current page (binary search on word rects). */
+  firstWordOnPage(v = this.view, page = this.page) {
+    if (!v) return 0
+    const ws = v.ix.words, left = page * this.L.step
+    let lo = 0, hi = ws.length - 1, ans = ws.length - 1
+    const x = (k: number) => { const r = v.doc.createRange(); r.setStart(ws[k].sn, ws[k].so); r.setEnd(ws[k].en, ws[k].eo); return r.getClientRects()[0]?.left ?? 0 }
+    while (lo <= hi) { const mid = (lo + hi) >> 1; if (x(mid) >= left - 2) { ans = mid; hi = mid - 1 } else lo = mid + 1 }
+    return ans
   }
 
   async goTo(href: string) {
@@ -208,6 +254,7 @@ export class Paginator {
   private inject(v: View) {
     const { H, t, cols, colW, gap } = this.L
     this.style(v.doc, 'pubre-user', bookCss(this.settings, H - 2 * t))
+    this.style(v.doc, 'pubre-marks', marksCss(resolveTheme(this.settings.palette, this.settings.mode)))
     this.style(v.doc, 'pubre-layout', `
 html { box-sizing: content-box !important; margin: 0 !important; max-width: none !important;
   width: ${cols * colW + (cols - 1) * gap}px !important; height: ${H - 2 * t}px !important; padding: ${t}px ${gap / 2}px !important;
@@ -256,6 +303,7 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
     this.page = Math.min(v.pages - 1, rect ? this.pageOfRect(rect) : Math.floor(fraction * v.pages))
     this.setX(v, -this.page * this.L.step)
     this.emit()
+    this.onView?.(v)
   }
 
   // ---------- views ----------
@@ -266,7 +314,7 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
     iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts')
     iframe.setAttribute('title', this.book.metadata.title)
     iframe.className = 'pubre-view'
-    iframe.style.cssText = `position:absolute;inset:0 auto auto 0;border:0;opacity:0;width:${this.L.step}px;height:${this.L.H}px`
+    iframe.style.cssText = `position:absolute;inset:0 auto auto 0;z-index:1;border:0;opacity:0;width:${this.L.step}px;height:${this.L.H}px`
     this.port.append(iframe)
     const loaded = new Promise(r => iframe.addEventListener('load', r, { once: true }))
     iframe.src = await this.book.chapterUrl(index)
@@ -275,13 +323,14 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
     if (!doc.documentElement.getAttribute('lang') && this.book.metadata.language) {
       doc.documentElement.setAttribute('lang', this.book.metadata.language) // enables hyphenation
     }
-    const v: View = { iframe, doc, index, pages: 1 }
+    const v: View = { iframe, doc, index, pages: 1, ix: { words: [], sentences: [], blocks: [] }, marks: new Marks(doc) }
     this.inject(v)
     sectionBreaks(doc)
     this.bind(v)
     const timeout = new Promise(r => setTimeout(r, 1500))
     await Promise.race([Promise.allSettled([doc.fonts?.ready, ...Array.from(doc.images, i => i.decode())]), timeout])
     this.paginate(v)
+    v.ix = indexDocument(doc, this.book.metadata.language || 'en')
     return v
   }
 
@@ -302,6 +351,7 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
         old?.iframe.remove()
       }
       this.emit()
+      if (v !== old) this.onView?.(v)
     } finally {
       this.busy = false
     }
@@ -345,14 +395,15 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
       this.view = v
       this.page = start
       this.emit()
-      await Promise.all([this.move(old, -this.pageOf(old) * this.L.step - shift), this.move(v, -start * this.L.step)])
+      await Promise.all([this.move(old, -this.pageIndexOf(old) * this.L.step - shift), this.move(v, -start * this.L.step)])
       old.iframe.remove()
+      this.onView?.(v)
     } finally {
       this.busy = false
     }
   }
 
-  private pageOf(v: View) {
+  private pageIndexOf(v: View) {
     return Math.round(-new DOMMatrix(v.iframe.style.transform).m41 / this.L.step)
   }
 
@@ -368,6 +419,7 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
   // ---------- input ----------
 
   private key(e: KeyboardEvent) {
+    if (this.keyHook?.(e)) return
     if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return
     if ((e.target as HTMLElement)?.closest?.('input, textarea, select, dialog[open], [role=slider]')) return
     if (['ArrowRight', 'PageDown', ' '].includes(e.key) && !e.shiftKey) { e.preventDefault(); this.next() }
@@ -393,6 +445,7 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
   private bind(v: View) {
     const doc = v.doc
     doc.addEventListener('keydown', this.onKey)
+    doc.addEventListener('keyup', this.onKeyUp)
 
     doc.addEventListener('click', e => {
       const a = (e.target as Element).closest?.('a[href]')
@@ -441,6 +494,7 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
       }
       if (e.type === 'pointercancel' || Math.hypot(dx, dy) > 8 || dt > 600) return
       if ((e.target as Element).closest?.('a[href]') || doc.getSelection()?.toString()) return
+      if (this.tapHook?.(v, e.clientX, e.clientY)) return
       this.tap(v.iframe.getBoundingClientRect().left + e.clientX)
     }
     doc.addEventListener('pointerup', end)
@@ -492,6 +546,9 @@ html { box-sizing: content-box !important; margin: 0 !important; max-width: none
     const progress = this.starts[v.index] + w * ((this.page + 1) / v.pages)
     const top = this.starts[v.index] + w * (this.page / v.pages) // position of this page's first line
     const chapter = this.marks.findLast(m => m.at <= top + w / v.pages * 0.5)?.label ?? ''
-    this.onRelocate?.({ index: v.index, page: this.page, pages: v.pages, fraction, progress, chapter })
+    let cfi: string | undefined
+    const k = v.ix.words.length ? this.firstWordOnPage(v) : -1
+    if (k >= 0) try { const wd = v.ix.words[k]; cfi = this.book.cfiAt(v.index, wd.sn, wd.so) } catch { /* unresolvable node */ }
+    this.onRelocate?.({ index: v.index, page: this.page, pages: v.pages, fraction, progress, chapter, cfi })
   }
 }

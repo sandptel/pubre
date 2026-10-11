@@ -50,14 +50,15 @@
         pag.onSections = s => (sections = s)
         pag.onRelocate = r => {
           loc = r
-          rec.location = { index: r.index, fraction: r.fraction }
+          rec.location = { index: r.index, fraction: r.fraction, cfi: r.cfi }
           rec.progress = r.progress
           clearTimeout(saveTimer)
           saveTimer = window.setTimeout(save, 500)
         }
         pag.onTap = zone => { chrome = zone === 'center' ? !chrome : false }
         rec.opened = Date.now()
-        await pag.open(rec.location?.index ?? 0, rec.location?.fraction ?? 0)
+        if (rec.location?.cfi) await pag.openCfi(rec.location.cfi)
+        else await pag.open(rec.location?.index ?? 0, rec.location?.fraction ?? 0)
         setTimeout(() => { if (!panel) chrome = false }, 1400)
       } catch (e) {
         error = (e as Error).message

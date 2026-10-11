@@ -87,7 +87,13 @@
 
   function stateOf(s: number, w: number) {
     const cs = sen()
-    if (s === cs) return step !== 'sentence' && w > ue ? 'ahead' : 'now'
+    if (s === cs) {
+      if (step === 'sentence') return 'now'
+      // word / phrase: a focus gradient — the words you're on, the next few fading ahead, what you've read stepping back
+      if (w < cur) return 'done'
+      if (w <= ue) return 'now'
+      return w <= ue + 2 ? 'near' : w <= ue + 6 ? 'ahead' : 'far'
+    }
     return s === cs - 1 ? 'prev' : s < cs ? 'read' : s === cs + 1 ? 'next' : 'later'
   }
 
@@ -667,7 +673,7 @@
     <div class="win" style:font-family={font} style:--size="{settings.fontScale / 100}">
       <div class="lift" bind:this={lift}>
         <div class="para" bind:this={para}>
-          <div class="flow" bind:this={flow} aria-live="polite"><i class="marker" bind:this={marker} aria-hidden="true"></i></div>
+          <div class="flow" class:fine={step !== 'sentence'} bind:this={flow} aria-live="polite"><i class="marker" bind:this={marker} aria-hidden="true"></i></div>
         </div>
       </div>
     </div>
@@ -726,6 +732,15 @@
   .flow :global([data-st]) { color: color-mix(in srgb, var(--ink, var(--fg)) var(--a, 30%), transparent); transition: color var(--t, .8s) ease; }
   .flow :global([data-st="now"]) { --a: 100%; --t: .45s; }
   .flow :global([data-st="ahead"]) { --a: 70%; --t: .2s; }
+  /* Word / phrase steps: one bright spot, a soft wake ahead, the rest of the page well back */
+  .flow:global(.fine) :global([data-st]) { --a: 17%; }
+  .flow:global(.fine) :global([data-st="now"]) { --a: 100%; --t: .12s; -webkit-text-stroke: .018em currentColor; text-shadow: 0 0 .6em color-mix(in srgb, var(--accent) 35%, transparent); }
+  .flow:global(.fine) :global([data-st="near"]) { --a: 62%; --t: .2s; }
+  .flow:global(.fine) :global([data-st="ahead"]) { --a: 42%; --t: .25s; }
+  .flow:global(.fine) :global([data-st="far"]) { --a: 30%; --t: .3s; }
+  .flow:global(.fine) :global([data-st="done"]) { --a: 34%; --t: .3s; }
+  .flow:global(.fine) :global([data-st="prev"]) { --a: 22%; --t: .25s; }
+  .flow:global(.fine) :global([data-st="next"]) { --a: 22%; }
   .flow :global([data-st="next"]) { --a: 56%; }
   .flow :global([data-st="prev"]) { --a: 45%; --t: .5s; }
   .flow :global([data-st="read"]) { --a: 26%; --t: 1.2s; }
@@ -760,11 +775,11 @@
   /* The marker (phrase / word steps) */
   .marker { position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .25s; }
   .marker:global(.on) { opacity: 1; }
-  .marker:global([data-p="word"]) { background: color-mix(in srgb, var(--accent) 18%, transparent); border-radius: 7px; }
+  .marker:global([data-p="word"]) { background: color-mix(in srgb, var(--accent) 26%, transparent); border-radius: 7px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
   .marker:global([data-p="outline"]) { border-radius: 7px; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 80%, transparent); }
   .marker:global([data-p="underline"]) { background: var(--accent); border-radius: 2px; }
   .marker:global([data-p="dot"]) { background: var(--accent); border-radius: 50%; }
-  .marker:global([data-p="type"]) { background: color-mix(in srgb, var(--accent) 15%, transparent); border-radius: 6px 2px 2px 6px; box-shadow: inset -2px 0 0 var(--accent); }
+  .marker:global([data-p="type"]) { background: color-mix(in srgb, var(--accent) 24%, transparent); border-radius: 6px 2px 2px 6px; box-shadow: inset -2px 0 0 var(--accent); }
   .fade { position: absolute; left: 0; right: 0; height: 26%; pointer-events: none; opacity: 0; transition: opacity .4s ease; }
   .fade.on { opacity: 1; }
   .top-fade { top: 0; background: linear-gradient(var(--bg) 40%, transparent); }

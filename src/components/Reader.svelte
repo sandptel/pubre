@@ -237,6 +237,10 @@
     const c = profileChapters && chapterFor(profileChapters, s.label, book?.spineIndex(s.href) ?? -1)
     return { weight: Math.max(0.0005, (sections[i + 1]?.start ?? 1) - s.start), tint: c?.title ? moodTint(c.mood) : undefined }
   }))
+  const wedgeInfo = (label: string, href: string) => {
+    const c = profileChapters && chapterFor(profileChapters, label, book?.spineIndex(href) ?? -1)
+    return c?.title ? { tint: moodTint(c.mood), talk: c.talk } : undefined
+  }
   const stripCur = $derived(loc && sections.length ? Math.max(0, sections.findLastIndex(s => s.start <= loc!.top + 1e-6)) : 0)
   // First-line staging: a chapter's first sentence arrives word by word, paced by its own punctuation,
   // once, then is ordinary text. Highlights only (nothing in the book's DOM changes); any input finishes it.
@@ -622,6 +626,11 @@
 
   // ---------- highlights & notes ----------
   let anns = $state.raw<Annotation[]>([]) // raw: the toolbar edits these objects in place, then reassigns
+  // Your highlights and notes as dots on the capsule: exact in the chapter on screen, else at the start of their file.
+  const annMarks = $derived.by(() => { void loc; const v = pag?.current; return anns.map(a => {
+    const r = v && a.spine === v.index ? ranges.get(a.id)?.getClientRects()[0] : undefined
+    return { at: r && pag ? pag.progressAt(a.spine) + (pag.progressAt(a.spine + 1) - pag.progressAt(a.spine)) * (pag.pageOf(r) / Math.max(1, v!.pages)) : pag?.progressAt(a.spine) ?? 0, color: a.color }
+  }) })
   let ranges = new Map<string, Range>()
   let bar = $state.raw<{ x: number; y: number; below: boolean; ann?: Annotation; range?: Range; v: BookView; note?: boolean } | null>(null)
   let noteText = $state('')
@@ -805,7 +814,7 @@
     {#if loc}
       <div class="progress">
         <Progress {sections} {words} progress={loc.progress} chapter={loc.chapter || rec.title} page={loc.cpage} pages={loc.cpages}
-          onjump={jump} onscrub={p => pag?.goToProgress(p)} left={footLeft} />
+          onjump={jump} onscrub={p => pag?.goToProgress(p)} left={footLeft} info={wedgeInfo} marks={annMarks} />
       </div>
     {/if}
     <button class="fab glass menu" aria-label="Reading menu" onclick={() => { view = 'menu'; panel = true }} disabled={!book}>

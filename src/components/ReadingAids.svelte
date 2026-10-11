@@ -92,10 +92,12 @@
 </div>
 
 <style>
-  h3 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: var(--s5) 0 var(--s2); }
+  h3 { font: 600 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: var(--s5) 0 var(--s2); }
   h3:first-child { margin-top: var(--s1); }
-  .group { border-radius: 12px; background: var(--hover); padding: 0 var(--s4); }
-  .line { display: flex; align-items: center; gap: var(--s3); min-height: 48px; font-size: 15px; }
+  /* outlined panels, not filled: the glass shows through */
+  .group { border-radius: var(--r4); background: color-mix(in srgb, var(--bg) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 16%, transparent); padding: 0 var(--s4); }
+  .line { display: flex; align-items: center; gap: var(--s3); min-height: 52px; font-size: 13.5px; text-transform: uppercase; letter-spacing: .02em; }
+  .line small { text-transform: none; letter-spacing: 0; }
   .line + .line, .line + .hint { border-top: .5px solid var(--hairline); }
   .line > span:first-child { flex: 1; display: grid; }
   small { font-size: 12px; color: var(--muted); }
@@ -109,17 +111,18 @@
     .line .segmented button { flex: 1; }
     .line .pace { width: 100%; }
   }
-  .segmented { display: flex; background: var(--hover); border-radius: 9px; padding: 2px; flex: none; }
+  .segmented { display: flex; background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 18%, transparent); border-radius: 999px; padding: 3px; flex: none; }
   .segmented button { border: 0; background: transparent; border-radius: 7px; padding: 5px 9px; min-height: 36px; font-size: 13px; transition: background-color .25s var(--ease); }
-  .segmented .on { background: var(--bg); box-shadow: 0 1px 3px rgb(0 0 0 / .15); font-weight: 600; }
+  .segmented button { border-radius: 999px; font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .segmented .on { background: var(--ink); color: var(--on-ink); font-weight: 600; }
   input[role=switch] {
-    appearance: none; flex: none; width: 50px; height: 30px; border-radius: 15px; margin: 0; position: relative; cursor: pointer;
-    background: color-mix(in srgb, var(--fg) 18%, transparent); transition: background-color .25s;
+    appearance: none; flex: none; width: 64px; height: 30px; border-radius: 15px; margin: 0; position: relative; cursor: pointer;
+    background: transparent; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--fg) 45%, transparent); transition: background-color .25s;
   }
   input[role=switch]::before {
-    content: ''; position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; border-radius: 50%;
-    background: white; box-shadow: 0 2px 5px rgb(0 0 0 / .25); transition: transform .3s var(--ease);
+    content: 'OFF'; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--fg); transition: transform .3s var(--spring); font: 600 9px/24px var(--mono); text-indent: 28px; color: var(--fg); letter-spacing: .06em;
   }
-  input[role=switch]:checked { background: var(--accent); }
-  input[role=switch]:checked::before { transform: translateX(20px); }
+  input[role=switch]:checked { background: var(--ink); box-shadow: none; }
+  input[role=switch]:checked::before { content: 'ON'; transform: translateX(34px); background: var(--on-ink); color: var(--on-ink); text-indent: -24px; }
 </style>

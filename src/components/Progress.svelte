@@ -3,9 +3,13 @@
 
   // Floating progress capsule: where you are (chapter, page) over a track split into one wedge per
   // chapter. Tap a wedge to jump to that chapter; drag anywhere to scrub; hover to preview.
-  let { sections, progress, chapter, page, pages, onjump, onscrub, words = {}, left = '' }: {
+  let { sections, progress, chapter, page, pages, onjump, onscrub, words = {}, left = '', info, marks = [] }: {
     sections: Section[]; progress: number; chapter: string; page: number; pages: number
     onjump: (href: string) => void; onscrub: (p: number) => void; words?: Record<string, string>; left?: string
+    /** A chapter's mood colour and how much of it is spoken — shown only for chapters you've reached. */
+    info?: (label: string, href: string) => { tint: string; talk: number } | undefined
+    /** Your highlights and notes, as dots on the track (book positions 0..1, with their colour). */
+    marks?: { at: number; color: string }[]
   } = $props()
 
   let track: HTMLDivElement
@@ -59,13 +63,16 @@
     class:dense={wedges.length > 48}
     onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={() => { drag = null; probe = null }}
     onpointerleave={e => { if (!drag && e.pointerType === 'mouse') probe = null }} onkeydown={key}>
-    {#each wedges as w}
+    {#each wedges as w, i (i)}
       {@const fill = Math.min(1, Math.max(0, (progress - w.start) / (w.end - w.start || 1)))}
-      <div class="wedge" style:flex-grow={Math.max(w.end - w.start, 0.0005)}
-        class:current={progress >= w.start && progress < w.end} class:probed={probe !== null && probe >= w.start && probe < w.end}>
+      {@const reached = progress >= w.start}
+      {@const c = reached ? info?.(w.label, w.href) : undefined}
+      <div class="wedge" style:flex-grow={Math.max(w.end - w.start, 0.0005)} style:--tint={c?.tint ?? null} style:--talk={c ? Math.min(1, c.talk * 1.6) : 0}
+        class:mood={!!c} class:current={progress >= w.start && progress < w.end} class:probed={probe !== null && probe >= w.start && probe < w.end}>
         <span style:transform="scaleX({fill})"></span>
       </div>
     {/each}
+    {#each marks as m}<b class="mk" style:left="{m.at * 100}%" style:background="var(--base{m.color})"></b>{/each}
     <i class="knob" style:left="{shown * 100}%" class:active={probe !== null}></i>
   </div>
   <div class="under" aria-hidden="true">
@@ -90,12 +97,18 @@
   .track.dense .wedge:first-child { border-radius: 2px 0 0 2px; }
   .track.dense .wedge:last-child { border-radius: 0 2px 2px 0; box-shadow: none; }
   .wedge {
+    position: relative;
     flex-basis: 0; min-width: 1px; height: 4px; border-radius: 2px; overflow: hidden;
     background: color-mix(in srgb, var(--fg) 14%, transparent);
     transition: height .35s var(--spring), background-color .2s;
   }
   .wedge span { display: block; height: 100%; background: var(--accent); transform-origin: left; transition: transform .45s var(--ease); }
-  .wedge.current { height: 6px; }
+  .wedge.current { height: 6px; animation: cross .7s cubic-bezier(.34,1.56,.64,1); } /* entering a chapter: it springs */
+  /* the capsule comes alive: chapters you've reached take their mood colour; spoken chapters are hatched */
+  .wedge.mood span { background: color-mix(in srgb, var(--tint) 70%, var(--accent)); }
+  .wedge.mood::after { content: ''; position: absolute; inset: 0; opacity: var(--talk); background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--bg) 55%, transparent) 0 1px, transparent 1px 3px); pointer-events: none; }
+  .mk { position: absolute; top: -3px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; pointer-events: none; box-shadow: 0 0 0 1px var(--bg); }
+  @keyframes cross { 0% { transform: scaleY(.6); } 45% { transform: scaleY(1.9); } 100% { transform: scaleY(1); } }
   .wedge.probed { height: 10px; background: color-mix(in srgb, var(--fg) 24%, transparent); }
   .knob {
     position: absolute; top: 50%; width: 4px; height: 14px; margin: -7px 0 0 -2px; border-radius: 2px;

@@ -64,16 +64,23 @@
   dialog.see-through[open]::backdrop { background: rgb(0 0 0 / 0); }
   @starting-style { dialog[open]::backdrop { background: rgb(0 0 0 / 0); } }
 
-  .sheet { border-radius: 28px; overflow: hidden; background: var(--glass-solid); }
+  /* Frosted, translucent: the page glows through; set in mono, like an instrument panel */
+  .sheet {
+    border-radius: 28px; overflow: hidden; font-family: var(--mono); letter-spacing: -.01em;
+    background: color-mix(in srgb, var(--surface) 70%, transparent);
+    backdrop-filter: blur(30px) saturate(1.5); -webkit-backdrop-filter: blur(30px) saturate(1.5);
+    box-shadow: 0 0 0 1px var(--hairline), var(--e2);
+  }
+  @supports not (backdrop-filter: blur(1px)) { .sheet { background: var(--glass-solid); } }
   header { display: flex; align-items: center; gap: var(--s2); padding: var(--s3) var(--s3) var(--s1) var(--s5); }
   header:has(.nav:first-child) { padding-left: var(--s2); }
   /* No title: the close button floats over the content's top-right corner. */
   header.bare { position: absolute; top: 0; right: 0; z-index: 1; padding: var(--s3); }
   .sheet { position: relative; }
-  h2 { flex: 1; margin: 0; font: 700 17px/1.2 var(--serif); }
+  h2 { flex: 1; margin: 0; font: 600 13px/1.2 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
   .nav {
     display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%;
-    background: var(--hover); color: var(--fg); transition: transform .3s var(--spring);
+    background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 22%, transparent); color: var(--fg); transition: transform .3s var(--spring);
   }
   .nav:active { transform: scale(.88); }
   .nav svg { width: 15px; height: 15px; }

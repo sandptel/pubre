@@ -235,6 +235,9 @@ export class Paginator {
   /** Re-measure after the book DOM changed (e.g. italic highlights), keeping your place. */
   refresh() { const v = this.view; if (!v) return; v.ix = indexDocument(v.doc, this.book.metadata.language || 'en'); this.relayout() }
 
+  /** Book progress (0..1) at the start of a spine item (for marks on the capsule). */
+  progressAt(index: number) { return this.starts[Math.max(0, Math.min(index, this.starts.length - 1))] ?? 0 }
+
   /** Keep `px` free at the bottom of every page (relayouts, keeping your place). */
   setReserve(px: number, top = 0) { if (px === this.reserve && top === this.reserveTop) return; this.reserve = px; this.reserveTop = top; this.relayout() }
 

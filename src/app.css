@@ -8,7 +8,7 @@
   --spring: linear(0, .009, .035 2.1%, .141 4.4%, .723 12.9%, .938 16.7%, 1.017 19.4%, 1.061 22.2%,
     1.077 25.3%, 1.068 29.4%, 1.016 37.9%, .997 45.6%, .994 53.8%, 1.001 73.5%, 1);
   --serif: ui-serif, "New York", "Iowan Old Style", Charter, Georgia, serif;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace; /* small labels and numbers */
+  --mono: "Geist Mono", ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace; /* labels, numbers, the settings sheets */
   /* radius · elevation (cards sit just above the page; floating bars and sheets above that) */
   --r1: 8px; --r2: 12px; --r3: 16px; --r4: 24px; --r5: 32px;
   --e1: 0 1px 2px rgb(0 0 0 / .05), 0 8px 24px -12px rgb(0 0 0 / .14);

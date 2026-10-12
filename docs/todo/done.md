@@ -45,3 +45,6 @@ Verified in Chrome (desktop 1440×900) and WebKit (390×844 touch): import of 3 
 - feat(stage): MOVES per kind (rotating) + BY_HOW (short/spoken/long) picks; wash() of quoted/bracketed passage (accent), ?-sentence (base0D), !-sentence (base08).
 - 02dbb2c fix(library): hero grid minmax(0,1fr), long cite no longer widens card.
 - c33a915 feat(ui): Sheet docks full-height on the left at >=1000px; library translates aside; lens caption no longer absolute.
+- feat(reader): readTo place marker (r-read/r-here highlights, .pubre-place pin in port), Stage starts from it when on page, tap pin then word to move, resume ripple after 2h away.
+- feat(ui): Credits card in library settings (portrait, GitHub ask with stepping ring, bug/idea/contribute links, version from package.json).
+- chore: MIT LICENSE.

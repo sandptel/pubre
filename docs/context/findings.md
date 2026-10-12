@@ -53,3 +53,6 @@ It waits for `.grid li:nth-child(4)`, which the redesigned library no longer has
 
 ## Grid items default to min-width: auto
 A one-column grid with a `white-space: nowrap` child grows its track to that line and spills out of a width-capped card. Use `grid-template-columns: minmax(0, 1fr)`.
+
+## WebKit paints some custom highlights a few letters off
+In Playwright WebKit, a highlight range on a word after a hyphenated/justified line painted ~4 characters right of where the same range's getClientRects() put it (the pin, drawn from those rects, was right). Clearing and re-adding did not help; Chromium is correct. Open: check on a real iPhone before trusting highlight geometry in WebKit.

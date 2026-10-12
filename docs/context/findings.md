@@ -65,3 +65,6 @@ bookCss forces `body *:not(a) { background-color: transparent; color: inherit }`
 
 ## A :focus-within pause never resumes after a click
 Clicking a button keeps focus on it, so a timer paused on :focus-within stays paused. Pause on :hover only.
+
+## Measure after the lift card comes off
+The Stage lifts a paragraph wearing `.card` (padding + negative margins); on a heading its margin-top replaces the heading margin. Anything measured at landing (marker, column position) must wait for the rAF that removes `.card`.

@@ -37,6 +37,7 @@ export function score(b: Gold, names: NameInfo[]) {
     precision: top20.filter(good).length / Math.max(1, top20.length),
     recall: found.filter(f => f.length).length / castSets.length,
     split: found.filter(f => f.length > 1).length, // one character listed twice
+    merged: top30.filter(n => castSets.filter(set => formsOf(n).some(f => set.has(f))).length > 1).map(n => n.name), // two characters made one
     leaks: people.slice(0, 30).filter(n => formsOf(n).some(f => bad.has(f))).map(n => n.name),
     wrong: top20.filter(n => !good(n)).map(n => n.name),
     missed: b.cast.filter((_, i) => !found[i].length).map(c => c[0]),
@@ -44,7 +45,7 @@ export function score(b: Gold, names: NameInfo[]) {
 }
 
 // Floors only ever go up: raise them when the engine improves.
-const FLOOR = { precision: 0, recall: 0 }
+const FLOOR = { precision: 0.9, recall: 0.85 } // per book; v1 scored a mean of 73% / 64%
 
 test('names eval: cast precision and recall on six books', () => {
   const rows: string[] = []
@@ -53,10 +54,12 @@ test('names eval: cast precision and recall on six books', () => {
     const texts = chaptersOf(b.dir)
     if (!texts) continue
     ran++
-    const s = score(b, findNames(texts, { exclude: [b.creator] } as never))
+    const names = findNames(texts, { exclude: [b.creator] })
+    const s = score(b, names)
     p += s.precision; r += s.recall
-    rows.push(`${b.dir.padEnd(13)} P@20 ${(s.precision * 100).toFixed(0).padStart(3)}%  R@30 ${(s.recall * 100).toFixed(0).padStart(3)}%  split ${s.split}  leaks ${s.leaks.length}`
-      + `\n    wrong: ${s.wrong.join(', ') || '—'}\n    missed: ${s.missed.join(', ') || '—'}`)
+    rows.push(`${b.dir.padEnd(13)} P@20 ${(s.precision * 100).toFixed(0).padStart(3)}%  R@30 ${(s.recall * 100).toFixed(0).padStart(3)}%  split ${s.split}  merged ${s.merged.length}  leaks ${s.leaks.length}`
+      + `\n    wrong: ${s.wrong.join(', ') || '—'}\n    missed: ${s.missed.join(', ') || '—'}${s.merged.length ? `\n    merged: ${s.merged.join(', ')}` : ''}`
+      + (process.env.SHOW ? `\n    top: ${names.filter(n => n.kind === 'person').slice(0, 24).map(n => n.name + (n.aliases ? ` [${n.aliases.join('; ')}]` : '') + ` ${n.count}`).join(' · ')}` : ''))
     assert.ok(s.precision >= FLOOR.precision && s.recall >= FLOOR.recall, `${b.dir} below floor`)
   }
   if (!ran) return

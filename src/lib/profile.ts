@@ -14,6 +14,6 @@ export async function computeProfile(b: Book): Promise<NonNullable<BookRecord['p
       worker.terminate()
       resolve({ v: PROFILE_V, names: e.data.names, words: e.data.words, chapters: e.data.chapters, links: e.data.links, hapax: e.data.hapax, punct: e.data.punct })
     }
-    worker.postMessage({ texts })
+    worker.postMessage({ texts, exclude: [b.metadata.creator, ...b.metadata.creators.map(c => c.name)].filter(Boolean) })
   })
 }

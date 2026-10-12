@@ -154,7 +154,7 @@
   .line > span:first-child { flex: 1; display: grid; }
   small { font-size: 12px; color: var(--muted); }
   .hint { font-size: 12px; color: var(--muted); margin: 0; padding: var(--s2) 0 var(--s3); line-height: 1.45; }
-  .lens-sample { position: relative; margin-bottom: var(--s2); padding: 12px 14px 26px; border-radius: var(--r3); background: var(--bg); box-shadow: inset 0 0 0 1px var(--hairline); font: 17px/1.65 var(--serif); color: var(--fg); transition: letter-spacing .2s; }
+  .lens-sample { position: relative; margin-bottom: var(--s2); padding: 12px 14px 10px; border-radius: var(--r3); background: var(--bg); box-shadow: inset 0 0 0 1px var(--hairline); font: 17px/1.65 var(--serif); color: var(--fg); transition: letter-spacing .2s; }
   .lens-sample .q { color: var(--base0D, var(--accent)); }
   .lens-sample .q.qline { color: inherit; text-decoration: underline 2px color-mix(in srgb, var(--base0D, var(--accent)) 60%, transparent); text-underline-offset: 4px; }
   .lens-sample .q.qmarks { color: inherit; }
@@ -162,7 +162,7 @@
   .lens-sample .aside { opacity: .6; }
   .lens-sample .hw { text-decoration: underline dotted 2px color-mix(in srgb, var(--accent) 80%, transparent); text-underline-offset: 4px; }
   .lens-sample .fr { font-style: italic; color: var(--base0C, var(--accent)); }
-  .ls-l { position: absolute; left: 14px; bottom: 6px; font: 600 9.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .ls-l { display: block; margin-top: 8px; font: 600 9.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
   .live { position: sticky; top: 0; z-index: 2; display: grid; gap: 4px; padding: 6px 0 10px; margin: 0 calc(-1 * var(--s1)) var(--s2); padding-inline: var(--s1); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
   .live-l { font: 600 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
   .line.col { flex-direction: column; align-items: stretch; gap: var(--s2); padding: var(--s3) 0; text-transform: none; }

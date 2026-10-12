@@ -2,7 +2,8 @@
   import type { Snippet } from 'svelte'
 
   // One floating panel for a stack of views: bottom sheet on phones, popover above its trigger on
-  // wide screens. Grows from `origin`; its height animates as views or disclosures change.
+  // tablets, and a full-height drawer from the left on desktops (room for settings to breathe, the page
+  // stays visible beside it). Grows from `origin`; its height animates as views or disclosures change.
   // `seeThrough` keeps the page visible behind it for live previews.
   let { open = $bindable(false), title, back, seeThrough = false, children }:
     { open: boolean; title: string; back?: () => void; seeThrough?: boolean; children: Snippet } = $props()
@@ -91,5 +92,16 @@
 
   @media (min-width: 720px) {
     dialog { inset: auto var(--s4) calc(var(--s4) + 56px) auto; width: 380px; }
+  }
+  @media (min-width: 1000px) { /* docked to the left edge, full height, sliding in like a side panel */
+    dialog { inset: 0 auto 0 0; width: min(460px, 36vw); height: 100dvh; transform-origin: left center; }
+    dialog:not([open]) { transform: translateX(-100%); opacity: 1; }
+    @starting-style { dialog[open] { transform: translateX(-100%); opacity: 1; } }
+    .sheet { height: 100%; display: flex; flex-direction: column; border-radius: 0 28px 28px 0; box-shadow: 1px 0 0 color-mix(in srgb, var(--accent) 22%, var(--hairline)), var(--e2); }
+    .body { flex: 1; height: auto !important; max-height: none; } /* fills the panel; no height animation needed */
+    .inner { padding: var(--s3) var(--s6) var(--s6); }
+    header { padding: max(var(--s5), env(safe-area-inset-top)) var(--s4) var(--s2) var(--s6); }
+    header:has(.nav:first-child) { padding-left: var(--s4); }
+    dialog[open]::backdrop { background: rgb(0 0 0 / .12); }
   }
 </style>

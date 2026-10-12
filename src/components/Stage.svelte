@@ -551,8 +551,10 @@
     busy = false; landed = true; onplace?.(v!, cur)
     hideSources(0)
     flow!.classList.remove('solo') // its neighbours fade in around it
-    if (card) { card.getAnimations().forEach(a => a.cancel()); card.style.boxShadow = SHADOW[2]; requestAnimationFrame(() => { card.style.boxShadow = ''; card.classList.remove('card') }) }
-    placeMarker(false)
+    // the pointer is placed once the card has handed back to plain text: the card's own margins shift a heading,
+    // and a ring measured before that sat below the first word
+    if (card) { card.getAnimations().forEach(a => a.cancel()); card.style.boxShadow = SHADOW[2]; requestAnimationFrame(() => { card.style.boxShadow = ''; card.classList.remove('card'); place(false); placeMarker(false) }) }
+    else placeMarker(false)
     if (closing) return close()
     if (!hold) play(); else schedule()
   }

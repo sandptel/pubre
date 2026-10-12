@@ -48,3 +48,5 @@ Verified in Chrome (desktop 1440×900) and WebKit (390×844 touch): import of 3 
 - feat(reader): readTo place marker (r-read/r-here highlights, .pubre-place pin in port), Stage starts from it when on page, tap pin then word to move, resume ripple after 2h away.
 - feat(ui): Credits card in library settings (portrait, GitHub ask with stepping ring, bug/idea/contribute links, version from package.json).
 - chore: MIT LICENSE.
+- 8fb9c03 fix(stage): startWord() asks Reader (resumeAt) for your place first; Space/G/pad all resume. Selection bar ▶ "Read from here".
+- d5c74c3 feat(ui): maker portrait = Zoro-style ink-stamp SVG (inline in Credits.svelte).

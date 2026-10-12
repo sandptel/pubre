@@ -165,7 +165,7 @@
   let card = $state<{ x: number; y: number; below: boolean; html: string } | null>(null)
   let cardKey = '', dwellT = 0, hoverT = 0
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
-  let gstate = $state<GuideState>({ active: false, gliding: false, wpm: 260 })
+  let gstate = $state<GuideState>({ active: false, gliding: false, wpm: 180 })
   let toastMsg = $state('')
   let toastT = 0
   // This book's overrides (only the differences from your global settings are stored).

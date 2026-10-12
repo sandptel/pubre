@@ -62,7 +62,7 @@
     stop: { short: 'stamp', long: 'sink', spoken: 'press' }, ask: { short: 'curl', long: 'tilt', spoken: 'bob' },
     bang: { short: 'pop', long: 'jump', spoken: 'shake' }, trail: { short: 'wave', long: 'spread', spoken: 'drift' },
   }
-  let v: View | undefined, cur = -1, ue = -1, y = 0, glideT = 0, wpm = 260, closing = false
+  let v: View | undefined, cur = -1, ue = -1, y = 0, glideT = 0, wpm = 180, closing = false
   let transient = $state(false)
   let rate = 1, gen = 0
   let timer = 0, tStart = 0, tDur = 0, tFn: (() => void) | null = null

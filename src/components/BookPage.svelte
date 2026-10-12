@@ -62,6 +62,9 @@
 </script>
 
 <main class="bp" style:--tint={bg}>
+  <!-- desktop: the whole cover, uncropped, held on the left while the page scrolls beside it -->
+  <aside class="side" aria-hidden="true">{#if coverUrl}<img src={coverUrl} alt="" />{:else}<div class="side-cover"><Cover book={rec} /></div>{/if}</aside>
+  <div class="col">
   <section class="top" class:has-cover={!!coverUrl}>
     {#if coverUrl}<div class="art" style:view-transition-name="cover" style:background-image="url({coverUrl})"></div>{/if}
     <header>
@@ -146,6 +149,7 @@
       {#if !showAll && chapters.length > rows.length}<button class="more" onclick={() => (showAll = true)}>All {chapters.length} chapters</button>{/if}
     </section>
   {/if}
+  </div>
 </main>
 
 <style>
@@ -221,5 +225,25 @@
   @keyframes eink { 0% { opacity: 0; } 8% { opacity: 1; filter: invert(1) grayscale(1) contrast(1.6); } 16% { filter: grayscale(1) contrast(2.2) brightness(1.15); } 26% { filter: none; } }
   @media (prefers-reduced-motion: reduce) { .art, .card { animation: none; } .scribble path, .toc svg path { animation: none; stroke-dashoffset: 0; } }
   @keyframes grow { from { transform: scaleY(0); } }
+  .side { display: none; }
+  @media (min-width: 1000px) {
+    .bp { display: grid; grid-template-columns: minmax(360px, 42%) minmax(0, 1fr); padding-bottom: 0; }
+    .side { display: grid; place-items: center; position: sticky; top: 0; height: 100dvh; padding: 84px 64px 64px; box-sizing: border-box; background: linear-gradient(160deg, var(--tint), color-mix(in srgb, var(--tint) 55%, var(--bg))); }
+    .side img, .side-cover { max-width: 100%; max-height: 100%; width: auto; border-radius: 6px 12px 12px 6px; box-shadow: 0 30px 60px -24px rgb(0 0 0 / .45), 0 2px 8px rgb(0 0 0 / .12); animation: eink 1.1s steps(1, end) both; view-transition-name: cover; }
+    .side-cover { width: min(360px, 80%); }
+    .col { padding: 84px var(--s7) calc(var(--s7) + 88px); max-width: 720px; box-sizing: border-box; }
+    .top, .top.has-cover { min-height: 0; display: block; padding: 0; background: none; border-radius: 0; text-align: left; overflow: visible; }
+    .top.has-cover header, header { position: fixed; top: var(--s4); left: var(--s4); right: var(--s4); z-index: 2; pointer-events: none; }
+    header > * { pointer-events: auto; }
+    .art, .cover { display: none; }
+    h1 { font-size: 40px; line-height: 1.12; }
+    .has-cover h1, .has-cover .by { text-shadow: none; }
+    .scribble { margin: 8px 0 0; }
+    .by { font-size: 16px; margin-bottom: var(--s5); }
+    .stats { justify-content: flex-start; }
+    .stats div:first-child { padding-left: 0; }
+    .actions { padding: var(--s5) 0 0; margin: 0; max-width: none; }
+    .card { margin-inline: 0; max-width: none; }
+  }
   @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.8); } }
 </style>

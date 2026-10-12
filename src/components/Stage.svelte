@@ -23,14 +23,14 @@
   import { edgesOnFirstLine, letterRects, typeFrames } from '../lib/typing.ts'
   import type { TextIndex } from '../lib/textindex.ts'
 
-  let { pag, settings, chapter = '', page = 0, pages = 0, book, pageEl, decorate, explain, onmark, onopen, onstate, onplace, onpace, ontoast, onsetting }: {
+  let { pag, settings, chapter = '', page = 0, pages = 0, book, pageEl, decorate, explain, onmark, onopen, onstate, onplace, resumeAt, onpace, ontoast, onsetting }: {
     pag: Paginator | undefined; settings: Settings; chapter?: string; page?: number; pages?: number; pageEl?: HTMLElement
     /** The book's chapters, for the strip under the label (the one you're in is magnified). */
     book?: { chapters: StripChapter[]; cur: number }
     decorate?: (v: View, b: number) => Decor[]; explain?: (key: string) => Promise<string>
     /** Long-press a sentence: keep it (true) or let it go again (false). */
     onmark?: (v: View, s: number) => Promise<boolean | null>
-    onopen?: (open: boolean) => void; onstate?: (s: StageState) => void; onplace?: (v: View, k: number) => void
+    onopen?: (open: boolean) => void; onstate?: (s: StageState) => void; onplace?: (v: View, k: number) => void; resumeAt?: () => number
     onpace?: (wpm: number) => void; ontoast?: (m: string) => void
     /** The quick switcher changed a reading setting (pointer, step). */
     onsetting?: (key: 'stagePointer' | 'stageStep' | 'inkRead' | 'inkNow' | 'inkAhead' | 'fontScale' | 'pauses', value: string | number) => void
@@ -489,8 +489,11 @@
     hiddenEls = []
   }
 
-  /** Where the Stage starts: the chapter you navigated to if its heading is on this spread, else the first word on it. */
+  /** Where the Stage starts: your place if it's on this spread; else the chapter you navigated to if its heading
+   *  is on it; else the first word on it. Every way in (pad, Space, G, a tap) comes through here. */
   function startWord(): number {
+    const here = resumeAt?.() ?? -1
+    if (here >= 0) return here
     const x = ix(), k = pag!.firstWordOnPage(v), end = pag!.currentPage + 1 < v!.pages ? pag!.firstWordOnPage(v, pag!.currentPage + 1) : x.words.length
     const norm = (t: string) => t.replace(/\s+/g, ' ').trim().toLowerCase(), want = norm(chapter)
     if (want) for (let b = x.words[k].b; b < x.blocks.length && x.blocks[b].a < end; b++) {

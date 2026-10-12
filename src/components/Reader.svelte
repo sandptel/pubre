@@ -102,6 +102,16 @@
     if (r) await pag!.showPage(pag!.pageOf(r))
     setTimeout(() => { paintPlace(true); pin!.querySelector('b')!.textContent = 'Continue here'; pin!.classList.add('resume'); setTimeout(() => pin?.classList.remove('resume'), 6000) }, 480)
   }
+  /** The selection bar's ▶: your place moves to the start of the selection, and the guide reads from there. */
+  function readFromHere() {
+    const r = bar?.range, v = bar?.v
+    if (!r || !v) return
+    const k = nearestWord(v.ix.words, r.startContainer, r.startOffset)
+    bar = null; v.doc.getSelection()?.removeAllRanges()
+    if (k < 0) return
+    setPlace(v, k, true); paintPlace(true)
+    if (stageStyle()) stage?.start(false, k); else guide?.holdStart(k)
+  }
   /** Tap the pin to pick your place up; the next tap on a word puts it down there. */
   function tapPlace(v: BookView, x: number, y: number) {
     if (!pin) return false
@@ -461,7 +471,7 @@
     if (!press || press.hold) return
     press = { ...press, hold: true }
     chrome = false; hideCard()
-    if (stageStyle()) stage?.holdStart(placeHere()); else guide?.holdStart()
+    if (stageStyle()) stage?.holdStart(); else guide?.holdStart()
   }
   function padDrag(e: PointerEvent) {
     if (!press) return
@@ -549,7 +559,7 @@
 
   function padTap() {
     chrome = false; hideCard()
-    if (stageStyle()) stage?.tap(placeHere()); else guide?.padTap()
+    if (stageStyle()) stage?.tap(); else guide?.padTap()
   }
 
   // ---------- the Stage's own visual grammar (one paragraph at a time, so it can be richer than the page) ----------
@@ -1019,7 +1029,7 @@
     {/if}
   {/if}
   <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} page={loc?.cpage ?? 0} pages={loc?.cpages ?? 0} pageEl={paperEl} {decorate} {explain} onmark={markSentence} book={{ chapters: stripChapters, cur: stripCur }}
-    onopen={o => { staged = o; speedOpen = false; if (o) { chrome = false; hideCard(); guide?.deactivate(); pushBack('stage'); paintPlace() } else { paintLenses(); popBack('stage'); if (placeV) setPlace(placeV, placeK, true); placeSoon(true); setTimeout(() => { pag?.current?.marks.clear('r-'); requestAnimationFrame(() => paintPlace()) }, 1200) /* WebKit keeps highlight geometry from the set-down a few letters off: clear, then paint again once settled */ } }} onplace={(v, k) => setPlace(v, k)} onstate={st => (sstate = st)}
+    onopen={o => { staged = o; speedOpen = false; if (o) { chrome = false; hideCard(); guide?.deactivate(); pushBack('stage'); paintPlace() } else { paintLenses(); popBack('stage'); if (placeV) setPlace(placeV, placeK, true); placeSoon(true); setTimeout(() => { pag?.current?.marks.clear('r-'); requestAnimationFrame(() => paintPlace()) }, 1200) /* WebKit keeps highlight geometry from the set-down a few letters off: clear, then paint again once settled */ } }} onplace={(v, k) => setPlace(v, k)} resumeAt={placeHere} onstate={st => (sstate = st)}
     onpace={w => (settings.wpm = w)} ontoast={toast}
     onsetting={(k, val) => { if (custom && k in prefs) (bookVal as any)[k] = val; else (settings as any)[k] = val }} />
   {#if weather}{#key weather}<div class="weather w-{weather}" class:still={eff.motion !== 'full' || reduceMotion} transition:fade={{ duration: 1200 }} aria-hidden="true"></div>{/key}{/if}
@@ -1035,6 +1045,7 @@
         <button class="hl-b" class:on={bar.ann?.italic} aria-label="Italic" onclick={() => toggleStyle('italic')}><i>I</i></button>
         <button class="hl-b" class:on={bar.note} aria-label="Note" onclick={() => { if (bar) bar = { ...bar, note: !bar.note } }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16z" /></svg></button>
+        <button class="hl-b" aria-label="Read from here" title="Read from here" onclick={readFromHere}><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l10.5-6.5z" /></svg></button>
         {#if bar.ann}<button class="hl-b" aria-label="Remove highlight" onclick={removeAnn}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>{/if}
       </div>
       {#if bar.note}

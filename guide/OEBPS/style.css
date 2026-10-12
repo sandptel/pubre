@@ -1,0 +1,51 @@
+/* The guide's own look. pubre sets the font, colours and spacing; this only shapes the figures.
+   Backgrounds are cleared by the reader, so every visual is SVG (fills and strokes stay). */
+h1 { font-size: 1.55em; line-height: 1.2; margin: 0 0 .7em; }
+.kicker { font-family: monospace; font-size: .7em; letter-spacing: .2em; text-transform: uppercase; opacity: .6; margin: 0 0 .4em; }
+.lede { font-size: 1.1em; }
+.try { border-left: 3px solid #d9822b; padding-left: .9em; margin: 1.1em 0; }
+.small { font-size: .85em; opacity: .8; }
+kbd { font-family: monospace; font-size: .85em; padding: 0 .35em; border: 1px solid; border-radius: .3em; border-bottom-width: 2px; }
+.fig { margin: 1.2em auto; text-align: center; break-inside: avoid; page-break-inside: avoid; }
+.fig svg { width: 100%; max-width: 22em; height: auto; overflow: visible; }
+.cap { font-size: .78em; opacity: .65; text-align: center; margin: .35em 0 0; }
+.title { text-align: center; }
+.title svg { max-width: 15em; }
+
+/* ---------- animations: each shows a move, quietly, again and again ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .anim * { transform-box: fill-box; }
+  /* the key: two taps, then a long hold */
+  .keytop { animation: press 2.8s cubic-bezier(.3,.7,.3,1) infinite; }
+  @keyframes press { 0%, 8%, 22%, 30%, 46%, 82%, 100% { transform: translateY(0); } 4%, 26%, 50%, 78% { transform: translateY(5px); } }
+  .ripple { transform-origin: center; animation: ripple 1.8s ease-out infinite; }
+  .ripple.r2 { animation-delay: .3s; }
+  @keyframes ripple { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(1.9); opacity: 0; } }
+  /* the ring walks word by word */
+  .step { opacity: 0; animation: step 3s infinite; }
+  .step.s2 { animation-delay: -2s; } .step.s3 { animation-delay: -1s; }
+  @keyframes step { 0%, 31% { opacity: 1; } 33%, 100% { opacity: 0; } }
+  /* a highlighter sweeps, the pin drops on the last word */
+  .sweep { transform-origin: left center; animation: sweep 4s cubic-bezier(.6,.1,.3,1) infinite; }
+  .sweep.d2 { animation-delay: .35s; } .sweep.d3 { animation-delay: .7s; }
+  @keyframes sweep { 0% { transform: scaleX(0); } 30%, 85% { transform: scaleX(1); } 100% { transform: scaleX(1); opacity: 0; } }
+  .pin { animation: drop 4s cubic-bezier(.34,1.56,.64,1) infinite; }
+  @keyframes drop { 0%, 30% { transform: translateY(-26px); opacity: 0; } 42%, 88% { transform: translateY(0); opacity: 1; } 100% { opacity: 0; } }
+  .chip { animation: chip 4s ease infinite; }
+  @keyframes chip { 0%, 50% { opacity: 0; } 58%, 86% { opacity: 1; } 100% { opacity: 0; } }
+  /* lines draw themselves, nodes pop in */
+  .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 5s ease-in-out infinite; }
+  .draw.d2 { animation-delay: .3s; } .draw.d3 { animation-delay: .6s; } .draw.d4 { animation-delay: .9s; } .draw.d5 { animation-delay: 1.2s; }
+  @keyframes draw { 0% { stroke-dashoffset: 1; } 35%, 85% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+  .pop { transform-origin: center; animation: pop 5s cubic-bezier(.34,1.56,.64,1) infinite; }
+  .pop.d2 { animation-delay: .2s; } .pop.d3 { animation-delay: .4s; } .pop.d4 { animation-delay: .6s; } .pop.d5 { animation-delay: .8s; }
+  @keyframes pop { 0% { transform: scale(0); } 12%, 88% { transform: scale(1); } 100% { transform: scale(0); } }
+  /* a selection ring steps across the themes */
+  .pick { animation: pick 6s steps(1, end) infinite; }
+  @keyframes pick { 0% { transform: translateX(0); } 16.6% { transform: translateX(70px); } 33.3% { transform: translateX(140px); } 50% { transform: translateX(210px); } 66.6% { transform: translateX(280px); } 83.3% { transform: translateX(350px); } }
+  .breathe { transform-origin: center; animation: breathe 2.4s ease-in-out infinite; }
+  @keyframes breathe { 50% { transform: scale(1.08); } }
+  .hop { animation: hop 2.4s cubic-bezier(.3,.7,.3,1) infinite; }
+  .hop.d2 { animation-delay: .5s; } .hop.d3 { animation-delay: 1s; } .hop.d4 { animation-delay: 1.5s; }
+  @keyframes hop { 0%, 30%, 100% { transform: translateY(0); } 12% { transform: translateY(-7px); } }
+}

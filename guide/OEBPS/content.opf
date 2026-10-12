@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid" xml:lang="en">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="uid">urn:uuid:5f2b7c1e-8f4a-4d6b-9c3e-70b0e1d2a901</dc:identifier>
+    <dc:title>Welcome to pubre</dc:title>
+    <dc:creator>pubre</dc:creator>
+    <dc:language>en</dc:language>
+    <dc:description>A five-minute book that teaches pubre by being read in it: the Stage, your place, lenses, the cast, highlights and making it yours.</dc:description>
+    <dc:subject>Guide</dc:subject>
+    <meta property="dcterms:modified">2026-10-12T00:00:00Z</meta>
+    <meta name="cover" content="cover"/>
+  </metadata>
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="cover" href="cover.svg" media-type="image/svg+xml" properties="cover-image"/>
+    <item id="css" href="style.css" media-type="text/css"/>
+    <item id="title" href="title.xhtml" media-type="application/xhtml+xml" properties="svg"/>
+    <item id="c1" href="c1.xhtml" media-type="application/xhtml+xml" properties="svg"/>
+    <item id="c2" href="c2.xhtml" media-type="application/xhtml+xml" properties="svg"/>
+    <item id="c3" href="c3.xhtml" media-type="application/xhtml+xml" properties="svg"/>
+    <item id="c4" href="c4.xhtml" media-type="application/xhtml+xml"/>
+    <item id="c5" href="c5.xhtml" media-type="application/xhtml+xml" properties="svg"/>
+    <item id="c6" href="c6.xhtml" media-type="application/xhtml+xml" properties="svg"/>
+    <item id="c7" href="c7.xhtml" media-type="application/xhtml+xml" properties="svg"/>
+  </manifest>
+  <spine>
+    <itemref idref="title"/><itemref idref="c1"/><itemref idref="c2"/><itemref idref="c3"/><itemref idref="c4"/><itemref idref="c5"/><itemref idref="c6"/><itemref idref="c7"/>
+  </spine>
+</package>

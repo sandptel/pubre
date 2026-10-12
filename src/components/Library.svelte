@@ -61,8 +61,22 @@
     books = [...books]
   }
 
+  // The welcome book: every new library starts with it, once. Removed, it stays removed (Settings → The guide brings it back).
+  const guideSeeded = () => { try { return !!localStorage.getItem('pubre:guide') } catch { return true } }
+  async function addGuide(): Promise<BookRecord | undefined> {
+    try { localStorage.setItem('pubre:guide', '1') } catch { /* private mode: it may be offered again */ }
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}guide.epub`)
+      if (!res.ok) return
+      const r = await importFile(new File([await res.blob()], 'guide.epub', { type: 'application/epub+zip' }))
+      books = [r, ...books.filter(b => b.id !== r.id)]
+      return r
+    } catch { return undefined }
+  }
+
   onMount(async () => {
     books = await listBooks()
+    if (!books.length && !guideSeeded()) await addGuide()
     loaded = true
     setTimeout(() => (morphId = ''), 700) // let the cover morph land, then free the name
   })
@@ -270,6 +284,7 @@
     <div class="slist">
       <button onclick={() => (sview = 'look')}><span class="aa">Aa</span><span>Themes &amp; Settings<small>Palette, mode, font, layout</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg></button>
       <button onclick={() => (sview = 'aids')}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="9" width="9" height="6" rx="2" fill="currentColor" opacity=".35" stroke="none" /><path d="M3 18h18M15 12h6" /></svg><span>Reading aids<small>Guide, lenses, comfort</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg></button>
+      <button onclick={async () => { const r = books.find(b => b.title === 'Welcome to pubre') ?? await addGuide(); if (r) { settingsOpen = false; open(r) } }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V6a2 2 0 012-2h13v13H6a2 2 0 00-2 2zm0 0a2 2 0 002 2h13M9 8h6" /></svg><span>The guide<small>A five-minute tour, as a book</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg></button>
     </div>
     <Credits />
     <p class="about">pubre reads on your device: books, notes and insights never leave it. Word data: wordfreq (CC BY-SA) and Open English WordNet (CC BY).</p>

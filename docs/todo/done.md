@@ -52,3 +52,4 @@ Verified in Chrome (desktop 1440×900) and WebKit (390×844 touch): import of 3 
 - d5c74c3 feat(ui): maker portrait = Zoro-style ink-stamp SVG (inline in Credits.svelte).
 - 865472e feat(book): desktop BookPage = sticky full cover left (42%) + details column right; phones unchanged.
 - feat(reader): Coach.svelte + lib/hints.ts (localStorage pubre:hints; learned=-1 / show counts): space hint (keycap / finger), stage moves x3, pin hint x2.
+- feat(reader): gentle Space reminder after learn: 12s idle on a text page, guide off, cooldown 2 min, fades in 6.4s.

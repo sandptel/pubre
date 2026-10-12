@@ -136,7 +136,7 @@
   ondrop={e => { e.preventDefault(); dragging = false; if (e.dataTransfer) add(e.dataTransfer.files) }}
 />
 
-<main class="library">
+<main class="library" class:aside={settingsOpen}>
   <header class="lib-h">
     <div>
       <h1>My Library</h1>
@@ -290,8 +290,10 @@
 {/if}
 
 <style>
+  /* desktop: settings dock on the left and the shelf steps aside, side by side */
+  @media (min-width: 1000px) { .library.aside { transform: translateX(max(0px, calc(min(460px, 36vw) - (100vw - min(100vw, 1180px)) / 2 + 24px))); } }
   .library {
-    max-width: 1180px; margin: 0 auto;
+    max-width: 1180px; margin: 0 auto; transition: transform .55s var(--spring);
     padding: max(var(--s6), env(safe-area-inset-top)) max(var(--s5), env(safe-area-inset-right)) calc(var(--s7) + 88px + env(safe-area-inset-bottom)) max(var(--s5), env(safe-area-inset-left));
   }
   .lib-h { display: flex; align-items: end; gap: var(--s3); margin-bottom: var(--s5); }
@@ -302,7 +304,7 @@
   .eyebrow { font: 600 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
 
   /* Pick up where you left off: a card that lifts off the page — the book, your place, the line you stopped on. */
-  .hero { width: min(100%, 560px); margin-bottom: var(--s6); padding: var(--s4); border-radius: var(--r4); background: var(--card); box-shadow: var(--e1); display: grid; gap: var(--s4); }
+  .hero { width: min(100%, 640px); box-sizing: border-box; margin-bottom: var(--s6); padding: var(--s4); border-radius: var(--r4); background: var(--card); box-shadow: var(--e1); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s4); } /* minmax: long lines clip instead of widening the card */
   .h-top { display: flex; gap: var(--s4); align-items: start; }
   .h-cover { all: unset; cursor: pointer; width: 92px; flex: none; transition: transform .45s var(--spring); }
   .h-cover:active { transform: scale(.97); }

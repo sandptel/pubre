@@ -56,3 +56,6 @@ A one-column grid with a `white-space: nowrap` child grows its track to that lin
 
 ## WebKit paints some custom highlights a few letters off
 In Playwright WebKit, a highlight range on a word after a hyphenated/justified line painted ~4 characters right of where the same range's getClientRects() put it (the pin, drawn from those rects, was right). Clearing and re-adding did not help; Chromium is correct. Open: check on a real iPhone before trusting highlight geometry in WebKit.
+
+## "Mr." ended sentences in the v1 cast finder
+The sentence-start check treated the dot in "Mr." as a full stop, so every titled name (Mr. Collins, Mrs. Bennet, Mr. Jaggers) was dropped as sentence-initial. Any boundary check must skip titles and initials.

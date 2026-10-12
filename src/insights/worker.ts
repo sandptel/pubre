@@ -9,5 +9,5 @@ self.onmessage = (e: MessageEvent<{ texts: string[]; exclude?: string[] }>) => {
   const words = texts.map(t => (t.match(/[A-Za-z’'-]+/g) || []).length)
   const names = findNames(texts, { exclude: e.data.exclude })
   self.postMessage({ names, words, chapters: e.data.texts.flatMap((html, i) => chapters(i, html)),
-    links: castLinks(e.data.texts, names.filter(n => n.kind === 'person').slice(0, 24).map(n => n.name)), hapax: hapax(e.data.texts), punct: punctuation(e.data.texts) })
+    links: castLinks(e.data.texts, names.filter(n => n.kind === 'person').slice(0, 24)), hapax: hapax(e.data.texts), punct: punctuation(e.data.texts) })
 }

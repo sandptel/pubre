@@ -62,6 +62,7 @@ export class Lenses {
   private s: Settings
   private cache = new WeakMap<View, Parsed>()
   private people: NameInfo[] = []
+  private canon = new Map<string, string>() // any form of a name ("Lizzy", "Mr. Darcy") → its character's name
   private nameRe: RegExp | null = null
   private common = new Set<string>()
   private lang = 'en'
@@ -80,12 +81,13 @@ export class Lenses {
   setCommon(set: Set<string>) { this.common = set; this.cache = new WeakMap() }
   setProfile(names: NameInfo[]) {
     this.people = names.filter(n => n.kind === 'person')
-    const all = [...this.people].sort((a, b) => b.name.length - a.name.length).map(n => esc(n.name))
+    this.canon = new Map(this.people.flatMap(p => [[p.name, p.name] as const, ...(p.aliases ?? []).map(a => [a, p.name] as const)]))
+    const all = [...this.canon.keys()].sort((a, b) => b.length - a.length).map(esc)
     this.nameRe = all.length ? new RegExp(`(?<![A-Za-z])(${all.join('|')})(?:[’']s)?(?![A-Za-z])`, 'g') : null
     this.cache = new WeakMap()
   }
   invalidate(v: View) { this.cache.delete(v) }
-  person(name: string) { return this.people.find(p => p.name === name) }
+  person(name: string) { const n = this.canon.get(name) ?? name; return this.people.find(p => p.name === n) }
 
   private parse(v: View): Parsed {
     let p = this.cache.get(v)
@@ -93,7 +95,7 @@ export class Lenses {
     p = { tokens: [], byBlock: new Map(), share: new Map() }
     const add = (t: Token) => { p!.tokens.push(t); let l = p!.byBlock.get(t.blk); if (!l) p!.byBlock.set(t.blk, (l = [])); l.push(t) }
     const blocks = v.ix.blocks.map(blk => (blk.kind === 'text' ? blk.text : ''))
-    const quotes = attribute(blocks, this.people.map(n => n.name))
+    const quotes = attribute(blocks, [...this.canon.keys()])
     blocks.forEach((text, bi) => {
       if (!text) return
       if (this.nameRe) for (const m of text.matchAll(this.nameRe)) {
@@ -104,7 +106,7 @@ export class Lenses {
       for (const m of text.matchAll(ASIDES)) add({ kind: 'aside', blk: bi, a: m.index!, b: m.index! + m[0].length, key: '', slot: -1 })
       const qs = quotes[bi]
       p!.share.set(bi, qs.reduce((n, q) => n + q.b - q.a, 0) / Math.max(1, text.length))
-      for (const q of qs) add({ kind: 'speech', blk: bi, a: q.a, b: q.b, key: q.speaker ?? '', slot: q.speaker ? this.person(q.speaker)?.slot ?? -1 : -1 })
+      for (const q of qs) { const who = q.speaker ? this.person(q.speaker) : undefined; add({ kind: 'speech', blk: bi, a: q.a, b: q.b, key: who?.name ?? q.speaker ?? '', slot: who?.slot ?? -1 }) }
     })
     // Foreign phrases: elements whose language differs from the book's.
     for (const el of Array.from(v.doc.querySelectorAll('[lang], [*|lang]'))) {

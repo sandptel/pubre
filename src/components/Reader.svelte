@@ -61,6 +61,8 @@
   let saveTimer = 0
   let guide: Guide | undefined
   let stage = $state<ReturnType<typeof Stage>>()
+  /** Is this character named in the text, by any of their forms ("Lizzy" is Elizabeth)? */
+  const named = (n: { name: string; aliases?: string[] }, text: string) => new RegExp(`(?<![A-Za-z])(?:${[n.name, ...(n.aliases ?? [])].map(f => f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?![A-Za-z])`).test(text)
   // ---------- coach marks: show the move until it has been made ----------
   const touchUI = matchMedia('(pointer: coarse)').matches
   let coach = $state<'space' | 'stage' | null>(null), coachDone = $state(false), gentle = $state(false), coachT = 0, nudgeT = 0, lastNudge = 0
@@ -205,7 +207,7 @@
     const t = r.toString().replace(/\s+/g, ' ').trim()
     rec.lastLine = t.length > 220 ? t.slice(0, 220).replace(/\s+\S*$/, '') + '…' : t
     const b0 = ix.words[k].b, before = ix.blocks.slice(Math.max(0, b0 - 25), b0 + 1).map(bl => bl.text).join(' ')
-    rec.who = (rec.profile?.names ?? []).filter(n => n.kind === 'person' && n.slot >= 0 && new RegExp(`(?<![A-Za-z])${n.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z])`).test(before)).slice(0, 3).map(n => n.name)
+    rec.who = (rec.profile?.names ?? []).filter(n => n.kind === 'person' && n.slot >= 0 && named(n, before)).slice(0, 3).map(n => n.name)
     const total = rec.profile?.words?.reduce((a, n) => a + n, 0) ?? 0
     rec.chapterLeft = total ? Math.max(0, Math.round((loc.chapterEnd - loc.top) * total)) : undefined
     rec.readAt = Date.now()
@@ -785,7 +787,7 @@
     }
     // Spoiler-safe: only characters named in the text you read just before your place.
     const b0 = ix.words[k]?.b ?? 0, before = ix.blocks.slice(Math.max(0, b0 - 25), b0 + 1).map(bl => bl.text).join(' ')
-    const who = (rec.profile?.names ?? []).filter(n => n.kind === 'person' && n.slot >= 0 && new RegExp(`(?<![A-Za-z])${n.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z])`).test(before)).slice(0, 4).map(n => n.name)
+    const who = (rec.profile?.names ?? []).filter(n => n.kind === 'person' && n.slot >= 0 && named(n, before)).slice(0, 4).map(n => n.name)
     recap = { stage: 'ask', chapter: rec.chapter ?? '', lines, who, mine: [] }
     listAnnotations(rec.id).then(list => { if (recap) recap = { ...recap, mine: list.filter(a => a.spine === v.index && ['0A', '09'].includes(a.color)).slice(-2).map(a => a.exact.slice(0, 140)) } })
   }

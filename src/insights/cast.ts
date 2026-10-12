@@ -6,13 +6,14 @@ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const strip = (html: string) => html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ')
 
 /** For each person, the others named in the same paragraph, with the spine items where that happened. */
-export function castLinks(htmls: string[], people: string[]): Record<string, Record<string, number[]>> {
+export function castLinks(htmls: string[], cast: { name: string; aliases?: string[] }[]): Record<string, Record<string, number[]>> {
   const out: Record<string, Record<string, number[]>> = {}
-  if (people.length < 2) return out
-  const re = new RegExp(`(?<![A-Za-z])(${[...people].sort((a, b) => b.length - a.length).map(esc).join('|')})(?![A-Za-z])`, 'g')
+  if (cast.length < 2) return out
+  const canon = new Map(cast.flatMap(p => [[p.name, p.name] as const, ...(p.aliases ?? []).map(a => [a, p.name] as const)])) // "Lizzy" counts as Elizabeth
+  const re = new RegExp(`(?<![A-Za-z])(${[...canon.keys()].sort((a, b) => b.length - a.length).map(esc).join('|')})(?![A-Za-z])`, 'g')
   htmls.forEach((html, si) => {
     for (const para of html.split(/<\/p>|<br\s*\/?>\s*<br|\n\s*\n/i)) {
-      const here = [...new Set([...strip(para).matchAll(re)].map(m => m[1]))]
+      const here = [...new Set([...strip(para).matchAll(re)].map(m => canon.get(m[1])!))]
       if (here.length < 2) continue
       for (const a of here) for (const b of here) {
         if (a === b) continue

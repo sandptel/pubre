@@ -1,8 +1,7 @@
 <script lang="ts">
   // Who made pubre, and a friendly ask: a star, a bug, an idea. Drawn in pubre's own grammar — the maker
-  // gets a cast portrait, and the reading ring steps across the ask the way it steps across a book.
+  // gets an ink-stamp portrait like the cast's, and the reading ring steps across the ask the way it steps across a book.
   import { onMount } from 'svelte'
-  import { portraitUrl } from '../lib/portrait.ts'
 
   const REPO = 'https://github.com/sandptel/pubre'
   const ASK = ['Star it', 'Share it', 'Shape it']
@@ -15,7 +14,28 @@
 
 <section class="credits" aria-label="About pubre">
   <a class="maker" href="https://github.com/sandptel" target="_blank" rel="noopener">
-    <img src={portraitUrl('Sandeep', '#e8a87c')} alt="" width="44" height="44" />
+    <!-- the maker's own face, as ever: a swordsman with green hair, one eye shut, three gold earrings (drawn in the cast's ink-stamp style) -->
+    <svg class="pfp" viewBox="0 0 100 100" aria-hidden="true">
+      <rect width="100" height="100" rx="22" fill="#23262c" />
+      <path d="M10 100c2-17 15-25 40-25s38 8 40 25z" fill="#17181b" stroke="#3b3f46" stroke-width="2" />
+      <path d="M37 75 50 100 63 75q-13 5-26 0z" fill="#f1d0b4" /><path d="M35 74 50 100M65 74 50 100" stroke="#2f5a35" stroke-width="3" stroke-linecap="round" />
+      <path d="M44 84l14 14" stroke="#1d1b19" stroke-width="1.6" stroke-linecap="round" />
+      <path d="M46 83l-2 3M49 86l-2 3M52 89l-2 3M55 92l-2 3" stroke="#1d1b19" stroke-width="1.2" stroke-linecap="round" />
+      <path d="M44 64v12h12V64" fill="#f1d0b4" stroke="#1d1b19" stroke-width="2" />
+      <ellipse cx="31" cy="48" rx="3.5" ry="5.5" fill="#f1d0b4" stroke="#1d1b19" stroke-width="2" />
+      <ellipse cx="69" cy="48" rx="3.5" ry="5.5" fill="#f1d0b4" stroke="#1d1b19" stroke-width="2" />
+      <path d="M31 44c0-14 8-21 19-21s19 7 19 21c0 12-6 21-19 24-13-3-19-12-19-24z" fill="#f3d6bd" stroke="#1d1b19" stroke-width="2.4" stroke-linejoin="round" />
+      <path d="M68.6 53v6M71.2 53.5v6M73.8 53v6" stroke="#e2b13c" stroke-width="2" stroke-linecap="round" />
+      <path d="M27 47 24 35l5 1-3-11 7 3 0-10 7 5 3-10 5 8 5-10 3 9 6-7 1 10 7-5-1 10 7-1-5 9 4 3-3 8c-4-10-11-16-22-16s-18 6-23 16z" fill="#5dbb63" stroke="#1d3b22" stroke-width="2" stroke-linejoin="round" />
+      <path d="M40 21l2 7M50 15l-1 9M61 19l-3 8M32 30l4 5M68 30l-4 4M45 27l2 4" stroke="#3a8a46" stroke-width="1.6" stroke-linecap="round" />
+      <path d="M35 41l11 2.6M54.5 43.6l10.5-2.3" stroke="#1d1b19" stroke-width="3" stroke-linecap="round" />
+      <path d="M37 48q5-4 10 0-5 2.6-10 0z" fill="#fff" stroke="#1d1b19" stroke-width="1.8" stroke-linejoin="round" />
+      <circle cx="42.6" cy="47.4" r="1.9" fill="#1d1b19" />
+      <path d="M54 48q5 3 10 0" fill="none" stroke="#1d1b19" stroke-width="2.4" stroke-linecap="round" />
+      <path d="M60 40 60.6 56.5" stroke="#9c4a3a" stroke-width="1.6" stroke-linecap="round" />
+      <path d="M50 49l-1.6 7h3.2" fill="none" stroke="#1d1b19" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M42 60.5q7 4.5 14-1.5M56 59l1.5-1.5" fill="none" stroke="#1d1b19" stroke-width="2.2" stroke-linecap="round" />
+    </svg>
     <span><small>Made with care by</small><b>Sandeep Patel</b><em>@sandptel</em></span>
   </a>
 
@@ -44,8 +64,8 @@
   .credits { display: grid; gap: var(--s3); margin-top: var(--s5); }
   a { color: inherit; text-decoration: none; }
   .maker { display: flex; align-items: center; gap: var(--s3); padding: 4px 2px; }
-  .maker img { width: 44px; height: 44px; border-radius: 14px; box-shadow: 0 0 0 1px var(--hairline); transition: transform .4s var(--spring); }
-  .maker:hover img { transform: rotate(-6deg) scale(1.06); }
+  .maker .pfp { width: 48px; height: 48px; flex: none; border-radius: 14px; box-shadow: 0 0 0 1px var(--hairline); transition: transform .4s var(--spring); }
+  .maker:hover .pfp { transform: rotate(-6deg) scale(1.06); }
   .maker span { display: grid; line-height: 1.25; }
   .maker small { font: 600 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
   .maker b { font: 500 17px var(--serif); }

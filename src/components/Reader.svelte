@@ -63,16 +63,29 @@
   let stage = $state<ReturnType<typeof Stage>>()
   // ---------- coach marks: show the move until it has been made ----------
   const touchUI = matchMedia('(pointer: coarse)').matches
-  let coach = $state<'space' | 'stage' | null>(null), coachDone = $state(false), coachT = 0
-  /** Only where there's something to read: a cover or a picture page waits for the next page with words. */
-  function coachSpace() { if (!coach && eff.guide && !staged && !panel && (pag?.current?.ix.words.length ?? 0) > 0 && !learned('space')) coach = 'space' }
+  let coach = $state<'space' | 'stage' | null>(null), coachDone = $state(false), gentle = $state(false), coachT = 0, nudgeT = 0, lastNudge = 0
+  const quiet = () => staged || panel || gstate.active || !eff.guide || !((pag?.current?.ix.words.length ?? 0) > 0)
+  /** Only where there's something to read (a cover waits for the next page with words). Until you've read once,
+   *  the hint stays; after that it comes back gently whenever you've lingered on a page without the guide. */
+  function coachSpace() {
+    if (coach || quiet()) return
+    if (!learned('space')) { gentle = false; coach = 'space'; return }
+    clearTimeout(nudgeT)
+    nudgeT = window.setTimeout(() => {
+      if (coach || quiet() || Date.now() - lastNudge < 120_000) return
+      lastNudge = Date.now(); gentle = true; coach = 'space'
+      coachT = window.setTimeout(() => { if (gentle) coach = null }, 6400)
+    }, 12_000) // a page turn restarts the wait: only a reader who has stopped on a page is reminded
+  }
   function coachOpened() {
-    clearTimeout(coachT)
-    if (coach === 'space') { learn('space'); coachDone = true; coachT = window.setTimeout(() => { coach = null; coachDone = false; coachOpened() }, 1300); return }
+    clearTimeout(coachT); clearTimeout(nudgeT)
+    if (coach === 'space' && gentle) coach = null
+    else if (coach === 'space') { learn('space'); coachDone = true; coachT = window.setTimeout(() => { coach = null; coachDone = false; coachOpened() }, 1300); return }
     if (stageStyle() && shown('stage', 3)) { coach = 'stage'; coachT = window.setTimeout(() => (coach = null), 7200) }
   }
   function coachClosed() {
     if (coach === 'stage') { clearTimeout(coachT); coach = null }
+    setTimeout(coachSpace, 1500) // back on the page: the gentle reminder may come again later
     if (pin && shown('pin', 2)) setTimeout(() => { if (!pin?.classList.contains('on')) return; pin.querySelector('b')!.textContent = 'Your place · tap to move'; pin.classList.add('hint'); setTimeout(() => pin?.classList.remove('hint'), 4500) }, 900)
   }
   // ---------- your place: a highlighter up to the word the guide last stood on, and a pin there ----------
@@ -976,7 +989,7 @@
   </div>
 
   {#if eff.guide && loc && !error}
-    {#if coach && !panel}<Coach kind={coach} touch={touchUI} done={coachDone} />{/if}
+    {#if coach && !panel}<Coach kind={coach} touch={touchUI} done={coachDone} {gentle} />{/if}
     <div class="padgroup transport glass" class:up={press ? pressUp : showChrome && !staged} class:reading={staged || gstate.active} class:solo={!speedChip && !(staged || (gstate.active && !showChrome))}>
       {#if staged}
         <button class="ptrbtn" aria-label="Pointer and contrast" onclick={() => stage?.toggleQuick()}>

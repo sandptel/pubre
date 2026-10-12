@@ -1,18 +1,20 @@
 <script lang="ts">
   // Game-style coach marks: the key (or the finger) shows the move instead of describing it.
   // 'space' points at the pad until you've read once; 'stage' shows the moves inside the Stage the first times.
-  let { kind, touch = false, done = false }: { kind: 'space' | 'stage'; touch?: boolean; done?: boolean } = $props()
+  // `gentle`: the reminder for someone who already knows — smaller, one line, and it fades away on its own.
+  let { kind, touch = false, done = false, gentle = false }: { kind: 'space' | 'stage'; touch?: boolean; done?: boolean; gentle?: boolean } = $props()
 </script>
 
 {#if kind === 'space'}
-  <div class="coach space" class:done role="status">
+  <div class="coach space" class:done class:gentle role="status">
     {#if touch}
       <span class="tapme" aria-hidden="true"><i class="ripple"></i><i class="ripple r2"></i>
         <svg viewBox="0 0 24 24"><path d="M9 11V5.5a1.5 1.5 0 013 0V10m0-1.5a1.5 1.5 0 013 0V11m0-1a1.5 1.5 0 013 0v4.5a6 6 0 01-6 6h-.8a6 6 0 01-4.6-2.2L4.3 15a1.6 1.6 0 012.3-2.2L9 15" fill="var(--bg)" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
     {:else}
       <span class="key" aria-hidden="true"><span>space</span></span>
     {/if}
-    <p>{#if done}<b>Nice. That's it.</b><small>Your place is kept as you go</small>
+    <p>{#if gentle}<b>{touch ? 'Tap ▶' : 'Space'} to read on</b>
+      {:else if done}<b>Nice. That's it.</b><small>Your place is kept as you go</small>
       {:else if touch}<b>Tap ▶ to read</b><small>Hold it to read only while you hold</small>
       {:else}<b>Press Space to read</b><small>Hold it to read only while held</small>{/if}</p>
     <i class="tail" aria-hidden="true"></i>
@@ -65,6 +67,10 @@
   .move:nth-child(2) .cap { animation-delay: .6s; } .move:nth-child(3) .cap { animation-delay: 1.2s; } .move:nth-child(4) .cap { animation-delay: 1.8s; }
   .cap.wide { text-transform: uppercase; letter-spacing: .08em; font-size: 10.5px; }
 
+  .gentle { gap: 10px; padding: 8px 14px 8px 10px; border-radius: 14px; animation: pop-in .5s cubic-bezier(.34,1.56,.64,1) both, fade-out .8s 5.6s ease both; }
+  .gentle .key { width: 76px; height: 30px; border-radius: 8px; }
+  .gentle .key span { font-size: 10px; }
+  .gentle p b { font-size: 12.5px; font-weight: 500; }
   @keyframes pop-in { from { opacity: 0; transform: translateY(16px) scale(.85); } }
   @keyframes float { 50% { transform: translateY(-4px); } }
   @keyframes press { 0%, 8%, 22%, 30%, 46%, 82%, 100% { translate: 0 0; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--fg) 30%, transparent), 0 6px 0 color-mix(in srgb, var(--fg) 30%, var(--bg)); }

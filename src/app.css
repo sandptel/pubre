@@ -93,7 +93,7 @@ button { cursor: pointer; }
 .pubre-place.on { opacity: 1; }
 .pubre-place::before { content: ''; position: absolute; left: 50%; top: -6px; width: 11px; height: 11px; margin-left: -5.5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
 .pubre-place b { position: absolute; left: -6px; bottom: calc(100% + 12px); white-space: nowrap; padding: 4px 9px; border-radius: 999px; background: var(--accent); color: var(--bg); font: 600 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; opacity: 0; transform: translateY(4px); transition: opacity .3s, transform .3s; }
-.pubre-place.resume b, .pubre-place.lift b { opacity: 1; transform: none; }
+.pubre-place.resume b, .pubre-place.lift b, .pubre-place.hint b { opacity: 1; transform: none; }
 .pubre-place.resume::before { animation: place-ripple 1.2s ease-out 4; }
 .pubre-place.lift { animation: place-lift .7s ease-in-out infinite alternate; }
 @keyframes place-ripple { from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); } to { box-shadow: 0 0 0 18px transparent; } }

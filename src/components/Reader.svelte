@@ -39,6 +39,8 @@
   import ChapterStrip, { type StripChapter } from './ChapterStrip.svelte'
   import Toc from './Toc.svelte'
   import { readToOf, wordOf, wordsRange } from '../lib/readto.ts'
+  import Coach from './Coach.svelte'
+  import { learn, learned, shown } from '../lib/hints.ts'
 
   let { record, settings = $bindable(), onclose }: { record: BookRecord; settings: Settings; onclose: () => void } = $props()
 
@@ -59,6 +61,20 @@
   let saveTimer = 0
   let guide: Guide | undefined
   let stage = $state<ReturnType<typeof Stage>>()
+  // ---------- coach marks: show the move until it has been made ----------
+  const touchUI = matchMedia('(pointer: coarse)').matches
+  let coach = $state<'space' | 'stage' | null>(null), coachDone = $state(false), coachT = 0
+  /** Only where there's something to read: a cover or a picture page waits for the next page with words. */
+  function coachSpace() { if (!coach && eff.guide && !staged && !panel && (pag?.current?.ix.words.length ?? 0) > 0 && !learned('space')) coach = 'space' }
+  function coachOpened() {
+    clearTimeout(coachT)
+    if (coach === 'space') { learn('space'); coachDone = true; coachT = window.setTimeout(() => { coach = null; coachDone = false; coachOpened() }, 1300); return }
+    if (stageStyle() && shown('stage', 3)) { coach = 'stage'; coachT = window.setTimeout(() => (coach = null), 7200) }
+  }
+  function coachClosed() {
+    if (coach === 'stage') { clearTimeout(coachT); coach = null }
+    if (pin && shown('pin', 2)) setTimeout(() => { if (!pin?.classList.contains('on')) return; pin.querySelector('b')!.textContent = 'Your place · tap to move'; pin.classList.add('hint'); setTimeout(() => pin?.classList.remove('hint'), 4500) }, 900)
+  }
   // ---------- your place: a highlighter up to the word the guide last stood on, and a pin there ----------
   let pin: HTMLElement | undefined, pinT = 0, placeT = 0, placeK = -1, placeV: BookView | undefined
   let moving = false // tapped the pin: the next tap on a word moves your place
@@ -225,7 +241,7 @@
           if (!gstate.active) paintLenses()
           const at = `${r.index}:${r.page}`
           if (at !== stagedAt) { stagedAt = at; stagingStop?.(); if (pag?.current) { stageFirstLine(pag.current); starBirth(pag.current) } } // only a real page change stops it
-          hideCard(); placeSoon()
+          hideCard(); placeSoon(); if (!coach) setTimeout(coachSpace, 900)
           clearTimeout(saveTimer)
           saveTimer = window.setTimeout(() => { snapshotPlace(); save() }, 500)
         }
@@ -236,6 +252,7 @@
         if (rec.location?.cfi) await pag.openCfi(rec.location.cfi)
         else await pag.open(rec.location?.index ?? 0, rec.location?.fraction ?? 0)
         if (away > 2 * 3600 * 1000) setTimeout(showPlace, 700) // back after a while: your place, unmissable
+        setTimeout(coachSpace, 2400) // after the page has settled (and any first-line staging)
         // "Previously…": after a day or more away, ask first, then recap (retrieval beats rereading).
         if (away > 24 * 3600 * 1000 && rec.progress > 0.002) prepareRecap()
         setTimeout(() => { if (!panel) chrome = false }, 1400)
@@ -959,6 +976,7 @@
   </div>
 
   {#if eff.guide && loc && !error}
+    {#if coach && !panel}<Coach kind={coach} touch={touchUI} done={coachDone} />{/if}
     <div class="padgroup transport glass" class:up={press ? pressUp : showChrome && !staged} class:reading={staged || gstate.active} class:solo={!speedChip && !(staged || (gstate.active && !showChrome))}>
       {#if staged}
         <button class="ptrbtn" aria-label="Pointer and contrast" onclick={() => stage?.toggleQuick()}>
@@ -1029,7 +1047,7 @@
     {/if}
   {/if}
   <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} page={loc?.cpage ?? 0} pages={loc?.cpages ?? 0} pageEl={paperEl} {decorate} {explain} onmark={markSentence} book={{ chapters: stripChapters, cur: stripCur }}
-    onopen={o => { staged = o; speedOpen = false; if (o) { chrome = false; hideCard(); guide?.deactivate(); pushBack('stage'); paintPlace() } else { paintLenses(); popBack('stage'); if (placeV) setPlace(placeV, placeK, true); placeSoon(true); setTimeout(() => { pag?.current?.marks.clear('r-'); requestAnimationFrame(() => paintPlace()) }, 1200) /* WebKit keeps highlight geometry from the set-down a few letters off: clear, then paint again once settled */ } }} onplace={(v, k) => setPlace(v, k)} resumeAt={placeHere} onstate={st => (sstate = st)}
+    onopen={o => { staged = o; speedOpen = false; if (o) { chrome = false; hideCard(); guide?.deactivate(); pushBack('stage'); paintPlace(); coachOpened() } else { paintLenses(); popBack('stage'); if (placeV) setPlace(placeV, placeK, true); placeSoon(true); setTimeout(() => { pag?.current?.marks.clear('r-'); requestAnimationFrame(() => paintPlace()) }, 1200) /* WebKit keeps highlight geometry from the set-down a few letters off: clear, then paint again once settled */; coachClosed() } }} onplace={(v, k) => setPlace(v, k)} resumeAt={placeHere} onstate={st => (sstate = st)}
     onpace={w => (settings.wpm = w)} ontoast={toast}
     onsetting={(k, val) => { if (custom && k in prefs) (bookVal as any)[k] = val; else (settings as any)[k] = val }} />
   {#if weather}{#key weather}<div class="weather w-{weather}" class:still={eff.motion !== 'full' || reduceMotion} transition:fade={{ duration: 1200 }} aria-hidden="true"></div>{/key}{/if}

@@ -760,6 +760,7 @@
   let ending = $state<{ chapter: string; questions: Annotation[]; sparks: string[] } | null>(null)
   let lastSpine = -1
   let endWords = $state('')
+  let endOpen = $state(false) // the chapter-end pill, opened into its card
   let words = $state<Record<string, string>>(untrack(() => rec.words ?? {}))
   let lastLoc: { chapter: string; progress: number } | null = null
   function chapterTurn(r: { chapter: string; progress: number; index: number }) {
@@ -774,6 +775,7 @@
     const sparks = Object.entries(rec.profile?.hapax ?? {}).filter(([w, si]) => si === prevSpine && typeof rarity(w) === 'number' && rarity(w)! < RARE).map(([w]) => w).slice(0, 6)
     ending = { chapter: prev.chapter, questions: anns.filter(a => a.color === '09' && a.chapter === prev.chapter && !a.note.startsWith('✓')).slice(0, 1), sparks }
     endWords = words[prev.chapter] ?? ''
+    endOpen = false
   }
   function keepWords() {
     if (!ending) return
@@ -1107,17 +1109,29 @@
     </div>
   {/if}
   {#if ending && !chrome && !staged}
-    <div class="ending glass" role="status">
-      <span class="r-eyebrow">End of {ending.chapter}</span>
-      {#if ending.sparks.length}<p class="e-sparks"><span>Words you won’t meet again</span>{#each ending.sparks as w}<button class="spark-w" onclick={async () => { const d = await define(w); toast(d ? `${w} · ${d.text}` : w) }}>{w}</button>{/each}</p>{/if}
-      {#each ending.questions as q (q.id)}
-        <p class="e-q">You asked: <i>“{q.exact.slice(0, 120)}{q.exact.length > 120 ? '…' : ''}”</i>. Answered yet?</p>
-        <div class="r-actions"><button class="pill ghost" onclick={() => answered(q, true)}>Yes</button><button class="r-skip" onclick={() => answered(q, false)}>Not yet</button></div>
-      {/each}
-      {#if !ending.questions.length}
-        <label class="e-l" for="three">Three words for this chapter?</label>
-        <div class="e-row"><input id="three" class="e-in" placeholder="e.g. storm, oath, doubloon" bind:value={endWords} onkeydown={e => { e.stopPropagation(); if (e.key === 'Enter') keepWords(); if (e.key === 'Escape') skipEnding() }} />
-          <button class="pill ghost" onclick={keepWords}>Keep</button><button class="r-skip" onclick={skipEnding}>Skip</button></div>
+    <!-- a small pill in the running-head strip, above the text and away from the pad; it leaves on its own unless you open it -->
+    <div class="ending" class:open={endOpen} role="status" transition:fly={{ y: -10, duration: 280 }}>
+      <button class="e-pill" aria-expanded={endOpen} onclick={() => (endOpen = !endOpen)}>
+        <svg class="e-ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        <span class="e-t">End of {ending.chapter}</span>
+        {#if !endOpen}<span class="e-meta">{ending.questions.length ? 'a question for you' : ending.sparks.length ? `${ending.sparks.length} rare word${ending.sparks.length > 1 ? 's' : ''}` : 'three words?'}</span>{/if}
+        <svg class="e-chev" class:up={endOpen} viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </button>
+      {#if endOpen}
+        <div class="e-body" transition:fade={{ duration: 160 }}>
+          {#if ending.sparks.length}<p class="e-sparks"><span>Words you won’t meet again</span>{#each ending.sparks as w}<button class="spark-w" onclick={async () => { const d = await define(w); toast(d ? `${w} · ${d.text}` : w) }}>{w}</button>{/each}</p>{/if}
+          {#each ending.questions as q (q.id)}
+            <p class="e-q">You asked: <i>“{q.exact.slice(0, 120)}{q.exact.length > 120 ? '…' : ''}”</i>. Answered yet?</p>
+            <div class="r-actions"><button class="pill ghost" onclick={() => answered(q, true)}>Yes</button><button class="r-skip" onclick={() => answered(q, false)}>Not yet</button></div>
+          {/each}
+          {#if !ending.questions.length}
+            <label class="e-l" for="three">Three words for this chapter?</label>
+            <div class="e-row"><input id="three" class="e-in" placeholder="storm, oath, doubloon" bind:value={endWords} onkeydown={e => { e.stopPropagation(); if (e.key === 'Enter') keepWords(); if (e.key === 'Escape') skipEnding() }} />
+              <button class="pill ghost" onclick={keepWords}>Keep</button><button class="r-skip" onclick={skipEnding}>Skip</button></div>
+          {/if}
+        </div>
+      {:else}
+        <i class="e-timer" aria-hidden="true" onanimationend={() => (ending = null)}></i>
       {/if}
     </div>
   {/if}
@@ -1460,8 +1474,21 @@
   .sh-track::before { content: ''; position: absolute; left: 50%; top: -3px; width: 1px; height: 10px; background: var(--muted); opacity: .5; }
   .sh-track i { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--accent); box-shadow: 0 1px 4px rgb(0 0 0 / .25); }
   .sh-rate { font: 600 15px system-ui; color: var(--fg); font-variant-numeric: tabular-nums; }
-  .ending { position: absolute; z-index: 6; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 64px); translate: -50% 0; width: min(420px, calc(100vw - 32px));
-    padding: var(--s3) var(--s4); border-radius: 18px; display: grid; gap: var(--s2); animation: cardIn .35s var(--ease); }
+  .ending { position: absolute; z-index: 6; left: 50%; top: calc(env(safe-area-inset-top) + 6px); translate: -50% 0; max-width: calc(100vw - 24px); overflow: hidden;
+    border-radius: 999px; background: color-mix(in srgb, var(--accent) 7%, var(--surface)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 24%, var(--hairline)), var(--e2); }
+  .ending.open { width: min(380px, calc(100vw - 24px)); border-radius: 18px; }
+  .e-pill { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 10px 7px 8px; font: 600 11px var(--mono); letter-spacing: .06em; color: var(--fg); white-space: nowrap; }
+  .e-ok { width: 18px; height: 18px; flex: none; padding: 2px; box-sizing: border-box; border-radius: 50%; background: var(--accent); color: var(--bg); }
+  .e-t { text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; }
+  .e-meta { color: var(--muted); font-weight: 500; letter-spacing: .02em; }
+  .e-meta::before { content: '· '; }
+  .e-chev { width: 16px; height: 16px; flex: none; color: var(--muted); transition: transform .25s var(--ease); }
+  .e-chev.up { transform: rotate(180deg); }
+  .e-body { display: grid; gap: var(--s2); padding: 2px var(--s4) var(--s4); }
+  /* a quiet timer: it drains, and the pill goes; hovering holds it, opening it stops it */
+  .e-timer { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: var(--accent); transform-origin: left; animation: e-drain 9s linear forwards; }
+  .ending:hover .e-timer { animation-play-state: paused; }
+  @keyframes e-drain { to { transform: scaleX(0); } }
   .e-sparks { margin: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
   .e-sparks span { width: 100%; font: 600 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
   .spark-w { border: 0; border-radius: 999px; padding: 4px 10px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--fg); font: italic 14px var(--serif); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 25%, transparent); }

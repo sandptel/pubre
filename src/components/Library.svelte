@@ -11,6 +11,7 @@
   import MiniCapsule from './MiniCapsule.svelte'
   import Skyline from './Skyline.svelte'
   import Sheet from './Sheet.svelte'
+  import Credits from './Credits.svelte'
   import Appearance from './Appearance.svelte'
   import ReadingAids from './ReadingAids.svelte'
 
@@ -270,6 +271,7 @@
       <button onclick={() => (sview = 'look')}><span class="aa">Aa</span><span>Themes &amp; Settings<small>Palette, mode, font, layout</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg></button>
       <button onclick={() => (sview = 'aids')}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="9" width="9" height="6" rx="2" fill="currentColor" opacity=".35" stroke="none" /><path d="M3 18h18M15 12h6" /></svg><span>Reading aids<small>Guide, lenses, comfort</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg></button>
     </div>
+    <Credits />
     <p class="about">pubre reads on your device: books, notes and insights never leave it. Word data: wordfreq (CC BY-SA) and Open English WordNet (CC BY).</p>
   {:else if sview === 'look'}
     <Appearance bind:settings />

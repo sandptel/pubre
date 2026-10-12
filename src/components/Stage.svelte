@@ -322,34 +322,46 @@
     rail.classList.add('on')
     // the handle is a slim strip over the rail, in the margin (never on the text), living in the stage's top layer:
     // the column's clipping would swallow its taps. Placed from where the words are, and again once the column settles.
-    const h = Math.max(b.bottom - a.top, b.height), place = () => {
+    const h = Math.max(b.bottom - a.top, b.height), until = performance.now() + 1500
+    if (!back) railBtn?.classList.remove('on') // out of the way while the column moves; back once it has settled
+    const place = () => {
       if (!railBtn || !root || !flow || !rail?.classList.contains('on')) return
+      if (flow.getAnimations().length && performance.now() < until) return void requestAnimationFrame(place)
       const f = flow.getBoundingClientRect(), o = root.getBoundingClientRect(), x = Math.max(1, f.left - 25) - o.left
       Object.assign(railBtn.style, { transform: `translate(${x}px, ${f.top + a.top - 6 - o.top}px)`, height: `${Math.max(44, h + 12)}px` })
       railBtn.classList.add('on')
     }
-    requestAnimationFrame(place); setTimeout(place, 700)
+    setTimeout(place, 220) // the column starts its glide 180ms after a move
   }
-  let railHold: { t: number; stepped: boolean; anim?: Animation } | null = null
-  function railDown(e: PointerEvent) {
-    e.stopPropagation(); (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
-    railHold = { t: performance.now(), stepped: false }
-    const fill = () => {
-      if (!railHold || !railFill) return
-      railHold.anim = railFill.animate([{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: 560, easing: 'cubic-bezier(.4,0,.6,1)' })
-      railHold.anim.onfinish = () => { if (!railHold) return; railHold.stepped = true; sentence(-1); stop(); requestAnimationFrame(() => { lookBack(); fill() }) }
+  // Stepping back, from the rail or ↑: the rail fills like a loading bar, then you go back a sentence.
+  // A quick press fills it briefly and steps once; holding keeps filling and stepping until you let go.
+  let back: { t: number; stepped: boolean; anim?: Animation } | null = null
+  const fillRail = (ms: number, then: () => void) => {
+    if (!railFill || !rail?.classList.contains('on') || reduce) { then(); return null }
+    const a = railFill.animate([{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: ms, easing: 'cubic-bezier(.4,0,.6,1)' })
+    a.onfinish = then
+    return a
+  }
+  function backStart() {
+    if (back || !open || !landed) return
+    if (playing || holdPlay) { holdPlay = false; stop() }
+    back = { t: performance.now(), stepped: false }
+    const loop = () => {
+      if (!back) return
+      back.anim = fillRail(560, () => { if (!back) return; back.stepped = true; sentence(-1); stop(); requestAnimationFrame(() => { lookBack(); setTimeout(loop, 60) }) }) ?? undefined
     }
-    fill()
+    setTimeout(() => { if (back && !back.stepped) loop() }, 180) // a hold, not a tap
   }
-  function railUp(e: PointerEvent) {
-    e.stopPropagation()
-    if (!railHold) return
-    railHold.anim?.cancel()
-    const tap = !railHold.stepped && performance.now() - railHold.t < 260
-    railHold = null
-    if (tap) { sentence(-1); stop() }
-    lookBack()
+  function backEnd() {
+    if (!back) return
+    const b = back; back = null
+    b.anim?.cancel()
+    if (!b.stepped) fillRail(200, () => { sentence(-1); stop(); requestAnimationFrame(lookBack) })
+    else lookBack()
   }
+  function railDown(e: PointerEvent) { e.stopPropagation(); (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); backStart() }
+  function railUp(e: PointerEvent) { e.stopPropagation(); backEnd() }
+
   /** Time the current unit; when it's done, move on (or back, when shuttling backwards). */
   function schedule() {
     clearTimeout(timer)
@@ -709,6 +721,7 @@
     if ((e.target as HTMLElement)?.closest?.('input, textarea, select, dialog[open]') || e.metaKey || e.ctrlKey) return false
     if (settings.guideStyle !== 'stage' || !settings.guide) return false
     if (e.type === 'keyup') {
+      if ((e.key === 'ArrowUp' || e.key === 'k') && back) { backEnd(); return true }
       if (e.key !== ' ' || !spaceAt) return open
       const held = performance.now() - spaceAt > 280
       spaceAt = 0
@@ -734,8 +747,9 @@
       Escape: close, q: close, g: close, G: close,
       ArrowRight: () => (playing ? stop() : unit(1)), l: () => (playing ? stop() : unit(1)), ArrowLeft: () => (playing ? stop() : unit(-1)), h: () => (playing ? stop() : unit(-1)),
       ')': () => sentence(1), '(': () => sentence(-1),
-      ArrowDown: () => paragraph(1), j: () => paragraph(1), '}': () => paragraph(1),
-      ArrowUp: () => paragraph(-1), k: () => paragraph(-1), '{': () => paragraph(-1),
+      ArrowDown: () => (e.shiftKey ? paragraph(1) : playing ? stop() : sentence(1)), j: () => (playing ? stop() : sentence(1)), '}': () => paragraph(1),
+      ArrowUp: () => (e.shiftKey ? paragraph(-1) : settings.lookBack === false ? sentence(-1) : e.repeat ? undefined : backStart()),
+      k: () => (settings.lookBack === false ? sentence(-1) : e.repeat ? undefined : backStart()), '{': () => paragraph(-1),
       ']': () => speed(1.1), '[': () => speed(1 / 1.1),
     }
     act[e.key]?.()
@@ -1043,12 +1057,11 @@
   @media (prefers-reduced-motion: reduce) { .flow :global([data-st]) { transition: none; } }
   /* Look back: paused, what you read comes back to (almost) full ink */
   .flow:global(.peek) :global([data-st="done"]), .flow:global(.peek) :global([data-st="prev"]), .flow:global(.peek) :global([data-st="read"]) { --a: 82%; --t: .45s; }
-  .rail { position: absolute; left: -14px; top: 0; width: 3px; border-radius: 2px; background: color-mix(in srgb, var(--fg) 14%, transparent); opacity: 0; pointer-events: none; transition: opacity .3s ease, transform .35s cubic-bezier(.22,1,.36,1), height .35s cubic-bezier(.22,1,.36,1); }
+  .rail { position: absolute; left: -14px; top: 0; width: 3px; border-radius: 2px; background: color-mix(in srgb, var(--fg) 14%, transparent); opacity: 0; pointer-events: none; transition: opacity .3s ease; } /* it moves with the text, never on its own */
   .rail:global(.on) { opacity: 1; }
   .rail-fill { position: absolute; inset: 0; border-radius: inherit; background: var(--accent); transform: scaleY(0); transform-origin: bottom; }
   .rail-btn { position: absolute; z-index: 3; left: 0; top: 0; width: 22px; padding: 0; border: 0; border-radius: 11px; background: transparent; color: var(--accent); display: grid; align-content: start; justify-items: center; opacity: 0; pointer-events: none; touch-action: none; transition: background-color .2s; }
   .rail-btn:global(.on) { opacity: 1; pointer-events: auto; transition: opacity .3s ease, background-color .2s; }
   .rail-btn:hover, .rail-btn:active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
   .rail-btn svg { width: 14px; height: 14px; margin-top: -10px; }
-  @media (prefers-reduced-motion: reduce) { .rail { transition: opacity .2s; } }
 </style>

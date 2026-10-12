@@ -70,7 +70,7 @@
     {@render toggle('Lenses in Stage', 'stageLenses', 'Names, voices, rare words, your highlights')}
     {@render toggle('Look back when paused', 'lookBack', 'What you read brightens; a rail in the margin steps back a sentence (hold to keep going)')}
     {@render choice('Paragraph end', 'paraEnd', [['breathe', 'Breathe'], ['wait', 'Wait']], value.paraEnd === 'breathe' ? 'A pause, then the next rises' : 'Waits for a tap')}
-    <p class="hint">Tap the round pad (or Space) to start and pause. Hold it to read only while you hold; let go and it goes back to the page. In the Stage, long-press a sentence to keep it as a highlight. While holding, slide right for faster, left for slower and then backwards, up to lock. ← → step, ↑ ↓ paragraph, [ ] pace ({value.wpm} wpm).</p>
+    <p class="hint">Tap the round pad (or Space) to start and pause. Hold it to read only while you hold; let go and it goes back to the page. In the Stage, long-press a sentence to keep it as a highlight. While holding, slide right for faster, left for slower and then backwards, up to lock. ← → step, ↑ ↓ sentence (Shift: paragraph; hold ↑ to keep going back), [ ] pace ({value.wpm} wpm).</p>
   {/if}
   {#if value.guide && value.guideStyle === 'pointer'}
     <div class="line col"><span>Pointer<small>How the words you're on are marked</small></span>{@render pointers()}</div>

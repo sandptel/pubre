@@ -27,7 +27,7 @@
       <span class="move"><b class="cap wide">slide ↔</b><small>speed</small></span>
     {:else}
       <span class="move"><b class="cap">←</b><b class="cap">→</b><small>step</small></span>
-      <span class="move"><b class="cap">↑</b><b class="cap">↓</b><small>paragraph</small></span>
+      <span class="move"><b class="cap">↑</b><b class="cap">↓</b><small>sentence</small></span>
       <span class="move"><b class="cap">[</b><b class="cap">]</b><small>speed</small></span>
       <span class="move"><b class="cap wide">esc</b><small>page</small></span>
     {/if}

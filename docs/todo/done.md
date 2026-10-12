@@ -50,3 +50,4 @@ Verified in Chrome (desktop 1440×900) and WebKit (390×844 touch): import of 3 
 - chore: MIT LICENSE.
 - 8fb9c03 fix(stage): startWord() asks Reader (resumeAt) for your place first; Space/G/pad all resume. Selection bar ▶ "Read from here".
 - d5c74c3 feat(ui): maker portrait = Zoro-style ink-stamp SVG (inline in Credits.svelte).
+- 865472e feat(book): desktop BookPage = sticky full cover left (42%) + details column right; phones unchanged.

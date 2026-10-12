@@ -59,3 +59,4 @@ Verified in Chrome (desktop 1440×900) and WebKit (390×844 touch): import of 3 
 - 0ae582f feat(insights): background cast job with progress chip, partial cast, PROFILE_V 6.
 - 5ddb2ea feat(library): welcome guide EPUB (guide/ → public/guide.epub via scripts/guide.mjs), seeded once for new libraries, Settings → The guide.
 - feat(reader): chapter-end card → timed pill in the running-head strip (9s, pauses on hover, tap to open).
+- fix(reader): removed first-line staging (word-by-word reveal + letter typing, stage-* highlights); title ink-soak kept.

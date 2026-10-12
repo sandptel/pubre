@@ -71,7 +71,7 @@ function initial(text: string, a: number): boolean {
 
 const gender = (given: string): '' | 'm' | 'f' => (FEMALE.has(given) ? 'f' : MALE.has(given) ? 'm' : '')
 
-export function findNames(texts: string[], opts: { min?: number; slots?: number; exclude?: string[] } = {}): NameInfo[] {
+export function findNames(texts: string[], opts: { min?: number; slots?: number; exclude?: string[]; onProgress?: (done: number, total: number) => void } = {}): NameInfo[] {
   const min = opts.min ?? 3, slots = opts.slots ?? 7
   const excluded = new Set((opts.exclude ?? []).flatMap(s => [s, ...s.split(/[\s.]+/)]).filter(w => w.length > 1))
   const forms = new Map<string, Form>(), lower = new Map<string, number>()
@@ -91,6 +91,7 @@ export function findNames(texts: string[], opts: { min?: number; slots?: number;
       take(text, si, toks.slice(i, j + 1))
       i = j + 1
     }
+    opts.onProgress?.(si + 1, texts.length)
   }
 
   function take(text: string, si: number, run: { t: string; a: number; b: number }[]) {

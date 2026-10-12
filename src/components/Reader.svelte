@@ -671,9 +671,23 @@
     const a = pag.firstWordOnPage(v, page), b = page + 1 < v.pages ? pag.firstWordOnPage(v, page + 1) : ws.length - 1
     lenses.paint(v, ws[a].b, ws[b].b)
   }
+  // The cast is worked out in the background while you read. Meanwhile you see what there is: the cast an older
+  // version found, or a first one from the chapters up to your place; a small chip says it's still at it.
+  let cast = $state<{ refining: boolean; p: number; done?: string } | null>(null), castShown = $state(false)
   async function loadProfile(b: Book) {
     if (rec.profile?.v === PROFILE_V) { lenses?.setProfile(rec.profile.names); if (lenses) lenses.hapax = rec.profile.hapax ?? {}; paintLenses(); return }
-    const pr = await computeProfile(b)
+    const had = rec.profile?.names?.some(n => n.kind === 'person') ? rec.profile : undefined
+    if (had) { lenses?.setProfile(had.names); if (lenses) lenses.hapax = had.hapax ?? {}; paintLenses() }
+    cast = { refining: !!had, p: 0 }
+    const showT = window.setTimeout(() => (castShown = true), 600) // only when it takes long enough to notice
+    const pr = await computeProfile(b, { key: rec.id, upto: rec.location?.index ?? 0, on: e => {
+      if (e.p !== undefined && cast) cast = { ...cast, p: e.p }
+      if (e.partial && !had) { rec.profile = { v: 0, names: e.partial }; lenses?.setProfile(e.partial); paintLenses() }
+    } })
+    clearTimeout(showT)
+    const n = pr.names.filter(x => x.kind === 'person').length
+    if (castShown || had) { cast = { refining: !!had, p: 1, done: `${had ? 'Cast refined' : 'Met the cast'} · ${n} characters` }; castShown = true; setTimeout(() => { cast = null; castShown = false }, 2800) }
+    else cast = null
     rec.profile = pr
     if (lenses) lenses.hapax = pr.hapax ?? {}
     profileChapters = pr.chapters
@@ -991,6 +1005,11 @@
   </div>
 
   {#if eff.guide && loc && !error}
+    {#if cast && castShown && !staged && !panel}
+      <div class="castchip glass" role="status" transition:fly={{ y: -8, duration: 300 }}>
+        <i class:done={!!cast.done} style:--p={cast.p}></i>{cast.done ?? `${cast.refining ? 'Refining' : 'Getting to know'} the cast`}{#if !cast.done}<b>{Math.round(cast.p * 100)}%</b>{/if}
+      </div>
+    {/if}
     {#if coach && !panel}<Coach kind={coach} touch={touchUI} done={coachDone} {gentle} />{/if}
     <div class="padgroup transport glass" class:up={press ? pressUp : showChrome && !staged} class:reading={staged || gstate.active} class:solo={!speedChip && !(staged || (gstate.active && !showChrome))}>
       {#if staged}
@@ -1328,6 +1347,10 @@
   .reader :global(.pubre-pointer) { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; opacity: 0; transition: opacity .2s; }
   .reader :global(.pubre-pointer.on) { opacity: 1; }
   /* The reading pad: always in the thumb's corner; above the menu while the controls show; above the Stage too. */
+  .castchip { position: absolute; z-index: 9; top: calc(env(safe-area-inset-top) + 80px); left: 50%; translate: -50% 0; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: 999px; font: 600 11px var(--mono); letter-spacing: .04em; color: var(--fg); white-space: nowrap; pointer-events: none; }
+  .castchip i { width: 14px; height: 14px; border-radius: 50%; background: conic-gradient(var(--accent) calc(var(--p) * 360deg), color-mix(in srgb, var(--fg) 14%, transparent) 0); transition: background .3s; }
+  .castchip i.done { background: var(--accent); box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--accent) 40%, var(--bg)); }
+  .castchip b { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
   .padgroup {
     position: absolute; z-index: 8; right: calc(env(safe-area-inset-right) + var(--s3)); bottom: calc(env(safe-area-inset-bottom) + var(--s3));
     display: flex; align-items: center; gap: var(--s2); transition: transform .5s var(--spring);

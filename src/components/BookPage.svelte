@@ -22,6 +22,7 @@
   let tint = $state(untrack(() => book.tint ?? ''))
   let anns = $state<Annotation[]>([])
   let showAll = $state(false)
+  let castP = $state<number | null>(null) // reading the book for its cast
 
   onMount(() => {
     tintOf(rec).then(t => (tint = t))
@@ -30,7 +31,7 @@
       if (!data) return
       const b = await Book.open(new Uint8Array(data))
       if (!rec.about) rec.about = book.about = aboutOf(b.metadata)
-      if (rec.profile?.v !== PROFILE_V) rec.profile = book.profile = await computeProfile(b)
+      if (rec.profile?.v !== PROFILE_V) rec.profile = book.profile = await computeProfile(b, { key: rec.id, on: e => { if (e.p !== undefined) castP = e.p } }).finally(() => (castP = null))
       b.destroy(); saveBook(book)
     })
   })
@@ -82,6 +83,7 @@
       {#if total}<div><dt>Pages</dt><dd>~{Math.round(total / 275)}</dd></div>{/if}
       {#if left}<div><dt>Left</dt><dd>{left}</dd></div>{:else if lang}<div><dt>Language</dt><dd>{lang}</dd></div>{/if}
     </dl>
+    {#if castP !== null}<p class="finding" role="status"><i style:--p={castP}></i>Getting to know the cast · {Math.round(castP * 100)}%</p>{/if}
   </section>
 
   <div class="actions">
@@ -225,6 +227,8 @@
   @keyframes eink { 0% { opacity: 0; } 8% { opacity: 1; filter: invert(1) grayscale(1) contrast(1.6); } 16% { filter: grayscale(1) contrast(2.2) brightness(1.15); } 26% { filter: none; } }
   @media (prefers-reduced-motion: reduce) { .art, .card { animation: none; } .scribble path, .toc svg path { animation: none; stroke-dashoffset: 0; } }
   @keyframes grow { from { transform: scaleY(0); } }
+  .finding { display: inline-flex; align-items: center; gap: 8px; margin: var(--s3) 0 0; font: 11px var(--mono); color: var(--muted); letter-spacing: .04em; }
+  .finding i { width: 12px; height: 12px; border-radius: 50%; background: conic-gradient(var(--accent) calc(var(--p) * 360deg), color-mix(in srgb, var(--fg) 14%, transparent) 0); }
   .side { display: none; }
   @media (min-width: 1000px) {
     .bp { display: grid; grid-template-columns: minmax(360px, 42%) minmax(0, 1fr); padding-bottom: 0; }

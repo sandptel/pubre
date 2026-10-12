@@ -50,3 +50,6 @@ They scale a `transform: translate(...)` offset too, so an element positioned by
 
 ## smoke-e2e.mjs is stale
 It waits for `.grid li:nth-child(4)`, which the redesigned library no longer has. Needs updating.
+
+## Grid items default to min-width: auto
+A one-column grid with a `white-space: nowrap` child grows its track to that line and spills out of a width-capped card. Use `grid-template-columns: minmax(0, 1fr)`.

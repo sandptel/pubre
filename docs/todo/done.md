@@ -43,3 +43,5 @@ Verified in Chrome (desktop 1440×900) and WebKit (390×844 touch): import of 3 
 - 6350103 feat(guide): one pause ladder (list<comma<dash<colon<semicolon<sentence<paragraph<section), paragraph end = sentence-end beat + 400 (+200 dialogue, +600 heading); Stage paragraph breath 500 -> 300; Settings.pauses multiplier (0.5-3).
 - 9f3bb12 feat(ui): Pauses slider in Reading aids + Stage quick panel, PauseBars chart, ReadPreview honours pauses.
 - feat(stage): MOVES per kind (rotating) + BY_HOW (short/spoken/long) picks; wash() of quoted/bracketed passage (accent), ?-sentence (base0D), !-sentence (base08).
+- 02dbb2c fix(library): hero grid minmax(0,1fr), long cite no longer widens card.
+- c33a915 feat(ui): Sheet docks full-height on the left at >=1000px; library translates aside; lens caption no longer absolute.

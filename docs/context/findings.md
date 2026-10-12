@@ -59,3 +59,9 @@ In Playwright WebKit, a highlight range on a word after a hyphenated/justified l
 
 ## "Mr." ended sentences in the v1 cast finder
 The sentence-start check treated the dot in "Mr." as a full stop, so every titled name (Mr. Collins, Mrs. Bennet, Mr. Jaggers) was dropped as sentence-initial. Any boundary check must skip titles and initials.
+
+## Book CSS clears backgrounds, so guide visuals are SVG
+bookCss forces `body *:not(a) { background-color: transparent; color: inherit }`. Anything visual inside a book we author (the guide) must be SVG fills/strokes, which survive. SVG is also a SKIP block in textindex, so the Stage never reads figure text.
+
+## A :focus-within pause never resumes after a click
+Clicking a button keeps focus on it, so a timer paused on :focus-within stays paused. Pause on :hover only.

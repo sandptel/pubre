@@ -57,3 +57,5 @@ Verified in Chrome (desktop 1440×900) and WebKit (390×844 touch): import of 3 
 - b9bbb9a feat(insights): cast finder v2 (evidence, titles, aliases, gazetteer): P@20 100%, R@30 94%.
 - 03663ec feat(lenses): aliases mark their character (lenses, speech, cast links).
 - 0ae582f feat(insights): background cast job with progress chip, partial cast, PROFILE_V 6.
+- 5ddb2ea feat(library): welcome guide EPUB (guide/ → public/guide.epub via scripts/guide.mjs), seeded once for new libraries, Settings → The guide.
+- feat(reader): chapter-end card → timed pill in the running-head strip (9s, pauses on hover, tap to open).

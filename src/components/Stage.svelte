@@ -49,7 +49,7 @@
   let glossT = 0, hoverT = 0
   let glossTop = $state(false)
   let root = $state<HTMLDivElement>(), veil = $state<HTMLDivElement>(), lift = $state<HTMLDivElement>(), para = $state<HTMLDivElement>()
-  let flow = $state<HTMLDivElement>(), marker = $state<HTMLElement>(), cueEl = $state<HTMLElement>()
+  let flow = $state<HTMLDivElement>(), marker = $state<HTMLElement>(), cueEl = $state<HTMLElement>(), rail = $state<HTMLElement>(), railFill = $state<HTMLElement>(), railBtn = $state<HTMLElement>()
   // How each kind of mark moves through its pause; a kind cycles through its moves so no rhythm repeats.
   const MOVES: Record<Cue, string[]> = {
     comma: ['hop', 'sway', 'dip', 'breathe'], turn: ['sway', 'hop', 'breathe'], list: ['nudge', 'tick', 'dip'],
@@ -285,6 +285,7 @@
     place(animate, newBlock ? 800 : 600)
     placeMarker(animate)
     if (newBlock && sync) syncPage()
+    if (!playing && !holdPlay) requestAnimationFrame(lookBack)
     if (landed) onplace?.(v!, cur) // your place, kept as you go
   }
   function unitMs() {
@@ -295,11 +296,64 @@
     return ms
   }
   const moving = () => playing || holdPlay
-  function play() { playing = true; hideGloss(); schedule() }
-  function stop() { playing = false; if (!holdPlay) { clearTimeout(timer); uncue(); if (open && landed) glossHere() } }
+  function play() { playing = true; hideGloss(); schedule(); lookBack() }
+  function stop() { playing = false; if (!holdPlay) { clearTimeout(timer); uncue(); if (open && landed) glossHere() } lookBack() }
+
+  // ---------- look back: paused, you can see what you read and step back to it ----------
+  // What you read brightens again; a rail stands in the margin from the start of the sentence before down to
+  // your word. Tap its button to go back a sentence; hold it and the rail fills upward like a loading bar,
+  // stepping back a sentence each time it is full (into earlier paragraphs too), until you let go.
+  const paused = () => open && landed && !playing && !holdPlay && settings.lookBack !== false
+  /** Where a step back lands: the start of this sentence, or of the one before (as sentence(-1) moves). */
+  function backTarget(): number {
+    const x = ix(), s = sen(), first = x.sentences[s].a
+    if (cur > first) return first
+    for (let p = s - 1; p >= 0; p--) { const a = x.sentences[p].a; if (readable(x.words[a].b)) return a }
+    return -1
+  }
+  function lookBack() {
+    const on = paused()
+    flow?.classList.toggle('peek', on)
+    if (!on) railBtn?.classList.remove('on')
+    if (!rail) return
+    const t = on ? backTarget() : -1, a = t >= 0 ? rectsOf(wordEls.get(t))[0] : undefined, b = rectsOf(wordEls.get(cur))[0]
+    if (!a || !b) { rail.classList.remove('on'); railBtn?.classList.remove('on'); return }
+    Object.assign(rail.style, { transform: `translateY(${a.top}px)`, height: `${Math.max(b.bottom - a.top, b.height)}px` })
+    rail.classList.add('on')
+    // the handle is a slim strip over the rail, in the margin (never on the text), living in the stage's top layer:
+    // the column's clipping would swallow its taps. Placed from where the words are, and again once the column settles.
+    const h = Math.max(b.bottom - a.top, b.height), place = () => {
+      if (!railBtn || !root || !flow || !rail?.classList.contains('on')) return
+      const f = flow.getBoundingClientRect(), o = root.getBoundingClientRect(), x = Math.max(1, f.left - 25) - o.left
+      Object.assign(railBtn.style, { transform: `translate(${x}px, ${f.top + a.top - 6 - o.top}px)`, height: `${Math.max(44, h + 12)}px` })
+      railBtn.classList.add('on')
+    }
+    requestAnimationFrame(place); setTimeout(place, 700)
+  }
+  let railHold: { t: number; stepped: boolean; anim?: Animation } | null = null
+  function railDown(e: PointerEvent) {
+    e.stopPropagation(); (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+    railHold = { t: performance.now(), stepped: false }
+    const fill = () => {
+      if (!railHold || !railFill) return
+      railHold.anim = railFill.animate([{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: 560, easing: 'cubic-bezier(.4,0,.6,1)' })
+      railHold.anim.onfinish = () => { if (!railHold) return; railHold.stepped = true; sentence(-1); stop(); requestAnimationFrame(() => { lookBack(); fill() }) }
+    }
+    fill()
+  }
+  function railUp(e: PointerEvent) {
+    e.stopPropagation()
+    if (!railHold) return
+    railHold.anim?.cancel()
+    const tap = !railHold.stepped && performance.now() - railHold.t < 260
+    railHold = null
+    if (tap) { sentence(-1); stop() }
+    lookBack()
+  }
   /** Time the current unit; when it's done, move on (or back, when shuttling backwards). */
   function schedule() {
     clearTimeout(timer)
+    lookBack()
     if (!open || busy || waiting || !moving() || Math.abs(rate) < 0.15) return
     tFn = rate > 0 ? advance : retreat
     tDur = unitMs() / Math.abs(rate); tStart = performance.now()
@@ -641,6 +695,8 @@
   export const isOpen = () => open
   /** Open or close the quick switcher (pointer, step, contrast) — from the reading bar. */
   export function toggleQuick() { quick = !quick }
+  /** Look back was switched on or off: show (or hide) the peek and the rail now. */
+  export function relook() { requestAnimationFrame(lookBack) }
   /** One unit back or forward (the ‹ button). */
   export function nudge(dir: 1 | -1) { if (!open || !landed) return; if (playing) { stop(); return } unit(dir) } // moving: the first press only stops
 
@@ -749,7 +805,7 @@
     <div class="win" style:font-family={font} style:--size="{settings.fontScale / 100}">
       <div class="lift" bind:this={lift}>
         <div class="para" bind:this={para}>
-          <div class="flow" class:fine={step !== 'sentence'} style:--in-read={settings.inkRead ?? 10} style:--in-now={settings.inkNow ?? 100} style:--in-ahead={settings.inkAhead ?? 20} bind:this={flow} aria-live="polite"><i class="marker ptr" bind:this={marker} aria-hidden="true"></i><i class="cue" bind:this={cueEl} aria-hidden="true"></i></div>
+          <div class="flow" class:fine={step !== 'sentence'} style:--in-read={settings.inkRead ?? 10} style:--in-now={settings.inkNow ?? 100} style:--in-ahead={settings.inkAhead ?? 20} bind:this={flow} aria-live="polite"><i class="marker ptr" bind:this={marker} aria-hidden="true"></i><i class="cue" bind:this={cueEl} aria-hidden="true"></i><div class="rail" bind:this={rail}><i class="rail-fill" bind:this={railFill}></i></div></div>
         </div>
       </div>
     </div>
@@ -820,6 +876,7 @@
         {/if}
       </div>
     {/if}
+    <button class="rail-btn" bind:this={railBtn} aria-label="Back a sentence (hold to keep going back)" onpointerdown={railDown} onpointerup={railUp} onpointercancel={railUp} oncontextmenu={e => e.preventDefault()}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
     <button class="x" class:on={landed} aria-label="Back to the page (Esc)" onclick={close}>
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
     </button>
@@ -830,7 +887,7 @@
   .stage { position: fixed; inset: 0; z-index: 7; overflow: hidden; overflow: clip; /* clip: nothing (find-in-page, focus, scrollIntoView) can scroll the Stage off its veil */ touch-action: none; user-select: none; -webkit-user-select: none; cursor: default; }
   .veil { position: absolute; inset: 0; background: var(--bg); }
   .win {
-    position: absolute; inset: 0 0 0 50%; width: min(26em, calc(100vw - 40px)); translate: -50% 0; overflow: clip; overflow-clip-margin: 2em;
+    position: absolute; inset: 0 0 0 50%; width: min(26em, calc(100vw - 40px)); translate: -50% 0; overflow-x: visible; overflow-y: clip; overflow-clip-margin: 2em; /* sides open: the look-back rail lives in the margin and must take taps */
     font-size: calc(var(--size) * clamp(21px, max(1.2vw + 12px, 2.2vmin + 6px), 30px)); line-height: 1.62; color: var(--fg); /* tablets: the short side counts too */
   }
   .lift { position: relative; will-change: transform, opacity; }
@@ -984,4 +1041,14 @@
   @keyframes fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
   @keyframes fade { from { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .flow :global([data-st]) { transition: none; } }
+  /* Look back: paused, what you read comes back to (almost) full ink */
+  .flow:global(.peek) :global([data-st="done"]), .flow:global(.peek) :global([data-st="prev"]), .flow:global(.peek) :global([data-st="read"]) { --a: 82%; --t: .45s; }
+  .rail { position: absolute; left: -14px; top: 0; width: 3px; border-radius: 2px; background: color-mix(in srgb, var(--fg) 14%, transparent); opacity: 0; pointer-events: none; transition: opacity .3s ease, transform .35s cubic-bezier(.22,1,.36,1), height .35s cubic-bezier(.22,1,.36,1); }
+  .rail:global(.on) { opacity: 1; }
+  .rail-fill { position: absolute; inset: 0; border-radius: inherit; background: var(--accent); transform: scaleY(0); transform-origin: bottom; }
+  .rail-btn { position: absolute; z-index: 3; left: 0; top: 0; width: 22px; padding: 0; border: 0; border-radius: 11px; background: transparent; color: var(--accent); display: grid; align-content: start; justify-items: center; opacity: 0; pointer-events: none; touch-action: none; transition: background-color .2s; }
+  .rail-btn:global(.on) { opacity: 1; pointer-events: auto; transition: opacity .3s ease, background-color .2s; }
+  .rail-btn:hover, .rail-btn:active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .rail-btn svg { width: 14px; height: 14px; margin-top: -10px; }
+  @media (prefers-reduced-motion: reduce) { .rail { transition: opacity .2s; } }
 </style>

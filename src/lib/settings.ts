@@ -122,6 +122,7 @@ export interface Settings {
   guideStyle: 'stage' | 'pointer' // stage: the paragraph lifts toward you, a sentence at a time; pointer: a marker on the page
   paraEnd: 'breathe' | 'wait' // stage: at a paragraph's end, breathe then go on, or wait for Space
   pauses: number // how long the guide rests at punctuation, × the natural length (0.5–3)
+  lookBack: boolean // stage: when paused, what you read brightens and a rail steps back a sentence at a time
   stageStep: 'sentence' | 'phrase' | 'word' // stage: how far each beat moves
   stagePointer: 'ink' | Pointer // stage (phrase/word): words ink in as you go; optionally a marker too
   stageLenses: boolean // stage: names, voices, rare words… in the lifted text
@@ -155,7 +156,7 @@ export interface Settings {
 
 export const defaults: Settings = {
   palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto', letterSpacing: 0, measure: 'normal',
-  guide: true, guideStyle: 'stage', paraEnd: 'breathe', pauses: 1, stageStep: 'word', stagePointer: 'outline', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, v: 3, brightness: 100, inkRead: 10, inkNow: 100, inkAhead: 20, weather: true, pointer: 'outline', focus: 'sentence', step: 'word', dimRead: true, wpm: 180,
+  guide: true, guideStyle: 'stage', paraEnd: 'breathe', pauses: 1, lookBack: true, stageStep: 'word', stagePointer: 'outline', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, v: 3, brightness: 100, inkRead: 10, inkNow: 100, inkAhead: 20, weather: true, pointer: 'outline', focus: 'sentence', step: 'word', dimRead: true, wpm: 180,
   intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'ink', asides: true, foreign: true, motion: 'full', onlineDefinitions: false, chapterPrompts: true,
 }
 

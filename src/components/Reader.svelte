@@ -60,6 +60,8 @@
   let saveTimer = 0
   let guide: Guide | undefined
   let stage = $state<ReturnType<typeof Stage>>()
+  /** A reading setting changed from inside the reader: this book's own if it has overrides for it, else everyone's. */
+  function setSetting(k: string, val: unknown) { if (custom && k in prefs) (bookVal as any)[k] = val; else (settings as any)[k] = val }
   /** Is this character named in the text, by any of their forms ("Lizzy" is Elizabeth)? */
   const named = (n: { name: string; aliases?: string[] }, text: string) => new RegExp(`(?<![A-Za-z])(?:${[n.name, ...(n.aliases ?? [])].map(f => f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?![A-Za-z])`).test(text)
   // ---------- coach marks: show the move until it has been made ----------
@@ -981,6 +983,10 @@
         <button class="ptrbtn" aria-label="Pointer and contrast" onclick={() => stage?.toggleQuick()}>
           <span class="ptr-mini"><span>Aa</span><i class="ptr" data-p={eff.stageStep === 'sentence' ? 'underline' : eff.stagePointer === 'ink' ? 'underline' : eff.stagePointer}></i></span>
         </button>
+        <button class="ptrbtn lookbtn" class:on={eff.lookBack !== false} aria-pressed={eff.lookBack !== false} aria-label="Look back when paused"
+          onclick={() => { const on = eff.lookBack === false; setSetting('lookBack', on); stage?.relook(); toast(on ? 'Look back on · pause to see what you read, ↑ to step back' : 'Look back off') }}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18h9M5 13h12M5 8h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".55" /><path d="M19 18V7m0 0l-3 3m3-3l3 3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        </button>
       {/if}
       {#if speedChip}
         <button class="speed" class:on={speedOpen} aria-label="Reading speed, {eff.wpm} words a minute" aria-expanded={speedOpen}
@@ -1048,7 +1054,7 @@
   <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} page={loc?.cpage ?? 0} pages={loc?.cpages ?? 0} pageEl={paperEl} {decorate} {explain} onmark={markSentence} book={{ chapters: stripChapters, cur: stripCur }}
     onopen={o => { staged = o; speedOpen = false; if (o) { chrome = false; hideCard(); guide?.deactivate(); pushBack('stage'); paintPlace(); coachOpened() } else { paintLenses(); popBack('stage'); if (placeV) setPlace(placeV, placeK, true); placeSoon(true); setTimeout(() => { pag?.current?.marks.clear('r-'); requestAnimationFrame(() => paintPlace()) }, 1200) /* WebKit keeps highlight geometry from the set-down a few letters off: clear, then paint again once settled */; coachClosed() } }} onplace={(v, k) => setPlace(v, k)} resumeAt={placeHere} onstate={st => (sstate = st)}
     onpace={w => (settings.wpm = w)} ontoast={toast}
-    onsetting={(k, val) => { if (custom && k in prefs) (bookVal as any)[k] = val; else (settings as any)[k] = val }} />
+    onsetting={setSetting} />
   {#if weather}{#key weather}<div class="weather w-{weather}" class:still={eff.motion !== 'full' || reduceMotion} transition:fade={{ duration: 1200 }} aria-hidden="true"></div>{/key}{/if}
   {#if (eff.brightness ?? 100) < 100}<div class="dimmer" style:opacity={(100 - eff.brightness) / 100 * 0.9} aria-hidden="true"></div>{/if}
   {#if bar}
@@ -1403,6 +1409,9 @@
   .transport .speed.on small { color: var(--muted); }
   .transport .speed { position: relative; margin-right: 4px; }
   .ptrbtn { width: 46px; height: 48px; border: 0; border-radius: 999px; background: none; color: var(--fg); display: grid; place-items: center; }
+  .lookbtn { width: 40px; color: var(--muted); transition: color .2s; }
+  .lookbtn.on { color: var(--accent); }
+  .lookbtn svg { width: 22px; height: 22px; }
   .ptrbtn:active { background: var(--hover); }
   .ptr-mini { position: relative; isolation: isolate; font: 600 16px var(--serif); padding: 2px 3px; }
   .ptr-mini i { position: absolute; z-index: -1; left: -1px; right: -1px; }

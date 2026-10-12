@@ -6,11 +6,11 @@
 
 ### [Open pubre &rarr; sandptel.github.io/pubre](https://sandptel.github.io/pubre/)
 
-No install, no account. Your books never leave your device.
+No install, no account. Your books never leave your device / browser .
 
 <a href="https://sandptel.github.io/pubre/"><img src=".github/media/showcase.gif" alt="pubre in motion: the reading guide, lenses, the cast, themes and layouts for phone, tablet and desktop" width="100%"></a>
 
-[Watch the full trailer (MP4, 50 s)](https://github.com/sandptel/pubre/releases/download/v1.0.0/pubre-trailer.mp4) &middot; [Releases](https://github.com/sandptel/pubre/releases) &middot; [Contributing](CONTRIBUTING.md)
+[Video Link](https://github.com/sandptel/pubre/releases/download/v1.0.0/pubre-trailer.mp4) &middot; [Releases](https://github.com/sandptel/pubre/releases) &middot; [Contributing](CONTRIBUTING.md)
 
 </div>
 

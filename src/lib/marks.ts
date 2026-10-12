@@ -15,6 +15,7 @@ export const ORDER = [
   'aside', 'c-page', 'c-para', 'c-read', 'c-readpara', 'c-readfocus', 'c-focus', // read-dimming wins over asides
   ...VOICES.flatMap(k => [`v-soft-${k}`, `v-ink-${k}`, `v-under-${k}`, `v-marks-${k}`]),
   'hard', 'spark', 'foreign', ...Array.from({ length: WHO_SLOTS }, (_, k) => `who-${k}`),
+  'r-read', 'r-here', // your place: what you read in its paragraph, and the word you stopped on
   ...MEANINGS.map(([c]) => `u-${c}`), 'u-bold', 'bloom', 'breathe',
   'stage-rest', 'stage-fade', 'stage-hidden', // first-line staging: the page waits, the words to come are held back, the next one fades in
 ]
@@ -71,6 +72,9 @@ export function marksCss(t: Theme, inkRead = 10): string {
 ::highlight(stage-fade) { color: ${fg}70; }
 ::highlight(stage-rest) { color: ${fg}30; }
 @property --bloom { syntax: '<length>'; inherits: true; initial-value: 0px }
+@property --place { syntax: '<number>'; inherits: true; initial-value: 1 }
+::highlight(r-read) { background-color: color-mix(in srgb, ${accent} calc(var(--place) * ${t.dark ? 13 : 9}%), transparent) }
+::highlight(r-here) { background-color: color-mix(in srgb, ${accent} calc(var(--place) * ${t.dark ? 34 : 28}%), transparent); text-decoration: underline 2px ${accent}; text-underline-offset: 5px }
 @property --breathe { syntax: '<number>'; inherits: true; initial-value: 0 }
 ::highlight(c-page) { color: ${level(t, 0.72, 3.4)} }
 ::highlight(c-para) { color: ${level(t, 0.8, 4)} }

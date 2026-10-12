@@ -38,6 +38,7 @@
   import Constellation from './Constellation.svelte'
   import ChapterStrip, { type StripChapter } from './ChapterStrip.svelte'
   import Toc from './Toc.svelte'
+  import { readToOf, wordOf, wordsRange } from '../lib/readto.ts'
 
   let { record, settings = $bindable(), onclose }: { record: BookRecord; settings: Settings; onclose: () => void } = $props()
 
@@ -58,6 +59,64 @@
   let saveTimer = 0
   let guide: Guide | undefined
   let stage = $state<ReturnType<typeof Stage>>()
+  // ---------- your place: a highlighter up to the word the guide last stood on, and a pin there ----------
+  let pin: HTMLElement | undefined, pinT = 0, placeT = 0, placeK = -1, placeV: BookView | undefined
+  let moving = false // tapped the pin: the next tap on a word moves your place
+  /** Keep your place (the guide calls this on every step; the record is written at most once a second). */
+  function setPlace(v: BookView, k: number, now = false) {
+    placeV = v; placeK = k
+    const write = () => { if (!book || !placeV || placeK < 0) return; rec.readTo = readToOf(placeV, placeK, r => book!.cfi(placeV!.index, r)); save() }
+    clearTimeout(placeT)
+    if (now) write(); else placeT = window.setTimeout(write, 1000)
+  }
+  /** The word your place is on, if it's on the page you're looking at (-1 otherwise). */
+  function placeHere(): number {
+    const v = pag?.current, k = v ? wordOf(v, rec.readTo) : -1
+    if (k < 0) return -1
+    const r = wordsRange(v!, k).getClientRects()[0]
+    return r && pag!.pageOf(r) === pag!.currentPage ? k : -1
+  }
+  /** Paint your place: what you read of its paragraph in a soft highlighter, the word itself stronger, the pin beside it. */
+  function paintPlace(fresh = false) {
+    const v = pag?.current
+    if (!v || !pin) return
+    const k = staged ? -1 : wordOf(v, rec.readTo)
+    if (k < 0) { v.marks.set('r-read', []); v.marks.set('r-here', []); pin.classList.remove('on'); return }
+    const w = v.ix.words[k], a = v.ix.blocks[w.b].a
+    v.marks.set('r-read', k > a ? [wordsRange(v, a, k - 1)] : [])
+    v.marks.set('r-here', [wordsRange(v, k)])
+    if (fresh && !reduceMotion) v.doc.documentElement.animate([{ '--place': 0 }, { '--place': 1 }] as Keyframe[], { duration: 900, easing: 'ease-out' })
+    const r = wordsRange(v, k).getClientRects()[0]
+    if (!r || pag!.pageOf(r) !== pag!.currentPage) { pin.classList.remove('on'); return }
+    pin.style.transform = `translate(${r.left + pag!.xOf(v) - 7}px, ${r.top - 4}px)`
+    pin.style.height = r.height + 8 + 'px'
+    pin.classList.add('on')
+  }
+  /** Pages slide: the pin hides, then settles in once the page has (it lives outside the book frame). */
+  function placeSoon(fresh = false) { pin?.classList.remove('on'); clearTimeout(pinT); pinT = window.setTimeout(() => paintPlace(fresh), 460) }
+  /** Back after a while: go to your place and make it unmissable for a moment. */
+  async function showPlace() {
+    const v = pag?.current, k = v ? wordOf(v, rec.readTo) : -1
+    if (k < 0 || !pin) return
+    const r = wordsRange(v!, k).getClientRects()[0]
+    if (r) await pag!.showPage(pag!.pageOf(r))
+    setTimeout(() => { paintPlace(true); pin!.querySelector('b')!.textContent = 'Continue here'; pin!.classList.add('resume'); setTimeout(() => pin?.classList.remove('resume'), 6000) }, 480)
+  }
+  /** Tap the pin to pick your place up; the next tap on a word puts it down there. */
+  function tapPlace(v: BookView, x: number, y: number) {
+    if (!pin) return false
+    if (moving) {
+      moving = false; pin.classList.remove('lift')
+      const k = wordAtPoint(v, x, y)
+      if (k >= 0) { setPlace(v, k, true); paintPlace(true); toast('Your place is here') }
+      return true
+    }
+    if (!pin.classList.contains('on')) return false
+    const p = pin.getBoundingClientRect(), f = v.iframe.getBoundingClientRect(), px = f.left + x, py = f.top + y
+    if (px < p.left - 22 || px > p.right + 22 || py < p.top - 22 || py > p.bottom + 10) return false
+    moving = true; pin.querySelector('b')!.textContent = 'Tap a word'; pin.classList.add('lift')
+    return true
+  }
   let staged = $state(false)
   let sstate = $state<StageState>({ open: false, moving: false, progress: 0 })
   let paperEl = $state<HTMLDivElement>()
@@ -128,14 +187,15 @@
         guide.onPace = wpm => (settings.wpm = wpm)
         guide.onToast = toast
         pag.keyHook = e => !!stage?.key(e) || guide!.key(e)
-        pag.tapHook = (v, x, y) => guide!.tapWord(v, x, y) || tapAnnotation(v, x, y) || tapLens(v, x, y)
+        pag.tapHook = (v, x, y) => tapPlace(v, x, y) || guide!.tapWord(v, x, y) || tapAnnotation(v, x, y) || tapLens(v, x, y)
+        pin = Object.assign(document.createElement('i'), { className: 'pubre-place', innerHTML: '<b></b>' }); pag.port.append(pin)
         pag.holdHook = textHold
         pag.prepareHook = (doc, index) => { if (eff.openers) { titleHeadings(doc); applyOpeners(doc, index) } }
         lenses = new Lenses($state.snapshot(eff), b.metadata.language)
         lenses.onChange = () => paintLenses()
-        pag.onView = v => { stage?.view(v); guide!.view(v); attachHover(v); attachSelection(v); paintAnns(v); paintLenses() }
+        pag.onView = v => { stage?.view(v); guide!.view(v); attachHover(v); attachSelection(v); paintAnns(v); paintLenses(); placeSoon() }
         listAnnotations(rec.id).then(list => { anns = list; if (pag?.current) paintAnns(pag.current) })
-        guide.onArrive = (v, k) => arrive(v, k)
+        guide.onArrive = (v, k) => { arrive(v, k); setPlace(v, k) }
         loadCommon().then(set => { lenses?.setCommon(set); paintLenses() })
         loadProfile(b)
         pag.onSections = s => (sections = s)
@@ -155,7 +215,7 @@
           if (!gstate.active) paintLenses()
           const at = `${r.index}:${r.page}`
           if (at !== stagedAt) { stagedAt = at; stagingStop?.(); if (pag?.current) { stageFirstLine(pag.current); starBirth(pag.current) } } // only a real page change stops it
-          hideCard()
+          hideCard(); placeSoon()
           clearTimeout(saveTimer)
           saveTimer = window.setTimeout(() => { snapshotPlace(); save() }, 500)
         }
@@ -165,6 +225,7 @@
         rec.opened = Date.now()
         if (rec.location?.cfi) await pag.openCfi(rec.location.cfi)
         else await pag.open(rec.location?.index ?? 0, rec.location?.fraction ?? 0)
+        if (away > 2 * 3600 * 1000) setTimeout(showPlace, 700) // back after a while: your place, unmissable
         // "Previously…": after a day or more away, ask first, then recap (retrieval beats rereading).
         if (away > 24 * 3600 * 1000 && rec.progress > 0.002) prepareRecap()
         setTimeout(() => { if (!panel) chrome = false }, 1400)
@@ -400,7 +461,7 @@
     if (!press || press.hold) return
     press = { ...press, hold: true }
     chrome = false; hideCard()
-    if (stageStyle()) stage?.holdStart(); else guide?.holdStart()
+    if (stageStyle()) stage?.holdStart(placeHere()); else guide?.holdStart()
   }
   function padDrag(e: PointerEvent) {
     if (!press) return
@@ -488,7 +549,7 @@
 
   function padTap() {
     chrome = false; hideCard()
-    if (stageStyle()) stage?.tap(); else guide?.padTap()
+    if (stageStyle()) stage?.tap(placeHere()); else guide?.padTap()
   }
 
   // ---------- the Stage's own visual grammar (one paragraph at a time, so it can be richer than the page) ----------
@@ -958,7 +1019,7 @@
     {/if}
   {/if}
   <Stage bind:this={stage} {pag} settings={eff} chapter={loc?.chapter || rec.title} page={loc?.cpage ?? 0} pages={loc?.cpages ?? 0} pageEl={paperEl} {decorate} {explain} onmark={markSentence} book={{ chapters: stripChapters, cur: stripCur }}
-    onopen={o => { staged = o; speedOpen = false; if (o) { chrome = false; hideCard(); guide?.deactivate(); pushBack('stage') } else { paintLenses(); popBack('stage') } }} onstate={st => (sstate = st)}
+    onopen={o => { staged = o; speedOpen = false; if (o) { chrome = false; hideCard(); guide?.deactivate(); pushBack('stage'); paintPlace() } else { paintLenses(); popBack('stage'); if (placeV) setPlace(placeV, placeK, true); placeSoon(true); setTimeout(() => { pag?.current?.marks.clear('r-'); requestAnimationFrame(() => paintPlace()) }, 1200) /* WebKit keeps highlight geometry from the set-down a few letters off: clear, then paint again once settled */ } }} onplace={(v, k) => setPlace(v, k)} onstate={st => (sstate = st)}
     onpace={w => (settings.wpm = w)} ontoast={toast}
     onsetting={(k, val) => { if (custom && k in prefs) (bookVal as any)[k] = val; else (settings as any)[k] = val }} />
   {#if weather}{#key weather}<div class="weather w-{weather}" class:still={eff.motion !== 'full' || reduceMotion} transition:fade={{ duration: 1200 }} aria-hidden="true"></div>{/key}{/if}

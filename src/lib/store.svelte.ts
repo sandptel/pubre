@@ -5,6 +5,7 @@ import type { Settings } from './settings.ts'
 import type { NameInfo } from '../insights/names.ts'
 import type { ChapterInfo } from '../insights/chapters.ts'
 import type { Annotation } from './annotations.ts'
+import type { ReadTo } from './readto.ts'
 
 export interface Location { index: number; fraction: number; cfi?: string }
 export interface BookRecord {
@@ -32,6 +33,7 @@ export interface BookRecord {
   keepsake?: string // the finish keepsake (an SVG), drawn when you finish
   born?: string[] // characters whose first appearance you've seen (star-birth plays once)
   sessionFrom?: number // progress when this reading session began (the library's arc reveal)
+  readTo?: ReadTo // your place: the word the reading guide last stood on (marked on the page; the Stage starts there)
 }
 
 let dbp: Promise<IDBDatabase> | undefined

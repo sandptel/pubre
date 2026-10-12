@@ -23,14 +23,14 @@
   import { edgesOnFirstLine, letterRects, typeFrames } from '../lib/typing.ts'
   import type { TextIndex } from '../lib/textindex.ts'
 
-  let { pag, settings, chapter = '', page = 0, pages = 0, book, pageEl, decorate, explain, onmark, onopen, onstate, onpace, ontoast, onsetting }: {
+  let { pag, settings, chapter = '', page = 0, pages = 0, book, pageEl, decorate, explain, onmark, onopen, onstate, onplace, onpace, ontoast, onsetting }: {
     pag: Paginator | undefined; settings: Settings; chapter?: string; page?: number; pages?: number; pageEl?: HTMLElement
     /** The book's chapters, for the strip under the label (the one you're in is magnified). */
     book?: { chapters: StripChapter[]; cur: number }
     decorate?: (v: View, b: number) => Decor[]; explain?: (key: string) => Promise<string>
     /** Long-press a sentence: keep it (true) or let it go again (false). */
     onmark?: (v: View, s: number) => Promise<boolean | null>
-    onopen?: (open: boolean) => void; onstate?: (s: StageState) => void
+    onopen?: (open: boolean) => void; onstate?: (s: StageState) => void; onplace?: (v: View, k: number) => void
     onpace?: (wpm: number) => void; ontoast?: (m: string) => void
     /** The quick switcher changed a reading setting (pointer, step). */
     onsetting?: (key: 'stagePointer' | 'stageStep' | 'inkRead' | 'inkNow' | 'inkAhead' | 'fontScale' | 'pauses', value: string | number) => void
@@ -285,6 +285,7 @@
     place(animate, newBlock ? 800 : 600)
     placeMarker(animate)
     if (newBlock && sync) syncPage()
+    if (landed) onplace?.(v!, cur) // your place, kept as you go
   }
   function unitMs() {
     const x = ix()
@@ -544,7 +545,7 @@
       if (gen !== my) return // released mid-lift: close() played it backwards
     } else { hideSources(0); flow!.classList.remove('whole') }
     lifting = []
-    busy = false; landed = true
+    busy = false; landed = true; onplace?.(v!, cur)
     hideSources(0)
     flow!.classList.remove('solo') // its neighbours fade in around it
     if (card) { card.getAnimations().forEach(a => a.cancel()); card.style.boxShadow = SHADOW[2]; requestAnimationFrame(() => { card.style.boxShadow = ''; card.classList.remove('card') }) }
@@ -625,8 +626,8 @@
   export function lock() { if (!open || !transient) return; transient = false; playing = true; ontoast?.('Locked · tap to pause') }
   /** A tap: open, or pause / play; a quick second tap undoes that and goes back a sentence. */
   let lastTap = 0, playBefore = false
-  export function tap() {
-    if (!open) return void start()
+  export function tap(at = -1) {
+    if (!open) return void start(false, at)
     const t = performance.now()
     if (t - lastTap < 280) { lastTap = 0; sentence(-1); if (playBefore) play(); else stop(); ontoast?.('Back a sentence'); return }
     lastTap = t; playBefore = playing

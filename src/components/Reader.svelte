@@ -8,7 +8,6 @@
   import { Guide, type GuideState } from '../lib/guide.ts'
   import { Lenses, RARE, type Token } from '../lib/lenses.ts'
   import { define, loadCommon, rarity } from '../lib/lexicon.ts'
-  import { pauseAfter } from '../lib/pacing.ts'
   import { sectionOf, type Decor } from '../lib/stagetext.ts'
   import { nearestWord } from '../lib/textindex.ts'
   import { colourOf } from '../lib/palette.ts'
@@ -255,7 +254,7 @@
           rec.chapter = r.chapter
           if (!gstate.active) paintLenses()
           const at = `${r.index}:${r.page}`
-          if (at !== stagedAt) { stagedAt = at; stagingStop?.(); if (pag?.current) { stageFirstLine(pag.current); starBirth(pag.current) } } // only a real page change stops it
+          if (at !== stagedAt) { stagedAt = at; if (pag?.current) { stageFirstLine(pag.current); starBirth(pag.current) } }
           hideCard(); placeSoon(); if (!coach) setTimeout(coachSpace, 900)
           clearTimeout(saveTimer)
           saveTimer = window.setTimeout(() => { snapshotPlace(); save() }, 500)
@@ -366,55 +365,19 @@
     return c?.title ? { tint: moodTint(c.mood), talk: c.talk } : undefined
   }
   const stripCur = $derived(loc && sections.length ? Math.max(0, sections.findLastIndex(s => s.start <= loc!.top + 1e-6)) : 0)
-  // First-line staging: a chapter's first sentence arrives word by word, paced by its own punctuation,
-  // once, then is ordinary text. Highlights only (nothing in the book's DOM changes); any input finishes it.
+  // A chapter's title soaks into the paper as you arrive, once. (The first line no longer types itself in:
+  // it held the page back and could stop halfway.)
   const staged1 = new Set<string>()
   let stagedAt = ''
-  let stagingStop: (() => void) | null = null
-  /** Reveal words a..z one by one (paced by punctuation), holding the rest of the page back; any input finishes it. */
-  function reveal(v: BookView, a: number, z: number, last: number, perWord: number) {
-    const ix = v.ix
-    const rng = (i: number, j: number) => { const r = v.doc.createRange(); r.setStart(ix.words[i].sn, ix.words[i].so); r.setEnd(ix.words[j].en, ix.words[j].eo); return r }
-    // the line's tail runs to the next word (its punctuation and closing quote stay back too)
-    const upto = (i: number, j: number) => { const r = rng(i, j), n = ix.words[j + 1]; if (n) r.setEnd(n.sn, n.so); return r }
-    const rest = z < last ? [upto(z + 1, last)] : []
-    let k = a, t = 0
-    const stop = () => { clearTimeout(t); v.marks.set('stage-hidden', []); v.marks.set('stage-fade', []); v.marks.set('stage-rest', []); stagingStop = null; removeEventListener('keydown', stop, true); v.doc.removeEventListener('pointerdown', stop, true) }
-    stagingStop?.(); stagingStop = stop
-    addEventListener('keydown', stop, true); v.doc.addEventListener('pointerdown', stop, true)
-    const tick = () => {
-      if (k > z) { v.marks.set('stage-hidden', []); v.marks.set('stage-fade', []); t = window.setTimeout(stop, 500); return } // in: the page comes back
-      v.marks.set('stage-fade', [rng(k, k)])
-      v.marks.set('stage-hidden', k < z ? [upto(k + 1, z)] : [])
-      if (k === a) v.marks.set('stage-rest', rest)
-      const ms = perWord + pauseAfter(ix, k) * (perWord > 100 ? 0.6 : 0.25)
-      k++
-      t = window.setTimeout(tick, ms)
-    }
-    t = window.setTimeout(tick, 380) // after the page has settled
-  }
-  /** On arriving at a page: a chapter's first line arrives word by word, its title soaks in (ink-bleed),
-   *  a letter ("Dear…") types itself — each once, never on ordinary body text. */
   function stageFirstLine(v: BookView) {
     if (!eff.openers || eff.motion !== 'full' || reduceMotion || gstate.active || staged || !pag) return
     const ix = v.ix, first = pag.firstWordOnPage(v), last = pag.currentPage + 1 < v.pages ? pag.firstWordOnPage(v, pag.currentPage + 1) - 1 : ix.words.length - 1
     for (let b = ix.words[first]?.b ?? 0; b < ix.blocks.length && ix.blocks[b].a <= last; b++) {
       const h = ix.blocks[b], key = `${v.index}:${b}`
-      if (staged1.has(key)) continue
-      if (h.kind === 'heading' && h.el.hasAttribute('data-pubre-opener')) {
-        staged1.add(key)
-        ;(h.el as HTMLElement).animate([{ filter: 'blur(5px)', opacity: 0.15, letterSpacing: '.06em' }, { filter: 'blur(1.2px)', opacity: 0.85, offset: 0.55 }, { filter: 'none', opacity: 1, letterSpacing: 'normal' }], { duration: 1100, easing: 'cubic-bezier(.2,.7,.2,1)' }) // ink soaks into the paper
-        let p = b + 1
-        while (p < ix.blocks.length && (ix.blocks[p].kind !== 'text' || ix.blocks[p].b < ix.blocks[p].a)) p++
-        if (p >= ix.blocks.length || ix.blocks[p].a > last) return
-        const s = ix.sentences[ix.words[ix.blocks[p].a].s]
-        return reveal(v, s.a, Math.min(s.b, s.a + 40, last), last, 170)
-      }
-      // letters type themselves: a paragraph that opens like a letter, typed in quickly, once
-      if (h.kind === 'text' && h.b >= h.a && /^\s*[“"]?\s*(my\s+)?(dear(est)?|sir|madam|gentlemen)\b[^.!?]{0,40}[,:—]/i.test(h.text)) {
-        staged1.add(key)
-        return reveal(v, Math.max(h.a, first), Math.min(h.b, h.a + 120, last), last, 45)
-      }
+      if (staged1.has(key) || h.kind !== 'heading' || !h.el.hasAttribute('data-pubre-opener')) continue
+      staged1.add(key)
+      ;(h.el as HTMLElement).animate([{ filter: 'blur(5px)', opacity: 0.15, letterSpacing: '.06em' }, { filter: 'blur(1.2px)', opacity: 0.85, offset: 0.55 }, { filter: 'none', opacity: 1, letterSpacing: 'normal' }], { duration: 1100, easing: 'cubic-bezier(.2,.7,.2,1)' })
+      return
     }
   }
   // Star-birth: the first time a character is ever named, a small spark rises from the name.

@@ -17,7 +17,6 @@ export const ORDER = [
   'hard', 'spark', 'foreign', ...Array.from({ length: WHO_SLOTS }, (_, k) => `who-${k}`),
   'r-read', 'r-here', // your place: what you read in its paragraph, and the word you stopped on
   ...MEANINGS.map(([c]) => `u-${c}`), 'u-bold', 'bloom', 'breathe',
-  'stage-rest', 'stage-fade', 'stage-hidden', // first-line staging: the page waits, the words to come are held back, the next one fades in
 ]
 
 type Registry = { get(n: string): { clear(): void; add(r: AbstractRange): void } | undefined; set(n: string, h: unknown): void }
@@ -68,9 +67,6 @@ export function marksCss(t: Theme, inkRead = 10): string {
   const fg = t.base[5], accent = t.base[t.accent], muted = t.base[4]
   const voice = (k: string) => whoHue(t, +k)
   return openersCss(t) + `
-::highlight(stage-hidden) { color: transparent; text-decoration-color: transparent; }
-::highlight(stage-fade) { color: ${fg}70; }
-::highlight(stage-rest) { color: ${fg}30; }
 @property --bloom { syntax: '<length>'; inherits: true; initial-value: 0px }
 @property --place { syntax: '<number>'; inherits: true; initial-value: 1 }
 ::highlight(r-read) { background-color: color-mix(in srgb, ${accent} calc(var(--place) * ${t.dark ? 13 : 9}%), transparent) }

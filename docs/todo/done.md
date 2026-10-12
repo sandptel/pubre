@@ -61,3 +61,4 @@ Verified in Chrome (desktop 1440×900) and WebKit (390×844 touch): import of 3 
 - feat(reader): chapter-end card → timed pill in the running-head strip (9s, pauses on hover, tap to open).
 - fix(reader): removed first-line staging (word-by-word reveal + letter typing, stage-* highlights); title ink-soak kept.
 - fix(stage): first-word pointer measured after .card removal (card margin-top overrode heading margin).
+- feat(stage): look back (lookBack setting): peek read text when paused + margin rail (tap = back a sentence, hold = fill & keep stepping); toggle beside Aa.

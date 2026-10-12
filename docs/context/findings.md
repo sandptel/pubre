@@ -68,3 +68,6 @@ Clicking a button keeps focus on it, so a timer paused on :focus-within stays pa
 
 ## Measure after the lift card comes off
 The Stage lifts a paragraph wearing `.card` (padding + negative margins); on a heading its margin-top replaces the heading margin. Anything measured at landing (marker, column position) must wait for the rAF that removes `.card`.
+
+## Taps in the Stage margin fell through
+`.win` used `overflow: clip` with a clip margin: things drawn in the margin were visible but not hit-testable in Chrome, so taps reached the veil (and toggled play). Controls for the margin live in the stage top layer, positioned from the flow rect.

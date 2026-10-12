@@ -49,3 +49,7 @@ Svelte 5 and TypeScript, built with Vite. The reader core in `src/lib/` is frame
 ## Contributing
 
 Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
+## License
+
+[MIT](LICENSE) © Sandeep Patel

@@ -39,6 +39,7 @@
   import { quoteCard, shareCard } from '../lib/quotecard.ts'
   import ReadPreview from './ReadPreview.svelte'
   import Constellation from './Constellation.svelte'
+  import ChartMap from './ChartMap.svelte'
   import ChapterStrip, { type StripChapter } from './ChapterStrip.svelte'
   import Toc from './Toc.svelte'
   import { readToOf, wordOf, wordsRange } from '../lib/readto.ts'
@@ -47,8 +48,8 @@
 
   let { record, settings = $bindable(), onclose }: { record: BookRecord; settings: Settings; onclose: () => void } = $props()
 
-  type View = 'menu' | 'contents' | 'appearance' | 'aids' | 'book' | 'notes' | 'cast'
-  const titles: Record<View, string> = { menu: '', contents: 'Contents', appearance: 'Themes & Settings', aids: 'Reading aids', book: 'This book', notes: 'Highlights & notes', cast: 'The cast so far' }
+  type View = 'menu' | 'contents' | 'appearance' | 'aids' | 'book' | 'notes' | 'cast' | 'map'
+  const titles: Record<View, string> = { menu: '', contents: 'Contents', appearance: 'Themes & Settings', aids: 'Reading aids', book: 'This book', notes: 'Highlights & notes', cast: 'The cast so far', map: 'The map so far' }
 
   const rec: BookRecord = untrack(() => $state.snapshot(record)) // local copy we persist
   let host: HTMLDivElement
@@ -1330,6 +1331,13 @@
                 <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
               </button>
             {/if}
+            {#if rec.profile?.names?.some(n => n.kind === 'place')}
+              <button onclick={() => go('map')}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z" /><path d="M9 4v14M15 6v14" opacity=".5" /></svg>
+                <span>The map</span>
+                <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+              </button>
+            {/if}
             <button onclick={() => go('notes')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16z" /></svg>
               <span>Highlights &amp; notes{#if anns.length}<small class="badge">{anns.length}</small>{/if}</span>
@@ -1352,6 +1360,9 @@
             hue={slot => whoHue(resolveTheme(eff.palette, eff.mode), slot % WHO_SLOTS)}
             onpick={name => { const p = lenses?.person(name); const n = p ? p.perSpine.slice(0, (loc?.index ?? 0) + 1).reduce((a, x) => a + x, 0) : 0; const m = companions(rec.profile?.links, name, loc?.index ?? 0); toast(`${name} · ${n} mentions so far${m.length ? ` · often with ${m.slice(0, 2).join(', ')}` : ''}`) }} />
           <p class="empty-notes">Everyone you've met, brighter the more they're around; a thread for each scene two of them share. It grows as you read.</p>
+        {:else if view === 'map'}
+          <ChartMap places={rec.profile?.names ?? []} upto={loc?.index ?? 0} seed={rec.id} onpick={name => { const p = rec.profile?.names.find(n => n.name === name); toast(p ? `${name} · ${p.perSpine.slice(0, (loc?.index ?? 0) + 1).reduce((a, x) => a + x, 0)} mentions so far` : name) }} />
+          <p class="empty-notes">Places the book names, in the order you reached them. Made from the text, not real geography; it fills in as you read.</p>
         {:else if view === 'notes'}
           {#if !anns.length}
             <p class="empty-notes">Select any text to highlight it. Each colour has a meaning: {MEANINGS.map(m => m[1]).join(', ')}.</p>

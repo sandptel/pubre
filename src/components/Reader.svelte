@@ -16,7 +16,7 @@
   import { computeProfile, PROFILE_V } from '../lib/profile.ts'
   import { portraitUrl } from '../lib/portrait.ts'
   import { keepsakeSvg } from '../insights/keepsake.ts'
-  import { mix } from '../lib/settings.ts'
+  import { mix, fonts } from '../lib/settings.ts'
   import { blockOffsets } from '../lib/textindex.ts'
   import { whoHue, WHO_SLOTS } from '../lib/marks.ts'
   import { resolveTheme } from '../lib/settings.ts'
@@ -34,6 +34,7 @@
   import Stage, { type StageState } from './Stage.svelte'
   import Ticker from './Ticker.svelte'
   import Zoom from './Zoom.svelte'
+  import { quoteCard, shareCard } from '../lib/quotecard.ts'
   import ReadPreview from './ReadPreview.svelte'
   import Constellation from './Constellation.svelte'
   import ChapterStrip, { type StripChapter } from './ChapterStrip.svelte'
@@ -136,6 +137,18 @@
     setTimeout(() => { paintPlace(true); pin!.querySelector('b')!.textContent = 'Continue here'; pin!.classList.add('resume'); setTimeout(() => pin?.classList.remove('resume'), 6000) }, 480)
   }
   /** The selection bar's ▶: your place moves to the start of the selection, and the guide reads from there. */
+  /** The selection as a quote card, set on your paper in the book's face, to share. */
+  async function shareQuote() {
+    const r = bar?.range ?? (bar?.ann && bar.v ? ranges.get(bar.ann.id) : undefined), v = bar?.v
+    const text = (r?.toString() || bar?.ann?.exact || '').trim()
+    if (!text || !v) return
+    const t = resolveTheme(eff.palette, eff.mode), css = getComputedStyle(document.documentElement)
+    const serif = fonts[eff.font]?.stack || css.getPropertyValue('--serif') || 'Georgia, serif'
+    bar = null; v.doc.getSelection()?.removeAllRanges()
+    const blob = await quoteCard({ text: text.slice(0, 700), title: rec.title, author: rec.creator ?? '', chapter: loc?.chapter ? tocLabel(loc.chapter) : '', bg: t.base[0], fg: t.base[5], muted: t.base[4], accent: t.base[t.accent], serif, mono: css.getPropertyValue('--mono') || 'monospace' })
+    const how = await shareCard(blob, `${rec.title.slice(0, 40).replace(/[^\w]+/g, '-')}-quote.png`)
+    if (how === 'saved') toast('Quote card saved')
+  }
   function readFromHere() {
     const r = bar?.range, v = bar?.v
     if (!r || !v) return
@@ -868,7 +881,7 @@
   function openBar(v: BookView, r: Range, ann?: Annotation) {
     const rect = r.getBoundingClientRect(), f = v.iframe.getBoundingClientRect()
     const below = f.top + rect.top < 90
-    bar = { x: Math.max(12, Math.min(innerWidth - 300, f.left + rect.left + rect.width / 2 - 150)), y: below ? f.top + rect.bottom + 10 : f.top + rect.top - 10, below, ann, range: r, v }
+    bar = { x: Math.max(8, Math.min(innerWidth - 376, f.left + rect.left + rect.width / 2 - 184)), y: below ? f.top + rect.bottom + 10 : f.top + rect.top - 10, below, ann, range: r, v }
     noteText = ann?.note ?? ''
     hideCard()
   }
@@ -1128,6 +1141,7 @@
         <button class="hl-b" class:on={bar.ann?.italic} aria-label="Italic" onclick={() => toggleStyle('italic')}><i>I</i></button>
         <button class="hl-b" class:on={bar.note} aria-label="Note" onclick={() => { if (bar) bar = { ...bar, note: !bar.note } }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16z" /></svg></button>
+        <button class="hl-b" aria-label="Share as a picture" title="Share as a picture" onclick={shareQuote}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 002 2h10a2 2 0 002-2v-6" /></svg></button>
         <button class="hl-b" aria-label="Read from here" title="Read from here" onclick={readFromHere}><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l10.5-6.5z" /></svg></button>
         {#if bar.ann}<button class="hl-b" aria-label="Remove highlight" onclick={removeAnn}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>{/if}
       </div>
@@ -1563,10 +1577,11 @@
   .r-who { margin: 0; font-size: 14px; }
   .r-actions { display: flex; gap: var(--s3); align-items: center; margin-top: var(--s3); }
   .r-skip { border: 0; background: none; color: var(--muted); font-size: 14px; }
-  .hl-bar { position: fixed; z-index: 6; width: 300px; padding: 6px; border-radius: 14px; transform: translateY(-100%); animation: cardIn .2s var(--ease); }
+  .hl-bar { position: fixed; z-index: 6; width: max-content; max-width: calc(100vw - 16px); padding: 6px; border-radius: 14px; transform: translateY(-100%); animation: cardIn .2s var(--ease); }
   .hl-bar.below { transform: none; }
   .hl-row { display: flex; align-items: center; gap: 2px; }
-  .hl-c, .hl-b { width: 32px; height: 32px; border: 0; border-radius: 9px; background: none; display: grid; place-items: center; font: 16px var(--serif); color: var(--fg); }
+  .hl-c { width: 28px; } .hl-b { width: 32px; }
+  .hl-c, .hl-b { height: 32px; border: 0; border-radius: 9px; background: none; display: grid; place-items: center; font: 16px var(--serif); color: var(--fg); }
   .hl-c:hover, .hl-b:hover, .hl-b.on { background: var(--hover); }
   .hl-c i { width: 18px; height: 18px; border-radius: 50%; display: block; box-shadow: inset 0 0 0 .5px rgb(0 0 0 / .2); transition: transform .25s var(--ease); }
   .hl-c.on i { transform: scale(1.15); box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--fg); }

@@ -101,3 +101,8 @@ button { cursor: pointer; }
 @keyframes place-pulse { 50% { transform: scale(1.35); } }
 @keyframes place-lift { to { translate: 0 -5px; } }
 @media (prefers-reduced-motion: reduce) { .pubre-place.resume::before, .pubre-place.lift { animation: none; } }
+
+/* Peek: the chapter a drag is heading into */
+.pubre-peek { position: absolute; z-index: 3; top: 46%; right: 14px; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 7px 12px; border-radius: 999px; background: var(--fg); color: var(--bg); font: 600 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; pointer-events: none; opacity: 0; transform: translateX(8px); transition: opacity .2s ease, transform .3s cubic-bezier(.22,1,.36,1); }
+.pubre-peek[data-side="l"] { right: auto; left: 14px; transform: translateX(-8px); }
+.pubre-peek.on { opacity: 1; transform: none; }

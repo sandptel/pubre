@@ -2,7 +2,7 @@
 // one column (or two, for spreads) per screen. The iframe is as wide as all its pages and is
 // translated horizontally, so page turns are GPU transforms we can animate and drag.
 // ponytail: LTR horizontal text only; RTL / vertical-rl / fixed-layout books need their own layout paths.
-import { type Book, type TocItem } from './epub.ts'
+import { type Book, type TocItem, tocLabel } from './epub.ts'
 import { bookCss, resolveTheme, type Settings } from './settings.ts'
 import { indexDocument, type TextIndex } from './textindex.ts'
 import { Marks, marksCss } from './marks.ts'
@@ -122,6 +122,7 @@ export class Paginator {
   private wheelLock = 0
   private edge: HTMLElement
   private veil: HTMLElement
+  private peek: HTMLElement
   private flingMs = 0 // a flick's own speed sets the next turn's duration
   private queued: 0 | 1 | -1 = 0 // one turn asked for while another was still moving
   private reduce = matchMedia('(prefers-reduced-motion: reduce)')
@@ -147,7 +148,9 @@ export class Paginator {
     // The ink soak: a paper-coloured veil that slides off a page just turned to, so its lines darken top to bottom.
     this.veil = Object.assign(document.createElement('i'), { className: 'pubre-veil' })
     this.veil.style.cssText = 'position:absolute;left:0;right:0;top:-35%;height:135%;z-index:2;pointer-events:none;opacity:0;background:linear-gradient(transparent, color-mix(in srgb, var(--bg, #fff) 74%, transparent) 26%)'
-    this.port.append(this.edge, this.veil)
+    // Peek: dragging toward a new chapter shows its name at the edge.
+    this.peek = Object.assign(document.createElement('b'), { className: 'pubre-peek' })
+    this.port.append(this.edge, this.veil, this.peek)
     // Taps and wheel in the outer margins (outside the port) still turn pages.
     host.addEventListener('click', e => { if (e.target === host || e.target === this.port) this.tap(e.clientX) })
     host.addEventListener('wheel', e => this.wheel(e), { passive: true })
@@ -446,6 +449,15 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
     if (this.reduce.matches || this.settings.motion === 'calm') return
     this.veil.animate([{ transform: 'translateY(0)', opacity: 1 }, { transform: `translateY(${this.L.H}px)`, opacity: 1 }], { duration: 440, easing: 'cubic-bezier(.3,.6,.2,1)' })
   }
+  /** The chapter the next (dir 1) or previous page opens, if it opens one. */
+  private chapterAcross(dir: number): string {
+    const v = this.view
+    if (!v || (dir > 0 ? this.page < v.pages - 1 : this.page > 0)) return ''
+    const want = v.index + dir
+    const find = (items: TocItem[]): TocItem | undefined => { for (const t of items) { if (t.href && this.book.spineIndex(t.href) === want) return t; const c = find(t.children); if (c) return c } }
+    const t = find(this.book.toc)
+    return t ? tocLabel(t.label) : ''
+  }
   private turnTime() { const ms = this.flingMs || TURN_MS; this.flingMs = 0; return ms }
 
   private async slide(page: number) {
@@ -579,6 +591,9 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
       const ox = atEdge ? dx * 0.3 : dx
       this.setX(v, -this.page * this.L.step + ox)
       if (!atEdge && !this.reduce.matches) this.placeEdge(ox < 0 ? this.L.step + ox : ox, ox < 0 ? 1 : -1, Math.min(1, Math.abs(ox) / 60))
+      const across = atEdge ? '' : this.chapterAcross(ox < 0 ? 1 : -1)
+      if (across) { this.peek.textContent = across; this.peek.dataset.side = ox < 0 ? 'r' : 'l' }
+      this.peek.classList.toggle('on', !!across && Math.abs(ox) > 40)
     })
     const end = (e: PointerEvent) => {
       if (!start || e.pointerId !== start.id) return
@@ -590,6 +605,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
         dragging = false
         const fast = Math.abs(dx) / dt > 0.4
         this.edge.style.opacity = '0'
+        this.peek.classList.remove('on')
         if (e.type !== 'pointercancel' && (Math.abs(dx) > this.L.step * 0.18 || fast)) {
           // the flick's speed carries on: a quick one lands quickly, a slow drag settles slowly
           const left = this.L.step - Math.abs(dx), speed = Math.max(Math.abs(vel), Math.abs(dx) / dt, 0.5)

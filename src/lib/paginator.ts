@@ -205,6 +205,41 @@ export class Paginator {
     await this.slide(page)
   }
   /** Index of the first word on the current page (binary search on word rects). */
+  /** On a section's last page, with room under its final line: where that room starts (port coords) and
+   *  what the next section is called and how it begins. Null anywhere else. */
+  async sectionEnd(): Promise<{ x: number; y: number; room: number; label: string; line: string } | null> {
+    const v = this.view
+    if (!v || !v.ix.words.length) return null
+    const page = this.page, w = this.starts[v.index + 1] - this.starts[v.index], pageW = w / v.pages
+    const top = this.starts[v.index] + pageW * page
+    const at = (m: Mark) => { if (m.index !== v.index) return m.at; const el = m.frag ? v.doc.getElementById(m.frag) : null; return el ? this.starts[v.index] + pageW * this.pageOfRect(el.getBoundingClientRect()) : m.at }
+    const next = this.marks.find(m => at(m) > top + pageW * 0.5)
+    const lastHere = page === v.pages - 1 || (next && next.index === v.index && at(next) <= top + pageW * 1.5)
+    if (!next || !lastHere || (next.index === v.index && at(next) < top + pageW * 0.5)) return null
+    if (next.index === v.index && next.frag && this.pageOfRect(v.doc.getElementById(next.frag)?.getBoundingClientRect() ?? new DOMRect(-1e6)) === page) return null // it starts on this very page
+    // the bottom of the last line on this page
+    const k = Math.max(0, (page < v.pages - 1 ? this.firstWordOnPage(v, page + 1) : v.ix.words.length) - 1), wd = v.ix.words[k]
+    const r = v.doc.createRange(); r.setStart(wd.sn, wd.so); r.setEnd(wd.en, wd.eo)
+    const q = r.getClientRects()[0]
+    if (!q || this.pageOfRect(q) !== page) return null
+    let low = q.bottom // pictures and plates under the last words count too
+    for (const el of Array.from(v.doc.querySelectorAll('img, svg, table, [data-pubre-plate], [data-pubre-break]'))) { const b = el.getBoundingClientRect(); if (b.height && this.pageOfRect(b) === page) low = Math.max(low, b.bottom) }
+    const bottom = this.L.H - this.L.t - this.reserve, room = bottom - low
+    if (room < 150) return null
+    const colLeft = this.columnLeft(v, q.left)
+    // how the next section begins
+    let doc: Document | null = next.index === v.index ? v.doc : null
+    if (!doc) { const t = await this.book.zip.text(this.book.spine[next.index].href).catch(() => ''); doc = t ? new DOMParser().parseFromString(t, 'application/xhtml+xml') : null }
+    let line = ''
+    if (doc) {
+      const from = next.frag ? doc.getElementById(next.frag) : doc.body
+      const ps = Array.from(doc.querySelectorAll('p'))
+      const p = ps.find(p => (!from || (from.compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING) || from.contains(p)) && (p.textContent ?? '').trim().length > 60)
+      const text = (p?.textContent ?? '').replace(/\s+/g, ' ').trim()
+      line = (text.match(/^.{20,160}?[.!?…][”’"]?(?=\s|$)/)?.[0] ?? text.slice(0, 120).replace(/\s\S*$/, '') + '…')
+    }
+    return { x: colLeft + this.L.colW / 2, y: low + 14, room, label: tocLabel(next.label), line }
+  }
   firstWordOnPage(v = this.view, page = this.page) {
     if (!v) return 0
     const ws = v.ix.words, left = page * this.L.step

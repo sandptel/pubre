@@ -757,15 +757,30 @@
     const prev = lastLoc
     lastLoc = { chapter: r.chapter, progress: r.progress }
     const prevSpine = lastSpine; lastSpine = r.index
+    void prev; void prevSpine
     if (ending) { ending = null; return } // the card leaves on your next page turn
-    if (!prev || !prev.chapter || prev.chapter === r.chapter || !eff.chapterPrompts || gstate.gliding) return
-    if (r.progress < prev.progress || r.progress - prev.progress > 0.02) return // only when paging forward, not jumping
-    if ((rec.promptSkips ?? 0) >= 2 && !anns.some(a => a.color === '09' && a.chapter === prev.chapter && !a.note.startsWith('✓'))) return
-    // the rare-word sparks you met in that chapter (words used once in the whole book)
-    const sparks = Object.entries(rec.profile?.hapax ?? {}).filter(([w, si]) => si === prevSpine && typeof rarity(w) === 'number' && rarity(w)! < RARE).map(([w]) => w).slice(0, 6)
-    ending = { chapter: prev.chapter, questions: anns.filter(a => a.color === '09' && a.chapter === prev.chapter && !a.note.startsWith('✓')).slice(0, 1), sparks }
-    endWords = words[prev.chapter] ?? ''
-    endOpen = false
+    teaseSoon()
+  }
+  /** The chapter-end card, opened from the last page's teaser: three words, an open question, rare words. */
+  function openEnding() {
+    const chapter = loc?.chapter, spine = pag?.current?.index ?? -1
+    if (!chapter) return
+    const sparks = Object.entries(rec.profile?.hapax ?? {}).filter(([w, si]) => si === spine && typeof rarity(w) === 'number' && rarity(w)! < RARE).map(([w]) => w).slice(0, 6)
+    ending = { chapter, questions: anns.filter(a => a.color === '09' && a.chapter === chapter && !a.note.startsWith('✓')).slice(0, 1), sparks }
+    endWords = words[chapter] ?? ''
+    endOpen = true; tease = null
+  }
+  // ---------- a chapter's last page: what comes next, in the room under the final line (L2) ----------
+  let tease = $state<{ x: number; y: number; kind: string; title: string; line: string; ask: boolean } | null>(null), teaseT = 0
+  function teaseSoon() {
+    tease = null; clearTimeout(teaseT)
+    teaseT = window.setTimeout(async () => {
+      const e = staged || gstate.gliding ? null : await pag?.sectionEnd()
+      if (!e) return
+      const m = /^(chapter|book|part|letter|canto|volume|act)\s+([0-9ivxlcdm]+)[.:]?\s*(?:·\s*)?(.*)$/i.exec(e.label)
+      const port = pag!.port
+      tease = { x: e.x + port.offsetLeft + host!.offsetLeft, y: e.y + port.offsetTop + host!.offsetTop, kind: m ? `${m[1]} ${m[2]}` : '', title: m ? (m[3].replace(/\.$/, '') || '') : e.label, line: e.line, ask: eff.chapterPrompts }
+    }, 520)
   }
   function keepWords() {
     if (!ending) return
@@ -941,6 +956,15 @@
 <div class="reader" style:--accent={drift?.accent} class:guiding={gstate.active && !!where} class:chrome={showChrome} class:padded={eff.guide} class:speedy={speedChip}>
   <div class="paper" bind:this={paperEl} style:view-transition-name="cover">
     <div class="stage" bind:this={host}></div>
+    {#if tease && !chrome && !staged}
+      <div class="tease" style:left="{tease.x}px" style:top="{tease.y}px">
+        <span class="t-orn" aria-hidden="true">❦</span>
+        <span class="t-k">Next{tease.kind ? ` · ${tease.kind}` : ''}</span>
+        {#if tease.title}<b class="t-t">{tease.title}</b>{/if}
+        {#if tease.line}<i class="t-l">{tease.line}</i>{/if}
+        {#if tease.ask}<button class="t-ask" onclick={openEnding}>three words?</button>{/if}
+      </div>
+    {/if}
     {#if !loc && !error}<div class="spinner" aria-label="Opening book"></div>{/if}
   </div>
 
@@ -1475,6 +1499,16 @@
   .sh-track::before { content: ''; position: absolute; left: 50%; top: -3px; width: 1px; height: 10px; background: var(--muted); opacity: .5; }
   .sh-track i { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--accent); box-shadow: 0 1px 4px rgb(0 0 0 / .25); }
   .sh-rate { font: 600 15px system-ui; color: var(--fg); font-variant-numeric: tabular-nums; }
+  .tease { position: absolute; z-index: 4; translate: -50% 0; width: min(300px, 80vw); display: grid; justify-items: center; gap: 6px; text-align: center; pointer-events: none; }
+  .tease > * { animation: tease-in .9s cubic-bezier(.2,.7,.2,1) both; } /* a chapter's close settles in, once */
+  .tease > :nth-child(2) { animation-delay: .12s; } .tease > :nth-child(3) { animation-delay: .24s; } .tease > :nth-child(4) { animation-delay: .36s; } .tease > :nth-child(5) { animation-delay: .5s; }
+  @keyframes tease-in { from { opacity: 0; transform: translateY(6px); } }
+  .t-orn { color: var(--accent); font: 20px var(--serif); margin-bottom: 6px; }
+  .t-k { font: 600 10px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+  .t-t { font: 400 20px/1.25 var(--serif); color: var(--fg); text-wrap: balance; }
+  .t-l { font: italic 14px/1.5 var(--serif); color: color-mix(in srgb, var(--fg) 55%, transparent); text-wrap: pretty; }
+  .t-ask { pointer-events: auto; margin-top: 10px; border: 1px solid var(--hairline); border-radius: 999px; background: none; color: var(--muted); font: 500 11px var(--mono); letter-spacing: .06em; padding: 7px 12px; min-height: 36px; }
+  @media (prefers-reduced-motion: reduce) { .tease > * { animation: none; } }
   .ending { position: absolute; z-index: 6; left: 50%; top: calc(env(safe-area-inset-top) + 6px); translate: -50% 0; max-width: calc(100vw - 24px); overflow: hidden;
     border-radius: 999px; background: color-mix(in srgb, var(--accent) 7%, var(--surface)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 24%, var(--hairline)), var(--e2); }
   .ending.open { width: min(380px, calc(100vw - 24px)); border-radius: 18px; }

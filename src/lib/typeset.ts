@@ -70,7 +70,7 @@ const BLOCKISH = /^(block|list-item|table|flex|grid|flow-root)$/
  *  line. Margins round to lines, headings get line-multiple line heights, and pictures, tables and odd-sized
  *  text are padded below to the next line. Redone on every layout (font size changes the line); returns the
  *  line height used, or 0 when there is no grid (no regular paragraphs to take it from). */
-export function snapToGrid(doc: Document): number {
+export function snapToGrid(doc: Document, on = true): number {
   const win = doc.defaultView, body = doc.body
   if (!win || !body) return 0
   for (const el of Array.from(doc.querySelectorAll<HTMLElement>('[data-pubre-grid]'))) {
@@ -78,6 +78,7 @@ export function snapToGrid(doc: Document): number {
     for (const k of GRID_PROPS) { el.style.removeProperty(k); if (was[k]) el.style.setProperty(k, was[k]) }
     el.removeAttribute('data-pubre-grid')
   }
+  if (!on) return 0
   // the body text's line: the most common among the first long paragraphs (front matter is often smaller)
   const seen = new Map<number, number>()
   for (const p of Array.from(body.querySelectorAll('p')).filter(p => (p.textContent ?? '').length > 80).slice(0, 60)) {

@@ -127,6 +127,17 @@ export interface Settings {
   stagePointer: 'ink' | Pointer // stage (phrase/word): words ink in as you go; optionally a marker too
   stageLenses: boolean // stage: names, voices, rare words… in the lifted text
   haptics?: boolean // a faint tick at sentence and paragraph ends (Android)
+  // the page (all on unless switched off)
+  smartPunct?: boolean // curly quotes, real dashes and ellipses
+  hangQuotes?: boolean // an opening quote hangs in the margin
+  lineGrid?: boolean // every page ends on the same line
+  sceneBreaks?: boolean // an ornament where a scene changes
+  letters?: boolean // letters inside the story set inset
+  plates?: boolean // pictures framed with their caption; tap to look closer
+  inkSoak?: boolean // a new page's ink soaks in from the top
+  peek?: boolean // dragging toward a new chapter shows its name
+  lastPage?: boolean // a chapter's last page shows what comes next
+  framedCap?: boolean // a chapter's first letter sits in a frame
   holdToRead: boolean // press-and-hold on the page starts reading there (off: holding selects text)
   pinControls: boolean // keep the reader's buttons on screen (the book makes room for them)
   chapterColour: boolean // a colourful chapter lends the accent its colour (ambient palette drift)
@@ -159,6 +170,7 @@ export const defaults: Settings = {
   palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto', letterSpacing: 0, measure: 'normal',
   guide: true, guideStyle: 'stage', paraEnd: 'breathe', pauses: 1, lookBack: true, stageStep: 'word', stagePointer: 'outline', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, v: 4, brightness: 100, inkRead: 10, inkNow: 100, inkAhead: 20, weather: true, pointer: 'outline', focus: 'sentence', step: 'word', dimRead: true, wpm: 180,
   intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'whisper', asides: true, foreign: true, motion: 'full', onlineDefinitions: false, chapterPrompts: true,
+  smartPunct: true, hangQuotes: true, lineGrid: true, sceneBreaks: true, letters: true, plates: true, inkSoak: true, peek: true, lastPage: true, framedCap: true, haptics: false,
 }
 
 /** Global settings with a book's own overrides layered on top. */
@@ -204,7 +216,8 @@ p { text-wrap: pretty; hyphenate-limit-chars: 7 3 3; -webkit-hyphenate-limit-bef
 h1, h2, h3, h4, h5, h6 { break-after: avoid; text-wrap: balance; }
 ${s.letterSpacing ? `body, body *${notCode} { letter-spacing: ${s.letterSpacing}em !important; word-spacing: ${s.letterSpacing * 1.5}em !important; }` : ''}
 p { widows: 2; orphans: 2; }
-[data-pubre-hang="d"] { text-indent: -.42em !important; } [data-pubre-hang="s"] { text-indent: -.24em !important; } /* opening quotes hang in the margin */
+${s.hangQuotes !== false ? '[data-pubre-hang="d"] { text-indent: -.42em !important; } [data-pubre-hang="s"] { text-indent: -.24em !important; }' : ''} /* opening quotes hang in the margin */
+${s.framedCap === false ? '[data-pubre-first="classic"]::first-letter, [data-pubre-first="classic"] [data-pubre-cap] { border: 0 !important; padding: 0 !important; }' : ''}
 img, svg, video, canvas { max-width: 100% !important; max-height: ${pageHeight}px !important;
   height: auto; object-fit: contain; break-inside: avoid; }
 ${t.dark ? 'img { filter: brightness(.88); }' : ''}

@@ -127,6 +127,20 @@
   {/if}
 </div>
 
+<h3>The page</h3>
+<div class="group">
+  {@render toggle('Printer’s punctuation', 'smartPunct', 'Curly quotes, real dashes and ellipses')}
+  {@render toggle('Hanging quotes', 'hangQuotes', 'An opening quote sits just outside the edge, so the text lines up')}
+  {@render toggle('Even page bottoms', 'lineGrid', 'Every page ends on the same line')}
+  {@render toggle('Scene breaks', 'sceneBreaks', 'A small ornament where the scene changes')}
+  {@render toggle('Letters', 'letters', 'Letters inside the story set inset, signed on the right')}
+  {@render toggle('Pictures', 'plates', 'Framed with their caption; tap one to look closer')}
+  {@render toggle('Framed first letter', 'framedCap', 'A chapter’s opening letter sits in a frame')}
+  {@render toggle('Ink soak', 'inkSoak', 'A new page’s lines darken in from the top')}
+  {@render toggle('Peek at the next chapter', 'peek', 'Drag toward a new chapter and its name shows at the edge')}
+  {@render toggle('What comes next', 'lastPage', 'A chapter’s last page shows the next title and first line')}
+</div>
+
 <h3>Comfort</h3>
 <div class="group">
   {@render toggle('Keep controls on screen', 'pinControls', 'Or tap the pin at the top right')}

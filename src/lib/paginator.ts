@@ -124,6 +124,8 @@ export class Paginator {
   private veil: HTMLElement
   private peek: HTMLElement
   private inkT = 0
+  private lastCfi = ''
+  private fresh = false // the next show loads the chapter again (its text was set with other switches)
   private flingMs = 0 // a flick's own speed sets the next turn's duration
   private queued: 0 | 1 | -1 = 0 // one turn asked for while another was still moving
   private reduce = matchMedia('(prefers-reduced-motion: reduce)')
@@ -294,7 +296,10 @@ export class Paginator {
   setReserve(px: number, top = 0) { if (px === this.reserve && top === this.reserveTop) return; this.reserve = px; this.reserveTop = top; this.relayout() }
 
   setSettings(s: Settings) {
+    const was = this.settings
     this.settings = s
+    // switches that rewrite or mark the chapter's own text: open it again, at the same word
+    if ((['smartPunct', 'sceneBreaks', 'letters', 'plates'] as const).some(k => (was[k] !== false) !== (s[k] !== false)) && this.view && this.lastCfi) { this.fresh = true; this.measure(); this.openCfi(this.lastCfi); return }
     this.relayout()
   }
 
@@ -348,8 +353,8 @@ body > div, body > section, body > p, body > figure { text-align: center !import
   private paginate(v: View) {
     const { step, cols, colW, gap, H, t } = this.L
     // Line grid: the text box is a whole number of lines tall (the rest goes below), so pages end evenly.
-    markPlates(v.doc)
-    const lh = this.settings.lineHeight ? snapToGrid(v.doc) : 0
+    if (this.settings.plates !== false) markPlates(v.doc)
+    const lh = snapToGrid(v.doc, !!this.settings.lineHeight && this.settings.lineGrid !== false)
     const box = H - 2 * t - this.reserve - this.reserveTop, lines = lh ? Math.floor(box / lh) * lh : box
     this.style(v.doc, 'pubre-grid', lh ? `html { height: ${lines}px !important; padding-bottom: ${t + this.reserve + box - lines}px !important; }
 img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
@@ -419,8 +424,10 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
     if (!doc.documentElement.getAttribute('lang') && this.book.metadata.language) {
       doc.documentElement.setAttribute('lang', this.book.metadata.language) // enables hyphenation
     }
-    typesetDocument(doc) // printer's punctuation, before anything reads the text
-    markSceneBreaks(doc); markLetters(doc)
+    const s = this.settings
+    if (s.smartPunct !== false) typesetDocument(doc) // printer's punctuation, before anything reads the text
+    if (s.sceneBreaks !== false) markSceneBreaks(doc)
+    if (s.letters !== false) markLetters(doc)
     const v: View = { iframe, doc, index, pages: 1, ix: { words: [], sentences: [], blocks: [] }, marks: new Marks(doc) }
     this.inject(v)
     sectionBreaks(doc)
@@ -441,7 +448,8 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
     try {
       if (!this.L.step) this.measure()
       const old = this.view
-      const v = old && old.index === index ? old : await this.load(index)
+      const v = old && old.index === index && !this.fresh ? old : await this.load(index)
+      this.fresh = false
       this.page = Math.max(0, Math.min(v.pages - 1, pageFor(v)))
       this.setX(v, -this.page * this.L.step)
       this.view = v
@@ -490,7 +498,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
   }
   /** A page just arrived: its ink soaks in from the top (a veil slides away; nothing on the page moves). */
   private soak() {
-    if (this.reduce.matches || this.settings.motion === 'calm') return
+    if (this.reduce.matches || this.settings.motion === 'calm' || this.settings.inkSoak === false) return
     this.veil.animate([{ transform: 'translateY(0)', opacity: 1 }, { transform: `translateY(${this.L.H}px)`, opacity: 1 }], { duration: 440, easing: 'cubic-bezier(.3,.6,.2,1)' })
   }
   /** Scene-break ornaments on the page you're on draw themselves in, once. */
@@ -644,7 +652,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
       const ox = atEdge ? dx * 0.3 : dx
       this.setX(v, -this.page * this.L.step + ox)
       if (!atEdge && !this.reduce.matches) this.placeEdge(ox < 0 ? this.L.step + ox : ox, ox < 0 ? 1 : -1, Math.min(1, Math.abs(ox) / 60))
-      const across = atEdge ? '' : this.chapterAcross(ox < 0 ? 1 : -1)
+      const across = atEdge || this.settings.peek === false ? '' : this.chapterAcross(ox < 0 ? 1 : -1)
       if (across) { this.peek.textContent = across; this.peek.dataset.side = ox < 0 ? 'r' : 'l' }
       this.peek.classList.toggle('on', !!across && Math.abs(ox) > 40)
     })
@@ -740,6 +748,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
     // Pages of this section within this file (a section that began in an earlier file counts from here).
     const pageAt = (at: number) => Math.round((at - this.starts[v.index]) / w * v.pages)
     const s0 = here ? Math.max(0, Math.min(this.page, pageAt(here.at))) : 0, s1 = Math.max(s0 + 1, Math.min(v.pages, pageAt(chapterEnd)))
+    if (cfi) this.lastCfi = cfi
     this.onRelocate?.({ index: v.index, page: this.page, pages: v.pages, fraction, progress, chapter, cfi, top, chapterEnd, cpage: this.page - s0, cpages: Math.max(this.page - s0 + 1, s1 - s0) })
   }
 }

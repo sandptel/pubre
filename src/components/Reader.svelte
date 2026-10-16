@@ -306,7 +306,7 @@
     pag?.setReserve(eff.guide || pinned ? Math.max(0, 76 - t) : 0, pinned ? Math.max(0, 64 - t) : 0) // the pad never sits on text
   })
   // Only appearance changes re-lay out the book; feature settings (guide, lenses, pace) don't.
-  const LAYOUT = ['palette', 'mode', 'font', 'fontScale', 'lineHeight', 'margin', 'justify', 'bold', 'spread', 'letterSpacing', 'measure', 'inkRead'] as const
+  const LAYOUT = ['palette', 'mode', 'font', 'fontScale', 'lineHeight', 'margin', 'justify', 'bold', 'spread', 'letterSpacing', 'measure', 'inkRead', 'smartPunct', 'hangQuotes', 'lineGrid', 'sceneBreaks', 'letters', 'plates', 'framedCap', 'inkSoak', 'peek'] as const
   let layoutKey = ''
   $effect(() => {
     const s = $state.snapshot(eff)
@@ -825,7 +825,7 @@
   function teaseSoon() {
     tease = null; clearTimeout(teaseT)
     teaseT = window.setTimeout(async () => {
-      const e = staged || gstate.gliding ? null : await pag?.sectionEnd()
+      const e = staged || gstate.gliding || eff.lastPage === false ? null : await pag?.sectionEnd()
       if (!e) return
       const m = /^(chapter|book|part|letter|canto|volume|act)\s+([0-9ivxlcdm]+)[.:]?\s*(?:·\s*)?(.*)$/i.exec(e.label)
       const port = pag!.port

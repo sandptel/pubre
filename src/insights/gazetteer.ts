@@ -21,7 +21,7 @@ Bernard Bertie Bill Bob Charles Charlie Christopher Clarence Cuthbert Daniel Dav
 Felix Ferdinand Francis Frank Fred Frederick Gabriel George Gilbert Godfrey Harold Harry Henry Herbert Horace Hugh Humphrey Isaac Jack Jacob
 James Jasper Jeremiah Jim Joe John Jonathan Joseph Joshua Julian Kit Lawrence Leonard Lewis Lionel Luke Mark Martin Matthew Michael Nathaniel
 Ned Nicholas Noah Oliver Oscar Patrick Paul Percy Peter Philip Pip Ralph Raymond Reuben Richard Robert Roger Samuel Sebastian Simon Stephen
-Thomas Timothy Toby Tom Walter Wilfred William Willy Ishmael Ahab Elijah Jonah Peleg Bildad Starbuck Stubb Flask Queequeg Tashtego Daggoo
+Thomas Timothy Tobias Toby Tom Walter Wilfred William Willy Ishmael Ahab Elijah Jonah Peleg Bildad Starbuck Stubb Flask Queequeg Tashtego Daggoo
 Rodion Rodya Dmitri Mitka Porfiry Arkady Pyotr Semyon Andrey Ilya Nikolay Nikodim Mikolka Kolya Alexandr Ivan Fyodor Alexey Alyosha Sergey
 Mikhail Pavel Vasily Yakov Afanasy Prokofy Stepan Boris Grigory Konstantin Lev Leo Nikita Toto Boq Henry Huck Huckleberry Tom Jim Holmes
 Sherlock Watson Edmond Jean Marius Javert Pierre Andrei Heathcliff Hareton Linton Rochester Darcy Bingley Wickham Collins`)

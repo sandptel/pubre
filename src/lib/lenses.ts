@@ -17,7 +17,7 @@ export type TokenKind = 'name' | 'hard' | 'foreign' | 'speech' | 'aside'
 export interface Token { kind: TokenKind; blk: number; a: number; b: number; key: string; slot: number; range?: Range; guess?: boolean }
 interface Parsed { tokens: Token[]; byBlock: Map<number, Token[]>; share: Map<number, number> }
 
-const SAY = 'said|says|whispered|cried|repeated|muttered|asked|shouted|rejoined|replied|answered|exclaimed|called|roared|sighed|added|continued|returned|observed'
+const SAY = 'said|says|whispered|cried|repeated|muttered|asked|shouted|rejoined|replied|answered|exclaimed|called|roared|sighed|added|continued|returned|observed|admitted|agreed|insisted|protested|laughed|murmured'
 const HON = '(?:(?:Mr|Mrs|Miss|Ms|Captain|Capt|Dr|Lady|Sir|Lord)\\.?\\s+)?'
 const QUOTES = /“[^”]*”?|"[^"\n]{1,600}"?/g
 const ASIDES = /\([^)]{2,160}\)/g // parentheses only: dash pairs are often emphasis, not asides
@@ -40,6 +40,7 @@ export function attribute(blocks: string[], names: string[], gender: (name: stri
   const voc = alt ? new RegExp(`^[“"]\\s*(?:(?:[Mm]y\\s+)?[Dd]ear(?:est)?\\s+|[Oo]h,?\\s+)?${HON}(${alt})\\s*[,!]`) : null
   const mention = alt ? new RegExp(`(?<![A-Za-z])${HON}(${alt})(?![A-Za-z])`, 'g') : null
   const mentioned: string[] = [] // names in the text, most recent first (narration counts, not only speakers)
+  const about: string[] = [] // names in the narration only (who is in the room, not who is talked about)
   const noted = (n: string) => { const i = mentioned.indexOf(n); if (i >= 0) mentioned.splice(i, 1); mentioned.unshift(n); mentioned.length = Math.min(mentioned.length, 12) }
   const surname = (n: string) => n.replace(/^(?:Mr|Mrs|Miss|Ms|Sir|Lady|Lord)\.?\s+/, '')
   const FEM = /wife|lady|mother|daughter|sister|aunt/i
@@ -53,6 +54,8 @@ export function attribute(blocks: string[], names: string[], gender: (name: stri
     return pool.find(n => gender(n) === (fem ? 'f' : 'm')) ?? null
   }
   const recent: string[] = [] // speakers, most recent first
+  const learned = new Map<string, 'm' | 'f'>() // genders the text gives away: "said Tobias … he laughed"
+  const sex = (n: string) => gender(n) || learned.get(n) || ''
   let lastTo: string | null = null // who the previous turn was spoken to ("My dear Mr. Bennet, …"): the likeliest to answer
   const full = (n: string) => names.find(x => x !== n && surname(x) === n && /^Mr\.?\s/.test(x)) ?? n
   const heard = (n: string | null) => { if (!n) return; const i = recent.indexOf(n); if (i >= 0) recent.splice(i, 1); recent.unshift(n); recent.length = Math.min(recent.length, 6) }
@@ -62,13 +65,14 @@ export function attribute(blocks: string[], names: string[], gender: (name: stri
   let carry: string | null = null
   return blocks.map(text => {
     const found = [...text.matchAll(QUOTES)].filter(m => !isTitle(m[0]))
-    if (!found.length) { carry = null; if (mention) for (const m of text.matchAll(mention)) noted(names.includes(m[0].trim()) ? m[0].trim() : m[1]); if (text.trim().length > 240) { turns = []; lastTo = null }; return [] } // a long stretch of narration ends the exchange
+    if (!found.length) { carry = null; if (mention) for (const m of text.matchAll(mention)) { const n = names.includes(m[0].trim()) ? m[0].trim() : m[1]; noted(n); const i = about.indexOf(n); if (i >= 0) about.splice(i, 1); about.unshift(n) } if (text.trim().length > 240) { turns = []; lastTo = null }; return [] } // a long stretch of narration ends the exchange
     const qs: Quote[] = found.map(m => {
       const a = m.index!, b = a + m[0].length
       const t = (after && text.slice(b, b + 60).match(after)) || (before && text.slice(Math.max(0, a - 60), a).match(before))
       return { a, b, speaker: t ? t[1] ?? t[2] : null }
     })
-    if (qs.length === 1 && !qs[0].speaker && !carry && turns.length < 2 && qs[0].b - qs[0].a > 0.8 * text.trim().length) { carry = null; return [] } // an epigraph, not a turn in an exchange
+    const tagged1 = qs.length === 1 && (pron.test(text.slice(qs[0].b, qs[0].b + 40)) || rel.test(text.slice(qs[0].b, qs[0].b + 50)))
+    if (qs.length === 1 && !qs[0].speaker && !carry && !tagged1 && !turns.some(Boolean) && qs[0].b - qs[0].a > 0.8 * text.trim().length) { carry = null; return [] } // an epigraph, not a turn in an exchange
     const tagged = new Set(qs.map(q => q.speaker).filter(Boolean))
     const own = tagged.size === 1 ? [...tagged][0]! : null
     if (carry && /^\s*[“"]/.test(text) && !qs[0].speaker && (!own || own === carry)) qs[0].speaker = carry
@@ -76,12 +80,15 @@ export function attribute(blocks: string[], names: string[], gender: (name: stri
     // Guesses, marked as such: "he said" → the last man who spoke; an untagged turn in a two-person exchange →
     // the one who isn't the last speaker (the Muzny sieve's turn-taking rule).
     if (mention) for (const m of text.matchAll(mention)) noted(names.includes(m[0].trim()) ? m[0].trim() : m[1])
+    const outside = qs.reduceRight((t, q) => t.slice(0, q.a) + ' '.repeat(q.b - q.a) + t.slice(q.b), text)
+    if (mention) for (const m of outside.matchAll(mention)) { const n = names.includes(m[0].trim()) ? m[0].trim() : m[1]; const i = about.indexOf(n); if (i >= 0) about.splice(i, 1); about.unshift(n) }
+    const named = new Set(mention ? [...text.slice(qs[0].a, qs[qs.length - 1].b).matchAll(mention)].map(m => m[1]) : []) // nobody names themselves
     for (const q of qs) {
       if (q.speaker) continue
       const r = text.slice(q.b, q.b + 50).match(rel)
       if (r) { const who = kin(r[1] ?? r[2]); if (who) { q.speaker = who; q.guess = true; continue } }
       const g = text.slice(q.b, q.b + 40).match(pron)
-      if (g) { const want = (g[1] ?? g[2]).toLowerCase() === 'she' ? 'f' : 'm'; const hit = [...(lastTo ? [lastTo] : []), ...recent, ...mentioned].find(n => gender(n) === want); if (hit) { q.speaker = hit; q.guess = true } }
+      if (g) { const want = (g[1] ?? g[2]).toLowerCase() === 'she' ? 'f' : 'm'; const hit = [...(lastTo ? [lastTo] : []), ...recent, ...mentioned].find(n => sex(n) === want); if (hit) { q.speaker = hit; q.guess = true } }
     }
     // a turn that names who it's spoken to ("My dear Mr. Bennet, …"): in a two-person exchange, it's the other one
     const to = voc && qs[0] && !qs[0].speaker ? text.slice(qs[0].a, qs[0].a + 60).match(voc) : null
@@ -92,7 +99,16 @@ export function attribute(blocks: string[], names: string[], gender: (name: stri
       const b = turns[turns.length - 1], a = b ? [...turns].reverse().find(t => t && t !== b) : null
       if (a && b) { qs[0].speaker = a; qs[0].guess = true; for (const q of qs.slice(1)) if (!q.speaker) { q.speaker = a; q.guess = true } }
     }
+    // only one side of the exchange known yet: the reply goes to whoever is about (spoken to, or last named)
+    const lastTurn = turns[turns.length - 1]
+    if (opens && !qs[0].speaker && lastTurn) {
+      const other = [...(lastTo ? [lastTo] : []), ...about].find(n => n !== lastTurn && surname(n) !== surname(lastTurn) && !lastTurn.includes(n) && !n.includes(lastTurn) && !named.has(n) && !named.has(surname(n)))
+      if (other) { qs[0].speaker = other; qs[0].guess = true }
+    }
     for (const q of qs) heard(q.speaker)
+    // a named speaker and a he or she outside the quotes in the same paragraph: that's their gender
+    const own1 = qs.find(q => q.speaker && !q.guess)?.speaker
+    if (own1 && !gender(own1)) { const out = qs.reduceRight((t, q) => t.slice(0, q.a) + ' ' + t.slice(q.b), text); const he = /\b(he|his|him)\b/i.test(out), she = /\b(she|her)\b/i.test(out); if (he !== she) learned.set(own1, he ? 'm' : 'f') }
     const said = voc ? qs.map(q => text.slice(q.a, q.a + 60).match(voc)?.[0] ? text.slice(q.a, q.a + 60).match(voc)![1] : null).find(Boolean) : null
     if (said) lastTo = full(said) // kept for the exchange: who she talks to is who answers
     if (opens) turns.push(qs[0].speaker); else turns = qs.some(q => q.speaker) ? [qs.find(q => q.speaker)!.speaker] : []

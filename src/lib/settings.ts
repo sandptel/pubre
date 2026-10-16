@@ -202,6 +202,7 @@ img, svg, video, canvas { max-width: 100% !important; max-height: ${pageHeight}p
   height: auto; object-fit: contain; break-inside: avoid; }
 ${t.dark ? 'img { filter: brightness(.88); }' : ''}
 table, figure, pre { break-inside: avoid; }
+div, figure, section, p, blockquote { max-width: 100% !important; box-sizing: border-box; } /* a figure with an inline width wider than the column bled into the next page */
 ::selection { background: color-mix(in srgb, ${accent} 30%, transparent); }
 `
 }

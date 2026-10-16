@@ -61,3 +61,50 @@ export function markHangingQuotes(doc: Document) {
     p.setAttribute('data-pubre-hang', m[1] === '‘' ? 's' : 'd')
   }
 }
+
+const GRID_PROPS = ['margin-top', 'margin-bottom', 'line-height'] as const
+const OPAQUE = new Set(['img', 'svg', 'figure', 'table', 'hr', 'pre', 'video', 'canvas', 'math'])
+const BLOCKISH = /^(block|list-item|table|flex|grid|flow-root)$/
+
+/** Line grid (T4): every block's height becomes a whole number of lines, so every page ends on the same
+ *  line. Margins round to lines, headings get line-multiple line heights, and pictures, tables and odd-sized
+ *  text are padded below to the next line. Redone on every layout (font size changes the line); returns the
+ *  line height used, or 0 when there is no grid (no regular paragraphs to take it from). */
+export function snapToGrid(doc: Document): number {
+  const win = doc.defaultView, body = doc.body
+  if (!win || !body) return 0
+  for (const el of Array.from(doc.querySelectorAll<HTMLElement>('[data-pubre-grid]'))) {
+    const was = JSON.parse(el.dataset.pubreGrid || '{}') as Record<string, string>
+    for (const k of GRID_PROPS) { el.style.removeProperty(k); if (was[k]) el.style.setProperty(k, was[k]) }
+    el.removeAttribute('data-pubre-grid')
+  }
+  const sample = Array.from(body.querySelectorAll('p')).find(p => (p.textContent ?? '').length > 80)
+  const lh = sample ? parseFloat(win.getComputedStyle(sample).lineHeight) : NaN
+  if (!(lh > 8)) return 0
+  const set = (el: HTMLElement, k: (typeof GRID_PROPS)[number], px: number) => {
+    if (!el.hasAttribute('data-pubre-grid')) el.dataset.pubreGrid = JSON.stringify(Object.fromEntries(GRID_PROPS.map(p => [p, el.style.getPropertyValue(p)])))
+    el.style.setProperty(k, px + 'px', 'important')
+  }
+  const round = (m: number) => Math.round(m / lh) * lh
+  let skip: Element | null = null // inside an opaque block already padded as a whole
+  for (const el of Array.from(body.querySelectorAll<HTMLElement>('*'))) {
+    if (skip?.contains(el)) continue
+    const cs = win.getComputedStyle(el), tag = el.localName
+    if (!BLOCKISH.test(cs.display) || cs.position === 'absolute' || cs.position === 'fixed' || cs.float !== 'none') continue
+    const mt = parseFloat(cs.marginTop) || 0, mb = parseFloat(cs.marginBottom) || 0
+    if (/^h[1-6]$/.test(tag)) {
+      const fs = parseFloat(cs.fontSize), line = Math.max(1, Math.ceil(fs * 1.15 / lh)) * lh
+      set(el, 'line-height', line); set(el, 'margin-top', round(mt)); set(el, 'margin-bottom', round(mb))
+      continue
+    }
+    const textLine = parseFloat(cs.lineHeight)
+    const odd = OPAQUE.has(tag) || (tag === 'p' && Math.abs(textLine - lh) > 0.5) || (!el.querySelector('p, div, h1, h2, h3, h4, h5, h6') && !!el.querySelector('img, svg') && (el.textContent ?? '').trim().length < 200)
+    if (round(mt) !== mt) set(el, 'margin-top', round(mt))
+    if (odd) {
+      const h = el.getBoundingClientRect().height, pad = (lh - (h % lh)) % lh
+      set(el, 'margin-bottom', round(mb) + (pad > 0.5 ? pad : 0))
+      skip = el
+    } else if (round(mb) !== mb) set(el, 'margin-bottom', round(mb))
+  }
+  return lh
+}

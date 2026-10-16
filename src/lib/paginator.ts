@@ -6,7 +6,7 @@ import { type Book, type TocItem } from './epub.ts'
 import { bookCss, resolveTheme, type Settings } from './settings.ts'
 import { indexDocument, type TextIndex } from './textindex.ts'
 import { Marks, marksCss } from './marks.ts'
-import { typesetDocument, markHangingQuotes } from './typeset.ts'
+import { typesetDocument, markHangingQuotes, snapToGrid } from './typeset.ts'
 import { cfiToRange } from '../epub/cfi.ts'
 
 export interface View { iframe: HTMLIFrameElement; doc: Document; index: number; pages: number; ix: TextIndex; marks: Marks }
@@ -297,7 +297,13 @@ body > div, body > section, body > p, body > figure { text-align: center !import
   }
 
   private paginate(v: View) {
-    const { step, cols, colW, gap } = this.L
+    const { step, cols, colW, gap, H, t } = this.L
+    // Line grid: the text box is a whole number of lines tall (the rest goes below), so pages end evenly.
+    const lh = this.settings.lineHeight ? snapToGrid(v.doc) : 0
+    const box = H - 2 * t - this.reserve - this.reserveTop, lines = lh ? Math.floor(box / lh) * lh : box
+    this.style(v.doc, 'pubre-grid', lh ? `html { height: ${lines}px !important; padding-bottom: ${t + this.reserve + box - lines}px !important; }
+img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
+    if (lh && v.doc.images.length) snapToGrid(v.doc) // again, now that pictures have their final size
     v.iframe.style.width = step + 'px'
     v.iframe.style.height = this.L.H + 'px'
     const ncols = Math.max(1, Math.ceil((v.doc.documentElement.scrollWidth - gap / 2) / (colW + gap)))

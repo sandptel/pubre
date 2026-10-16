@@ -1243,6 +1243,7 @@
   .running { display: flex; justify-content: center; align-items: baseline; gap: 4px; }
   .running :global(.ticker) { min-width: 0; }
   .pgn { display: inline-flex; gap: 3px; align-items: baseline; }
+  .pgn :global(.ticker), .w-pg :global(.ticker) { flex: none; } /* a page number never shrinks (it collapsed to 0 when the count first appeared) */
   .sep { margin: 0 4px; }
   .chrome .running { opacity: 0; }
   .guiding .running.head { opacity: 0; }

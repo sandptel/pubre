@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
+  <rect width="600" height="900" fill="#20314a"/>
+  <g fill="none" stroke="#9fb3c8" stroke-width="2" opacity=".5"><path d="M0 700 Q 150 670 300 700 T 600 700"/><path d="M0 740 Q 150 710 300 740 T 600 740"/><path d="M0 780 Q 150 750 300 780 T 600 780"/></g>
+  <path d="M270 640 L285 330 L315 330 L330 640 Z" fill="#e9e4d8"/><rect x="278" y="300" width="44" height="34" fill="#f2c45a"/><path d="M270 300 L300 270 L330 300 Z" fill="#c4572a"/>
+  <path d="M322 312 L600 250 L600 370 Z" fill="#f2c45a" opacity=".25"/>
+  <text x="300" y="150" text-anchor="middle" font-family="Georgia, serif" font-size="58" fill="#f3f1ec">The Keeper’s</text>
+  <text x="300" y="215" text-anchor="middle" font-family="Georgia, serif" font-size="58" fill="#f3f1ec">Year</text>
+  <text x="300" y="850" text-anchor="middle" font-family="monospace" font-size="20" letter-spacing="6" fill="#9fb3c8">A STORY IN SIX WEATHERS</text>
+</svg>

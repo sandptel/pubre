@@ -63,12 +63,12 @@
 
   // The welcome book: every new library starts with it, once. Removed, it stays removed (Settings → The guide brings it back).
   const guideSeeded = () => { try { return !!localStorage.getItem('pubre:guide') } catch { return true } }
-  async function addGuide(): Promise<BookRecord | undefined> {
-    try { localStorage.setItem('pubre:guide', '1') } catch { /* private mode: it may be offered again */ }
+  async function addGuide(file = 'guide.epub', flag = 'pubre:guide'): Promise<BookRecord | undefined> {
+    try { localStorage.setItem(flag, '1') } catch { /* private mode: it may be offered again */ }
     try {
-      const res = await fetch(`${import.meta.env.BASE_URL}guide.epub`)
+      const res = await fetch(`${import.meta.env.BASE_URL}${file}`)
       if (!res.ok) return
-      const r = await importFile(new File([await res.blob()], 'guide.epub', { type: 'application/epub+zip' }))
+      const r = await importFile(new File([await res.blob()], file, { type: 'application/epub+zip' }))
       books = [r, ...books.filter(b => b.id !== r.id)]
       return r
     } catch { return undefined }
@@ -77,6 +77,10 @@
   onMount(async () => {
     books = await listBooks()
     if (!books.length && !guideSeeded()) await addGuide()
+    // The Keeper's Year: a short story written to show what pubre does (weather, voices, letters, pictures…),
+    // added once to every library, new or not.
+    let shown = true; try { shown = !!localStorage.getItem('pubre:showcase') } catch { /* keep it out */ }
+    if (!shown) await addGuide('showcase.epub', 'pubre:showcase')
     loaded = true
     setTimeout(() => (morphId = ''), 700) // let the cover morph land, then free the name
   })

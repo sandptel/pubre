@@ -1,5 +1,7 @@
 # Backlog (prioritized; the user picks what's next)
 
+0. **Page Lab** (2026-10-16): the user picked ideas in round 1. Round 2 (variants) is waiting for their choices. See `research/page-lab.md` for IDs, the build loop and the bugs found.
+
 1. **Footnote popovers**: `epub:type=noteref`, plus a heuristic for superscript `#id` links. Animate from the reference.
 2. **Content → UI features**: see the proposal artifact and `research/content-to-ui.md`. The user picks which.
 3. **CFI locations**: robust positions, plus highlights and notes (base16 highlight palette), plus a quote-share link.

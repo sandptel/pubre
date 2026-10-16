@@ -16,6 +16,7 @@ pubre is a feature-rich EPUB reader that runs entirely in the browser and is hos
 | Workflow: commits, docs, verification, release | `docs/instructions/workflow.md` |
 | What is done, next, and deliberately left out | `docs/todo/` |
 | Research notes for upcoming features | `docs/research/` |
+| **Current direction: the Page Lab idea board, picks, research and build loop** | `docs/research/page-lab.md` |
 
 ## Hard rules
 

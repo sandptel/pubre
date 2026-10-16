@@ -63,3 +63,15 @@ Verified in Chrome (desktop 1440×900) and WebKit (390×844 touch): import of 3 
 - fix(stage): first-word pointer measured after .card removal (card margin-top overrode heading margin).
 - feat(stage): look back (lookBack setting): peek read text when paused + margin rail (tap = back a sentence, hold = fill & keep stepping); toggle beside Aa.
 - ebe8ab9 fix(stage): ↑/↓ = sentence (Shift = paragraph); ↑ press/hold drives rail fill (backStart/backEnd shared with handle); rail no own transitions; handle waits for flow glide.
+
+## Page Lab, rounds 1–2 (2026-10-16): built from the user's picks (see research/page-lab.md)
+- fixes: footer page number squeezed to 0 / clipped by centred overflow; book's own drop caps (U7); figures wider than the column bled into the next page; rare-word spark no longer wavy (U5); swell opener underline; place pin → margin flag (U10); TOC labels tidied ("Chapter II · caption").
+- typeset: printer's punctuation, same length (T1); hanging opening quotes (T3); text-wrap pretty + heading break-after (T2); justify only when ≥55 chars per line (T5); line grid, every page ends on the same line (T4).
+- motion: weighted slide (fling speed, edge shade, rubber band) (M1); ink soak on arrival (M2); chapter peek chip on drag (M5); scroll mode with line/paragraph settle (M4).
+- presenters: scene-break ornament that inks in (P1); letters inset (P3); plates + grow-to-zoom (P5); wide tables/code slide in place (P6); last page teaser + three-words on request (L2).
+- pointer: preview ramp (PV2); Pacer glide pointer option (PV4); haptic ticks (PV8); caret no longer blinks. PV3 tail built then removed at the user's request ("animation looks broken").
+- cards: word/name cards under the line with a notch, definitions quote your sentence (U3, R7); framed first letter (R11); "Previously…" as a page (R5); quote cards (R2); offline service worker (R4); margin notes on wide screens (R8); the map so far (R9).
+- speakers: turn-taking, "he said", "his wife", vocatives, learned genders, presence from narration (U8); name whispers in the margin + quote marks in the speaker's colour (voices: 'whisper', default).
+- weather: passage scene classifier with hysteresis (src/insights/scene.ts) + ASCII margin renderer (src/lib/asciiweather.ts); Weather style Margins/Tint (E1).
+- settings: every new page feature has a switch under Reading aids → The page; text switches reopen the chapter at the same word.
+- library: The Keeper's Year (showcase/ → public/showcase.epub) seeded once into every library to exercise all of the above.

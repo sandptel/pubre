@@ -71,3 +71,27 @@ The Stage lifts a paragraph wearing `.card` (padding + negative margins); on a h
 
 ## Taps in the Stage margin fell through
 `.win` used `overflow: clip` with a clip margin: things drawn in the margin were visible but not hit-testable in Chrome, so taps reached the veil (and toggled play). Controls for the margin live in the stage top layer, positioned from the flow rect.
+
+## A Ticker inside an inline-flex collapses to 0
+`.ticker` (inline-grid, overflow hidden, min-width 0) as a flex item shrank to 0.33px when the page count first mounted. Give tickers that must stay whole `flex: none`.
+
+## Centred flex rows clip on the left when they overflow
+`justify-content: center` overflows both edges; with `overflow: hidden` the start (the page number) was cut off. Use `safe center` and let the long part ellipsize.
+
+## `lh` resolves against the element's own line-height
+Setting `line-height: 0` on a drop-cap span made its image's `height: 3lh` zero. Keep `line-height: inherit` where `lh` sizing is used.
+
+## Nodes from the book iframe fail `instanceof Element`
+They belong to another realm. Check `nodeType === 1` instead.
+
+## Keys go to the focused iframe, not the parent window
+A parent overlay (picture zoom) must `focus()` itself on open, or Escape never reaches it.
+
+## Line grid: take the body text's line, not the first paragraph's
+Front matter is often smaller; snapping to its 19px line put every page off. Use the most common line height among the first long paragraphs.
+
+## Text-rewriting switches need a fresh load
+Punctuation, breaks, letters and plates change the DOM; toggling them reloads the chapter (`fresh` flag in `show()`), reopened at the last CFI.
+
+## The epigraph rule ate dialogue
+"A paragraph that is one untagged quote isn't speech" dropped one-line replies. It now applies only when no known speaker is in the current exchange and no "he said" follows.

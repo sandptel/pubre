@@ -6,7 +6,7 @@ import { type Book, type TocItem, tocLabel } from './epub.ts'
 import { bookCss, resolveTheme, type Settings } from './settings.ts'
 import { indexDocument, type TextIndex } from './textindex.ts'
 import { Marks, marksCss } from './marks.ts'
-import { typesetDocument, markHangingQuotes, snapToGrid } from './typeset.ts'
+import { typesetDocument, markHangingQuotes, snapToGrid, markSceneBreaks, markLetters } from './typeset.ts'
 import { cfiToRange } from '../epub/cfi.ts'
 
 export interface View { iframe: HTMLIFrameElement; doc: Document; index: number; pages: number; ix: TextIndex; marks: Marks }
@@ -123,6 +123,7 @@ export class Paginator {
   private edge: HTMLElement
   private veil: HTMLElement
   private peek: HTMLElement
+  private inkT = 0
   private flingMs = 0 // a flick's own speed sets the next turn's duration
   private queued: 0 | 1 | -1 = 0 // one turn asked for while another was still moving
   private reduce = matchMedia('(prefers-reduced-motion: reduce)')
@@ -377,6 +378,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
       doc.documentElement.setAttribute('lang', this.book.metadata.language) // enables hyphenation
     }
     typesetDocument(doc) // printer's punctuation, before anything reads the text
+    markSceneBreaks(doc); markLetters(doc)
     const v: View = { iframe, doc, index, pages: 1, ix: { words: [], sentences: [], blocks: [] }, marks: new Marks(doc) }
     this.inject(v)
     sectionBreaks(doc)
@@ -448,6 +450,15 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
   private soak() {
     if (this.reduce.matches || this.settings.motion === 'calm') return
     this.veil.animate([{ transform: 'translateY(0)', opacity: 1 }, { transform: `translateY(${this.L.H}px)`, opacity: 1 }], { duration: 440, easing: 'cubic-bezier(.3,.6,.2,1)' })
+  }
+  /** Scene-break ornaments on the page you're on draw themselves in, once. */
+  private inkBreaks() {
+    const v = this.view
+    if (!v) return
+    for (const el of Array.from(v.doc.querySelectorAll('[data-pubre-break]:not(.pubre-ink)'))) {
+      const r = el.getBoundingClientRect()
+      if (r.width && this.pageOfRect(r) === this.page) el.classList.add('pubre-ink')
+    }
   }
   /** The chapter the next (dir 1) or previous page opens, if it opens one. */
   private chapterAcross(dir: number): string {
@@ -666,6 +677,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
   private emit() {
     const v = this.view
     if (!v) return
+    clearTimeout(this.inkT); this.inkT = window.setTimeout(() => this.inkBreaks(), 380)
     const fraction = v.pages > 1 ? this.page / (v.pages - 1) : 0
     const w = this.starts[v.index + 1] - this.starts[v.index]
     const progress = this.starts[v.index] + w * ((this.page + 1) / v.pages)

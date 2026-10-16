@@ -108,3 +108,47 @@ export function snapToGrid(doc: Document): number {
   }
   return lh
 }
+
+const BREAK_CLASS = /\b(tb|scene-?break|section-?break|space-?break|thought-?break|ornament|dinkus|asterism|transition)\b/i
+const BREAK_TEXT = /^[\s*·•⁂∗~#◆◇♦❦❧✻✽—–-]{1,12}$/
+export const breakText = (t: string) => BREAK_TEXT.test(t.trim()) && /[*·•⁂∗~#◆◇♦❦❧✻✽]/.test(t)
+
+/** Scene breaks (P1): an <hr>, a "thought break" class, or a line of only stars/marks between paragraphs.
+ *  Marked so CSS draws one ornament in their place. */
+export function markSceneBreaks(doc: Document) {
+  const body = doc.body
+  if (!body) return
+  for (const el of Array.from(body.querySelectorAll('hr, p, div'))) {
+    if (el.closest('h1, h2, h3, h4, h5, h6, nav, table, header')) continue
+    const t = (el.textContent ?? '').trim()
+    const isBreak = el.localName === 'hr'
+      ? !!el.previousElementSibling && !!el.nextElementSibling && !el.querySelector('*') // not a page's first/last rule
+      : !el.querySelector('img, svg, p, div') && (BREAK_CLASS.test(el.getAttribute('class') ?? '') ? t.length < 13 : breakText(t))
+    if (isBreak) el.setAttribute('data-pubre-break', '')
+  }
+}
+
+const SALUTE = /^[“"‘]?\s*(?:my\s+)?(?:dear(?:est)?|honou?red|respected|sir|madam|gentlemen)\b[^.!?]{0,60}[,:—]/i
+export const salutation = (line: string) => SALUTE.test(line.trim()) && !/^[“"‘]?\s*dear\s+me\b/i.test(line.trim())
+const SIGNOFF = /(?:^|\n)\s*[“"]?\s*(?:yours\b|your\s+(?:affectionate|obedient|humble|loving|devoted|sincere)|i\s+(?:am|remain)\b|believe\s+me|ever\s+yours|affectionately|sincerely|faithfully)/i
+
+/** Letters inside the story (P3): a quoted block that opens with a salutation (after an optional dateline)
+ *  and is marked up as a block, or tagged letter/epistle. */
+export function markLetters(doc: Document) {
+  const body = doc.body
+  if (!body) return
+  for (const el of Array.from(body.querySelectorAll('blockquote, div, section, aside'))) {
+    if (el.closest('[data-pubre-letter]') || el.querySelector('h1, h2, h3, blockquote')) continue
+    const type = `${el.getAttribute('epub:type') ?? ''} ${el.getAttribute('class') ?? ''}`
+    const ps = Array.from(el.querySelectorAll(':scope > p, :scope > div'))
+    if (ps.length < 1) continue
+    const head = ps.slice(0, 2).map(p => (p.textContent ?? '').trim()).join('\n')
+    const tagged = /\b(letter|epistle|correspondence|note)\b/i.test(type)
+    const quoted = el.localName === 'blockquote' || /\bblockquot|quote|extract\b/i.test(type)
+    const text = el.textContent ?? ''
+    if (!(tagged || (quoted && head.split('\n').some(salutation))) || text.length > 6000) continue
+    el.setAttribute('data-pubre-letter', '')
+    const last = ps[ps.length - 1], tail = (last.textContent ?? '').trim()
+    if (ps.length > 1 && (tail.length < 90 || SIGNOFF.test(tail))) last.setAttribute('data-pubre-sign', '')
+  }
+}

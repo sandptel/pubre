@@ -19,3 +19,12 @@ test('dashes and ellipses, length kept exactly', () => {
   assert.equal(smartText(`a----rule`), `a----rule`)
   assert.equal(smartText(`plain text, nothing to do`), `plain text, nothing to do`)
 })
+
+import { breakText, salutation } from '../src/lib/typeset.ts'
+
+test('scene-break lines and letter salutations', () => {
+  for (const t of ['* * *', '***', '⁂', '#', '•  •  •']) assert.ok(breakText(t), t)
+  for (const t of ['One.', '— and so on', '', '--']) assert.ok(!breakText(t), t)
+  for (const t of ['“Dear Sir,', 'My dearest Lizzy,', 'Madam:']) assert.ok(salutation(t), t)
+  for (const t of ['Dear me, how late it is.', 'The dear old man smiled.']) assert.ok(!salutation(t), t)
+})

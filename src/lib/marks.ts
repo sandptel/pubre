@@ -68,6 +68,18 @@ export function marksCss(t: Theme, inkRead = 10): string {
   const voice = (k: string) => whoHue(t, +k)
   return openersCss(t) + `
 @property --bloom { syntax: '<length>'; inherits: true; initial-value: 0px }
+/* scene breaks: one ornament (rule · diamond · rule) that draws outward the first time you reach it */
+[data-pubre-break] { display: block !important; position: relative; height: 2lh !important; margin: 0 !important; padding: 0 !important; border: 0 !important; background: none !important; color: transparent !important; overflow: hidden; break-before: avoid; break-after: avoid; text-indent: 0 !important; }
+[data-pubre-break]::after { content: ''; position: absolute; left: 50%; top: 50%; width: 6.4em; height: .8em; transform: translate(-50%, -50%); background: ${accent}; opacity: .75;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 92 12'%3E%3Cpath d='M2 6H37M55 6H90' stroke='black' stroke-width='1.1'/%3E%3Cpath d='M46 1.5L50.5 6L46 10.5L41.5 6Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 92 12'%3E%3Cpath d='M2 6H37M55 6H90' stroke='black' stroke-width='1.1'/%3E%3Cpath d='M46 1.5L50.5 6L46 10.5L41.5 6Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  clip-path: inset(0 50%); transition: clip-path 1s cubic-bezier(.3,.6,.2,1); }
+[data-pubre-break].pubre-ink::after { clip-path: inset(0 0); }
+@media (prefers-reduced-motion: reduce) { [data-pubre-break]::after { clip-path: none; transition: none; } }
+/* letters inside the story: inset, italic, a hairline down the side; the signature sits right */
+[data-pubre-letter] { margin-left: 1.2em !important; margin-right: 0 !important; padding-left: .9em !important; border-left: 1.5px solid ${alpha(muted, 0.45)} !important; font-style: italic; }
+[data-pubre-letter] i, [data-pubre-letter] em { font-style: normal; }
+[data-pubre-sign] { text-align: right !important; }
 @property --place { syntax: '<number>'; inherits: true; initial-value: 1 }
 ::highlight(r-read) { background-color: color-mix(in srgb, ${accent} calc(var(--place) * ${t.dark ? 13 : 9}%), transparent) }
 ::highlight(r-here) { background-color: color-mix(in srgb, ${accent} calc(var(--place) * ${t.dark ? 34 : 28}%), transparent); text-decoration: underline 2px ${accent}; text-underline-offset: 5px }

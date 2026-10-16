@@ -164,7 +164,7 @@
   let sstate = $state<StageState>({ open: false, moving: false, progress: 0 })
   let paperEl = $state<HTMLDivElement>()
   let lenses: Lenses | undefined
-  let card = $state<{ x: number; y: number; below: boolean; html: string } | null>(null)
+  let card = $state<{ x: number; y: number; below: boolean; html: string; nx?: number } | null>(null)
   let cardKey = '', dwellT = 0, hoverT = 0
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
   let gstate = $state<GuideState>({ active: false, gliding: false, wpm: 180 })
@@ -692,7 +692,15 @@
     if (t.kind === 'speech') return `<div class="c-def">Quoted words with no speaker named nearby.</div>`
     if (t.kind === 'foreign') return `<b>${escape(lenses!.rangeOf(v, t).toString().slice(0, 60))}</b><div class="c-def">A phrase in another language (${escape(t.key)}).</div>`
     const d = await define(t.key)
-    return `<b>${escape(t.key)}</b>${d ? ` <span class="c-meta">${escape(d.pos)}</span><div class="c-def">${escape(d.text)}</div>` : '<div class="c-def">A rare word. No offline definition for this form.</div>'}`
+    // your own sentence, the word in bold: the sense that fits is the one you're reading
+    const rg = lenses!.rangeOf(v, t), k = nearestWord(v.ix.words, rg.startContainer, rg.startOffset), sn = k >= 0 ? v.ix.sentences[v.ix.words[k].s] : null
+    let quote = ''
+    if (sn) {
+      const r = v.doc.createRange(); r.setStart(v.ix.words[sn.a].sn, v.ix.words[sn.a].so); r.setEnd(v.ix.words[sn.b].en, v.ix.words[sn.b].eo)
+      const text = r.toString().replace(/\s+/g, ' ').trim(), word = rg.toString(), at = text.indexOf(word)
+      if (at >= 0) { const a = Math.max(0, at - 60), b = Math.min(text.length, at + word.length + 60); quote = `${a ? '…' : ''}${escape(text.slice(a, at))}<b>${escape(word)}</b>${escape(text.slice(at + word.length, b))}${b < text.length ? '…' : ''}` }
+    }
+    return `<div class="c-word"><b>${escape(t.key)}</b>${d ? ` <em class="c-pos">${escape(d.pos)}</em>` : ''}</div>${d ? `<div class="c-def">${escape(d.text)}</div>` : '<div class="c-def">A rare word. No offline definition for this form.</div>'}${quote ? `<div class="c-q">${quote}</div>` : ''}`
   }
   async function showCard(v: BookView, t: Token) {
     const key = `${v.index}:${t.blk}:${t.a}:${t.kind}`
@@ -702,9 +710,10 @@
     if (cardKey !== key) return
     const r = lenses!.rangeOf(v, t).getClientRects()[0], f = v.iframe.getBoundingClientRect()
     if (!r) return
-    const x = Math.max(12, Math.min(innerWidth - 292, f.left + r.left + r.width / 2 - 140))
-    const below = f.top + r.top < 110 // never cover the line being read: above it, or below when there's no room
-    card = { x, y: below ? f.top + r.bottom + 10 : f.top + r.top - 10, below, html }
+    const mid = f.left + r.left + r.width / 2, x = Math.max(12, Math.min(innerWidth - 292, mid - 140))
+    // under the word's line, so what you just read stays in view; above only when the page bottom is near
+    const below = f.top + r.bottom + 230 < innerHeight - 70 || f.top + r.top < 200
+    card = { x, y: below ? f.top + r.bottom + 12 : f.top + r.top - 12, below, html, nx: Math.max(18, Math.min(262, mid - x)) }
   }
   function hideCard() { clearTimeout(dwellT); clearTimeout(hoverT); card = null; cardKey = '' }
   const hooked = new WeakSet<Document>()
@@ -1171,7 +1180,7 @@
     </div>
   {/if}
   {#if card}
-    <div class="lens-card glass" class:below={card.below} style:left="{card.x}px" style:top="{card.y}px" role="tooltip">{@html card.html}</div>
+    <div class="lens-card glass" class:below={card.below} style:left="{card.x}px" style:top="{card.y}px" style:--nx="{card.nx ?? 140}px" role="tooltip">{@html card.html}</div>
   {/if}
   {#if toastMsg}<div class="toast glass" role="status">{toastMsg}</div>{/if}
 
@@ -1569,17 +1578,24 @@
   .pill.ghost { background: var(--hover); color: var(--fg); font-weight: 600; font-size: 13px; padding: 8px 14px; }
   .lens-card {
     position: fixed; z-index: 5; width: 280px; padding: 10px 14px; border-radius: 14px; font-size: 13.5px; line-height: 1.45;
-    transform: translateY(-100%); pointer-events: none; animation: cardIn .2s var(--ease);
+    transform: translateY(-100%); pointer-events: none; animation: cardIn .16s cubic-bezier(.2,.9,.3,1.1); transform-origin: var(--nx) 100%;
   }
-  .lens-card.below { transform: none; }
+  .lens-card.below { transform: none; transform-origin: var(--nx) 0; }
+  /* a notch points at the word it explains */
+  .lens-card::before { content: ''; position: absolute; left: calc(var(--nx) - 6px); bottom: -6px; width: 12px; height: 12px; background: inherit; backdrop-filter: inherit; transform: rotate(45deg); border-radius: 2px; clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+  .lens-card.below::before { bottom: auto; top: -6px; clip-path: polygon(0 0, 100% 0, 0 100%); }
+  .lens-card :global(.c-word) { display: flex; align-items: baseline; gap: 8px; }
+  .lens-card :global(.c-pos) { font: italic 13px var(--serif); color: var(--accent); }
+  .lens-card :global(.c-q) { margin-top: 6px; padding-left: 8px; border-left: 2px solid var(--hairline); font: italic 13px/1.45 var(--serif); color: var(--muted); }
+  .lens-card :global(.c-q b) { font: italic 600 13px var(--serif); color: var(--fg); }
   .lens-card :global(b) { font: 600 16px var(--serif); }
-  .lens-card :global(.c-def) { margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .lens-card :global(.c-def) { font: 14px/1.4 var(--serif); margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .lens-card :global(.c-meta) { font-size: 11.5px; color: var(--muted); }
   .lens-card :global(.c-who) { display: flex; align-items: center; gap: 8px; }
   .lens-card :global(.c-hist) { display: flex; align-items: end; gap: 1px; height: 14px; margin-top: 6px; }
   .lens-card :global(.c-hist i) { flex: 1; min-width: 1px; border-radius: 1px; opacity: .7; }
   .lens-card :global(.c-av) { width: 44px; height: 44px; border-radius: 12px; flex: none; }
-  @keyframes cardIn { from { opacity: 0; } }
+  @keyframes cardIn { from { opacity: 0; scale: .94; } }
   :global(.star-birth) { position: fixed; z-index: 6; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; }
   /* weather: a whisper of rain, fog at the edges, slow snow, a night vignette — all very faint */
   .weather { position: absolute; inset: 0; z-index: 1; pointer-events: none; }

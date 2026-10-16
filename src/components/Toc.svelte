@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { TocItem } from '../lib/epub.ts'
+  import { tocLabel } from '../lib/epub.ts'
 
   let { toc, isCurrent, onpick, glyph }: { toc: TocItem[]; isCurrent: (t: TocItem) => boolean; onpick: (href: string) => void; glyph?: (label: string, href: string) => string } = $props()
 
@@ -12,7 +13,7 @@
     {#each items as item}
       <li>
         <button class:current={isCurrent(item)} style:--depth={depth} disabled={!item.href}
-          onclick={() => onpick(item.href)}><span class="l">{item.label}</span>{#if glyph && item.href}{@const d = glyph(item.label, item.href)}{#if d}<svg class="fp" viewBox="0 0 22 22" aria-hidden="true"><path {d} /></svg>{/if}{/if}</button>
+          onclick={() => onpick(item.href)}><span class="l">{tocLabel(item.label)}</span>{#if glyph && item.href}{@const d = glyph(item.label, item.href)}{#if d}<svg class="fp" viewBox="0 0 22 22" aria-hidden="true"><path {d} /></svg>{/if}{/if}</button>
         {#if item.children.length}{@render list(item.children, depth + 1)}{/if}
       </li>
     {/each}

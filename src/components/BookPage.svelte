@@ -5,7 +5,7 @@
   import { onMount, untrack } from 'svelte'
   import { cubicOut } from 'svelte/easing'
   import { fly } from 'svelte/transition'
-  import { Book } from '../lib/epub.ts'
+  import { Book, tocLabel } from '../lib/epub.ts'
   import { aboutOf, getFile, listAnnotations, saveBook, type BookRecord } from '../lib/store.svelte.ts'
   import { tintOf } from '../lib/tint.ts'
   import { computeProfile, PROFILE_V } from '../lib/profile.ts'
@@ -143,7 +143,7 @@
         {#each rows as { c, i } (i)}
           <li class:read={i < here} class:here={i === here}>
             <svg viewBox="0 0 22 22" aria-hidden="true" style:--n={i - (rows[0]?.i ?? 0)}><path pathLength="1" d={fingerprint(c.lens, 22)} /></svg>
-            <span class="t">{c.title}</span>
+            <span class="t">{tocLabel(c.title)}</span>
             <span class="m">{i < here ? '✓' : i === here ? 'Here' : `${minutes(c.words)} min`}</span>
           </li>
         {/each}

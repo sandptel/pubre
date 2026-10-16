@@ -121,6 +121,7 @@ export class Paginator {
   private marks: Mark[] = [] // every TOC entry on the progress axis
   private wheelLock = 0
   private edge: HTMLElement
+  private veil: HTMLElement
   private flingMs = 0 // a flick's own speed sets the next turn's duration
   private queued: 0 | 1 | -1 = 0 // one turn asked for while another was still moving
   private reduce = matchMedia('(prefers-reduced-motion: reduce)')
@@ -143,7 +144,10 @@ export class Paginator {
     // The soft shadow that rides the edge between two pages while they slide.
     this.edge = Object.assign(document.createElement('i'), { className: 'pubre-edge' })
     this.edge.style.cssText = 'position:absolute;top:0;bottom:0;left:0;width:22px;z-index:2;pointer-events:none;opacity:0'
-    this.port.append(this.edge)
+    // The ink soak: a paper-coloured veil that slides off a page just turned to, so its lines darken top to bottom.
+    this.veil = Object.assign(document.createElement('i'), { className: 'pubre-veil' })
+    this.veil.style.cssText = 'position:absolute;left:0;right:0;top:-35%;height:135%;z-index:2;pointer-events:none;opacity:0;background:linear-gradient(transparent, color-mix(in srgb, var(--bg, #fff) 74%, transparent) 26%)'
+    this.port.append(this.edge, this.veil)
     // Taps and wheel in the outer margins (outside the port) still turn pages.
     host.addEventListener('click', e => { if (e.target === host || e.target === this.port) this.tap(e.clientX) })
     host.addEventListener('wheel', e => this.wheel(e), { passive: true })
@@ -437,6 +441,11 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
     this.edge.style.opacity = '0'
     this.edge.animate([{ transform: x(b0), opacity: 1 }, { transform: x(b1), opacity: 0 }], { duration: ms, easing: EASE })
   }
+  /** A page just arrived: its ink soaks in from the top (a veil slides away; nothing on the page moves). */
+  private soak() {
+    if (this.reduce.matches || this.settings.motion === 'calm') return
+    this.veil.animate([{ transform: 'translateY(0)', opacity: 1 }, { transform: `translateY(${this.L.H}px)`, opacity: 1 }], { duration: 440, easing: 'cubic-bezier(.3,.6,.2,1)' })
+  }
   private turnTime() { const ms = this.flingMs || TURN_MS; this.flingMs = 0; return ms }
 
   private async slide(page: number) {
@@ -446,7 +455,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
     this.page = page
     this.emit()
     this.shade(dir > 0 ? step + off : off, dir > 0 ? 0 : step, dir, ms)
-    try { await this.move(v, -page * step, ms) } finally { this.busy = false; this.flush() }
+    try { await this.move(v, -page * step, ms); if (!this.queued) this.soak() } finally { this.busy = false; this.flush() }
   }
 
   private async turnChapter(dir: 1 | -1) {
@@ -465,6 +474,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
       this.shade(dir > 0 ? this.L.step + off : off, dir > 0 ? 0 : this.L.step, dir, ms)
       await Promise.all([this.move(old, -this.pageIndexOf(old) * this.L.step - shift, ms), this.move(v, -start * this.L.step, ms)])
       old.iframe.remove()
+      if (!this.queued) this.soak()
       this.onView?.(v)
     } finally {
       this.busy = false

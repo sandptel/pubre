@@ -78,8 +78,13 @@ export function snapToGrid(doc: Document): number {
     for (const k of GRID_PROPS) { el.style.removeProperty(k); if (was[k]) el.style.setProperty(k, was[k]) }
     el.removeAttribute('data-pubre-grid')
   }
-  const sample = Array.from(body.querySelectorAll('p')).find(p => (p.textContent ?? '').length > 80)
-  const lh = sample ? parseFloat(win.getComputedStyle(sample).lineHeight) : NaN
+  // the body text's line: the most common among the first long paragraphs (front matter is often smaller)
+  const seen = new Map<number, number>()
+  for (const p of Array.from(body.querySelectorAll('p')).filter(p => (p.textContent ?? '').length > 80).slice(0, 60)) {
+    const v = Math.round(parseFloat(win.getComputedStyle(p).lineHeight) * 10) / 10
+    if (v > 0) seen.set(v, (seen.get(v) ?? 0) + 1)
+  }
+  const lh = [...seen].sort((a, b) => b[1] - a[1])[0]?.[0] ?? NaN
   if (!(lh > 8)) return 0
   const set = (el: HTMLElement, k: (typeof GRID_PROPS)[number], px: number) => {
     if (!el.hasAttribute('data-pubre-grid')) el.dataset.pubreGrid = JSON.stringify(Object.fromEntries(GRID_PROPS.map(p => [p, el.style.getPropertyValue(p)])))
@@ -99,6 +104,14 @@ export function snapToGrid(doc: Document): number {
     }
     const textLine = parseFloat(cs.lineHeight)
     const odd = OPAQUE.has(tag) || (tag === 'p' && Math.abs(textLine - lh) > 0.5) || (!el.querySelector('p, div, h1, h2, h3, h4, h5, h6') && !!el.querySelector('img, svg') && (el.textContent ?? '').trim().length < 200)
+    if (tag === 'p' && !odd) {
+      // indented paragraphs run on like a novel's (small gaps go); unindented ones keep at least a line between
+      const ind = parseFloat(cs.textIndent) > 0
+      const snap = (m: number) => !m ? 0 : ind ? Math.floor(m / lh + 0.3) * lh : Math.max(1, Math.round(m / lh)) * lh
+      if (snap(mt) !== mt) set(el, 'margin-top', snap(mt))
+      if (snap(mb) !== mb) set(el, 'margin-bottom', snap(mb))
+      continue
+    }
     if (round(mt) !== mt) set(el, 'margin-top', round(mt))
     if (odd) {
       const h = el.getBoundingClientRect().height, pad = (lh - (h % lh)) % lh

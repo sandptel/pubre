@@ -49,7 +49,7 @@
   let glossT = 0, hoverT = 0
   let glossTop = $state(false)
   let root = $state<HTMLDivElement>(), veil = $state<HTMLDivElement>(), lift = $state<HTMLDivElement>(), para = $state<HTMLDivElement>()
-  let flow = $state<HTMLDivElement>(), marker = $state<HTMLElement>(), cueEl = $state<HTMLElement>(), rail = $state<HTMLElement>(), railFill = $state<HTMLElement>(), railBtn = $state<HTMLElement>()
+  let flow = $state<HTMLDivElement>(), marker = $state<HTMLElement>(), ghost = $state<HTMLElement>(), cueEl = $state<HTMLElement>(), rail = $state<HTMLElement>(), railFill = $state<HTMLElement>(), railBtn = $state<HTMLElement>()
   // How each kind of mark moves through its pause; a kind cycles through its moves so no rhythm repeats.
   const MOVES: Record<Cue, string[]> = {
     comma: ['hop', 'sway', 'dip', 'breathe'], turn: ['sway', 'hop', 'breathe'], list: ['nudge', 'tick', 'dip'],
@@ -222,6 +222,7 @@
   function placeMarker(animate = true) {
     const m = marker
     if (!m) return
+    ghost?.classList.remove('on')
     if (pointer === 'ink' || !landed) { m.classList.remove('on'); return }
     if (pointer === 'type') return typeMarker(m, animate)
     const rs: DOMRect[] = []
@@ -232,11 +233,16 @@
     const g = pointerBox(pointer as PointerType, l, t, w, h)
     const newLine = prevTop !== null && Math.abs(t - prevTop) > 4
     prevTop = t
-    const set = (dur: number) => {
-      m.style.transition = dur ? `transform ${dur}ms cubic-bezier(.22,1,.36,1), width ${Math.round(dur * 0.85)}ms cubic-bezier(.25,.8,.25,1), height ${Math.round(dur * 0.85)}ms ease` : 'none'
-      m.style.transform = `translate(${g[0]}px, ${g[1]}px)`
-      m.style.width = g[2] + 'px'; m.style.height = g[3] + 'px'
+    const glide = pointer === 'pacer'
+    const to = (el: HTMLElement, dur: number, delay = 0) => {
+      el.style.transition = !dur ? 'none' : glide ? `transform ${dur}ms linear ${delay}ms, width ${dur}ms linear ${delay}ms`
+        : `transform ${dur}ms cubic-bezier(.22,1,.36,1) ${delay}ms, width ${Math.round(dur * 0.85)}ms cubic-bezier(.25,.8,.25,1) ${delay}ms, height ${Math.round(dur * 0.85)}ms ease ${delay}ms`
+      el.style.transform = `translate(${g[0]}px, ${g[1]}px)`
+      el.style.width = g[2] + 'px'; el.style.height = g[3] + 'px'
     }
+    // a faint ghost a beat behind shows which way it's going (only for word-sized hops, never a glide)
+    const tail = ghost && !glide && settings.stageTail !== false && step === 'word'
+    const set = (dur: number) => { to(m, dur); if (tail && ghost) { ghost.dataset.p = pointer; to(ghost, dur, dur ? 90 : 0); ghost.classList.add('on') } }
     m.dataset.p = pointer; m.classList.add('on') // classList keeps Svelte's scoping class
     if (!animate || reduce) return set(0)
     if (newLine) { // a new line: fade across instead of sweeping diagonally
@@ -244,7 +250,8 @@
       setTimeout(() => set(0), 100)
       return
     }
-    set(Math.min(300, unitMs() * 0.6))
+    // a hop is quick (100–160 ms, eased, no overshoot); the Pacer glides through the word's whole time
+    set(glide ? Math.round(unitMs()) : Math.min(160, Math.max(100, unitMs() * 0.35)))
   }
 
   /** The Type pointer: letters type themselves — the marker grows across the unit one letter at a time, caret at its edge. */
@@ -372,11 +379,17 @@
     timer = window.setTimeout(tFn, tDur)
     if (rate > 0) cue()
   }
+  /** Feel the rhythm (PV8): a faint tick as a sentence ends, a firmer one at a paragraph, three at a new section. */
+  function buzz(b: ReturnType<typeof beat>) {
+    const pattern = b.end === 'section' ? [10, 70, 10, 70, 10] : b.end === 'para' ? 14 : b.cue && /stop|ask|bang|trail/.test(b.cue) ? 8 : 0
+    if (pattern) try { navigator.vibrate?.(pattern) } catch { /* not on this device */ }
+  }
   /** The beat after a punctuation mark: when the word's own time is up, its mark lights and a small cue
    *  hops in its own way (a comma's small hop, a full stop landing, a question tilting up, an ellipsis spreading)
    *  plays for exactly the pause. Paragraph ends have their own breath line. */
   function cue() {
     const c = cueEl, x = ix()
+    if (settings.haptics && landed && x.words[ue]) buzz(beat(x, ue))
     if (!c || step === 'sentence' || reduce || !landed) return
     const { ms, cue: kind, how } = beat(x, ue)
     if (!kind || !ms) return
@@ -819,7 +832,7 @@
     <div class="win" style:font-family={font} style:--size="{settings.fontScale / 100}">
       <div class="lift" bind:this={lift}>
         <div class="para" bind:this={para}>
-          <div class="flow" class:fine={step !== 'sentence'} style:--in-read={settings.inkRead ?? 10} style:--in-now={settings.inkNow ?? 100} style:--in-ahead={settings.inkAhead ?? 20} bind:this={flow} aria-live="polite"><i class="marker ptr" bind:this={marker} aria-hidden="true"></i><i class="cue" bind:this={cueEl} aria-hidden="true"></i><div class="rail" bind:this={rail}><i class="rail-fill" bind:this={railFill}></i></div></div>
+          <div class="flow" class:fine={step !== 'sentence'} style:--in-read={settings.inkRead ?? 10} style:--in-now={settings.inkNow ?? 100} style:--in-ahead={settings.inkAhead ?? 20} bind:this={flow} aria-live="polite"><i class="marker ptr ghost" bind:this={ghost} aria-hidden="true"></i><i class="marker ptr" bind:this={marker} aria-hidden="true"></i><i class="cue" bind:this={cueEl} aria-hidden="true"></i><div class="rail" bind:this={rail}><i class="rail-fill" bind:this={railFill}></i></div></div>
         </div>
       </div>
     </div>
@@ -928,9 +941,9 @@
   /* Word / phrase steps: one bright spot, a soft wake ahead, the rest of the page well back */
   .flow:global(.fine) :global([data-st]) { --a: calc(var(--in-read) * .7%); }
   .flow:global(.fine) :global([data-st="now"]) { --a: calc(var(--in-now) * 1%); --t: .12s; -webkit-text-stroke: .018em currentColor; text-shadow: 0 0 .6em color-mix(in srgb, var(--accent) 35%, transparent); }
-  .flow:global(.fine) :global([data-st="near"]) { --a: calc((var(--in-ahead) + (var(--in-now) - var(--in-ahead)) * .35) * 1%); --t: .2s; }
-  .flow:global(.fine) :global([data-st="mid"]) { --a: calc((var(--in-ahead) + (var(--in-now) - var(--in-ahead)) * .14) * 1%); --t: .22s; }
-  .flow:global(.fine) :global([data-st="ahead"]) { --a: calc(var(--in-ahead) * 1%); --t: .25s; }
+  .flow:global(.fine) :global([data-st="near"]) { --a: calc((var(--in-ahead) + (var(--in-now) - var(--in-ahead)) * .8) * 1%); --t: .2s; } /* the eye reads the next words before it looks at them: keep them nearly full */
+  .flow:global(.fine) :global([data-st="mid"]) { --a: calc((var(--in-ahead) + (var(--in-now) - var(--in-ahead)) * .5) * 1%); --t: .22s; }
+  .flow:global(.fine) :global([data-st="ahead"]) { --a: calc((var(--in-ahead) + (var(--in-now) - var(--in-ahead)) * .18) * 1%); --t: .25s; }
   .flow:global(.fine) :global([data-st="far"]) { --a: calc(var(--in-ahead) * .72%); --t: .3s; }
   .flow:global(.fine) :global([data-st="done"]) { --a: calc(var(--in-read) * 1.35%); --t: .3s; }
   .flow:global(.fine) :global([data-st="prev"]) { --a: calc(var(--in-read) * .9%); --t: .25s; }
@@ -964,6 +977,7 @@
   .gloss :global(i) { color: var(--muted); margin-right: 4px; }
   @keyframes glossIn { from { opacity: 0; transform: translateY(8px); } }
   /* The marker (phrase / word steps) */
+  .marker.ghost { opacity: 0 !important; } .marker.ghost:global(.on) { opacity: .38 !important; }
   .marker { position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .25s; }
   .marker:global(.on) { opacity: 1; }
   /* Punctuation beats: for the pause, the mark hands over to a copy of itself that moves the way the pause sounds */

@@ -1,6 +1,6 @@
 // Pointer types: one geometry and one look (app.css `.ptr[data-p]`) shared by the page guide, the
 // Stage and the previews in Reading aids.
-export type PointerType = 'underline' | 'word' | 'highlighter' | 'type' | 'outline' | 'bracket' | 'spotlight' | 'caret' | 'dot'
+export type PointerType = 'underline' | 'word' | 'highlighter' | 'type' | 'outline' | 'bracket' | 'spotlight' | 'caret' | 'dot' | 'pacer'
 
 export const POINTERS: [PointerType, string, string][] = [
   ['outline', 'Ring', 'A thin ring around the word'],
@@ -12,12 +12,13 @@ export const POINTERS: [PointerType, string, string][] = [
   ['bracket', 'Brackets', 'Corner brackets frame the word'],
   ['caret', 'Caret', 'A caret just before the word'],
   ['dot', 'Dot', 'A dot under the word'],
+  ['pacer', 'Pacer', 'A line that glides along at your pace, like a finger under the text'],
 ]
 
 /** The pointer box [x, y, w, h] for a word box (left, top, width, height). */
 export function pointerBox(p: PointerType | 'ink', l: number, t: number, w: number, h: number): [number, number, number, number] {
   switch (p) {
-    case 'underline': return [l, t + h - 1, w, 3]
+    case 'underline': case 'pacer': return [l, t + h - 1, w, 3]
     case 'highlighter': return [l - 3, t + h * 0.5, w + 6, h * 0.44]
     case 'spotlight': return [l - 16, t - 9, w + 32, h + 18]
     case 'bracket': return [l - 5, t, w + 10, h]

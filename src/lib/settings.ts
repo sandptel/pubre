@@ -126,6 +126,8 @@ export interface Settings {
   stageStep: 'sentence' | 'phrase' | 'word' // stage: how far each beat moves
   stagePointer: 'ink' | Pointer // stage (phrase/word): words ink in as you go; optionally a marker too
   stageLenses: boolean // stage: names, voices, rare words… in the lifted text
+  stageTail?: boolean // stage: a faint ghost of the pointer a beat behind it (off: just the pointer)
+  haptics?: boolean // a faint tick at sentence and paragraph ends (Android)
   holdToRead: boolean // press-and-hold on the page starts reading there (off: holding selects text)
   pinControls: boolean // keep the reader's buttons on screen (the book makes room for them)
   chapterColour: boolean // a colourful chapter lends the accent its colour (ambient palette drift)

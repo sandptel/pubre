@@ -69,6 +69,8 @@
     {/if}
     {@render toggle('Lenses in Stage', 'stageLenses', 'Names, voices, rare words, your highlights')}
     {@render toggle('Look back when paused', 'lookBack', 'What you read brightens; a rail in the margin steps back a sentence (hold to keep going)')}
+    {@render toggle('Pointer tail', 'stageTail', 'A faint ghost a beat behind the pointer shows which way it moves')}
+    {#if 'vibrate' in navigator}{@render toggle('Feel the rhythm', 'haptics', 'A faint tick as each sentence ends, a firmer one at a paragraph')}{/if}
     {@render choice('Paragraph end', 'paraEnd', [['breathe', 'Breathe'], ['wait', 'Wait']], value.paraEnd === 'breathe' ? 'A pause, then the next rises' : 'Waits for a tap')}
     <p class="hint">Tap the round pad (or Space) to start and pause. Hold it to read only while you hold; let go and it goes back to the page. In the Stage, long-press a sentence to keep it as a highlight. While holding, slide right for faster, left for slower and then backwards, up to lock. ← → step, ↑ ↓ sentence (Shift: paragraph; hold ↑ to keep going back), [ ] pace ({value.wpm} wpm).</p>
   {/if}

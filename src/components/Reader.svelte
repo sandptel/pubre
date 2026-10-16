@@ -344,9 +344,24 @@
       h.setAttribute('data-pubre-opener', o); changed = true
       let p = h.nextElementSibling
       while (p && (p.textContent ?? '').trim().length < 60) p = p.nextElementSibling
-      if (p && /^(p|div)$/i.test(p.localName)) p.setAttribute('data-pubre-first', o)
+      if (p && /^(p|div)$/i.test(p.localName)) { p.setAttribute('data-pubre-first', o); markCap(p) }
     }
     return changed
+  }
+  /** The book's own initial (a short span or an image before the first words, e.g. Gutenberg's
+   *  <span class="letra">I</span>T is…) gets our drop-cap geometry, and our ::first-letter stands down. */
+  function markCap(p: Element) {
+    let n: Node | null = p.firstChild
+    while (n && n.nodeType === 3 && !(n as Text).data.trim()) n = n.nextSibling
+    if (n?.nodeType !== 1) return // (instanceof fails across the iframe)
+    const el = n as HTMLElement, win = el.ownerDocument.defaultView
+    if (!win) return
+    const cs = win.getComputedStyle(el), big = parseFloat(cs.fontSize) > 1.4 * parseFloat(win.getComputedStyle(p).fontSize)
+    const text = (el.textContent ?? '').trim()
+    const img = el.localName === 'img' ? el : !text && el.children.length === 1 && el.firstElementChild?.localName === 'img' ? el.firstElementChild : null
+    if (img ? img.getBoundingClientRect().height > 200 : text.length < 1 || text.length > 2 || (cs.float === 'none' && !big)) return
+    el.setAttribute('data-pubre-cap', img ? 'img' : '')
+    p.setAttribute('data-pubre-hascap', '')
   }
   // The book's chapters for the strips (Stage label, pointer capsule): length + mood (dark → bright).
   let profileChapters = $state.raw(untrack(() => rec.profile?.chapters))

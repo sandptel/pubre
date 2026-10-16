@@ -103,7 +103,12 @@ export function openersCss(t: Theme): string {
 [data-pubre-titled] { font-weight: 400 !important; letter-spacing: -.01em; line-height: 1.15 !important; }
 [data-pubre-titled]::after { content: ''; display: block; width: 2.4em; height: 1px; margin: .7em auto 0; background: ${line}; }
 [data-pubre-first="classic"] { text-indent: 0 !important; }
-[data-pubre-first="classic"]::first-letter { float: left; font-size: 3.1em; line-height: .82; margin: .06em .09em 0 0; font-weight: 600; color: ${accent}; }
+[data-pubre-first="classic"]:not([data-pubre-hascap])::first-letter { float: left; font-size: 3.1em; line-height: .82; margin: .06em .09em 0 0; font-weight: 600; color: ${accent}; }
+[data-pubre-hascap] { text-indent: 0 !important; }
+[data-pubre-cap] { float: left !important; font-size: 3.1em !important; line-height: .82 !important; margin: .06em .09em 0 0 !important; padding: 0 !important; font-weight: 600; }
+[data-pubre-first="classic"] [data-pubre-cap] { color: ${accent} !important; }
+[data-pubre-cap="img"] { font-size: 1em !important; line-height: inherit !important; margin: .25em .45em 0 0 !important; }
+img[data-pubre-cap="img"], [data-pubre-cap="img"] img { display: block; height: 3lh !important; max-height: none !important; width: auto !important; }
 [data-pubre-opener="daylight"] { color: ${gold} !important; background: radial-gradient(closest-side, ${a(gold, .16)}, ${a(gold, 0)}); letter-spacing: .01em; }
 [data-pubre-first="daylight"]::first-line { font-variant: small-caps; letter-spacing: .04em; }
 [data-pubre-opener="nocturne"] { font-variant: small-caps; letter-spacing: .12em; font-weight: 500 !important; color: ${muted} !important; background: linear-gradient(${a(muted, .14)}, ${a(bg, 0)}); padding: .6em 0 .4em; border-radius: 6px; }

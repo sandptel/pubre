@@ -120,8 +120,8 @@
     if (fresh && !reduceMotion) v.doc.documentElement.animate([{ '--place': 0 }, { '--place': 1 }] as Keyframe[], { duration: 900, easing: 'ease-out' })
     const r = wordsRange(v, k).getClientRects()[0]
     if (!r || pag!.pageOf(r) !== pag!.currentPage) { pin.classList.remove('on'); return }
-    pin.style.transform = `translate(${r.left + pag!.xOf(v) - 7}px, ${r.top - 4}px)`
-    pin.style.height = r.height + 8 + 'px'
+    // a flag in the margin beside the line (the word itself is underlined); nothing sits on the letters
+    pin.style.transform = `translate(${pag!.columnLeft(v, r.left) - 14}px, ${r.top + r.height / 2 - 8}px)`
     pin.classList.add('on')
   }
   /** Pages slide: the pin hides, then settles in once the page has (it lives outside the book frame). */

@@ -181,6 +181,8 @@ export class Paginator {
   xOf(v: View) { return this.currentX(v) }
   /** Page (screen) a client rect inside the book document falls on. */
   pageOf(r: DOMRect) { return this.pageOfRect(r) }
+  /** The left edge of the column holding document x, in port coordinates. */
+  columnLeft(v: View, x: number) { const { gap, colW } = this.L, c = colW + gap; return gap / 2 + Math.floor((x - gap / 2 + 1) / c) * c + this.currentX(v) }
   /** Slide to a page of the current chapter. */
   async showPage(page: number) {
     const v = this.view
@@ -259,7 +261,7 @@ export class Paginator {
     const step = cols * (colW + gap) // one screen of columns, incl. half a gap each side
     const t = Math.round(Math.min(72, Math.max(36, H * 0.065)))
     this.L = { V, H, t, cols, colW, gap, step, left: Math.round((V - step) / 2) }
-    const fade = `${gap / 2}px`
+    const fade = `${Math.min(gap / 2, 10)}px` // enough to soften neighbouring pages in a slide; the margin stays clear for the place flag
     Object.assign(this.port.style, {
       position: 'absolute', top: '0', bottom: '0', overflow: 'hidden', left: this.L.left + 'px', width: step + 'px',
       maskImage: `linear-gradient(90deg, transparent, #000 ${fade}, #000 calc(100% - ${fade}), transparent)`,

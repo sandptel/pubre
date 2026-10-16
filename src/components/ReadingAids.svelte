@@ -140,6 +140,7 @@
   {@render toggle('Ink soak', 'inkSoak', 'A new page’s lines darken in from the top')}
   {@render toggle('Peek at the next chapter', 'peek', 'Drag toward a new chapter and its name shows at the edge')}
   {@render toggle('What comes next', 'lastPage', 'A chapter’s last page shows the next title and first line')}
+  {@render toggle('Notes in the margin', 'marginNotes', 'On a wide screen, your notes sit beside their line')}
 </div>
 
 <h3>Comfort</h3>

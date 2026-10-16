@@ -836,7 +836,7 @@
     lastLoc = { chapter: r.chapter, progress: r.progress }
     const prevSpine = lastSpine; lastSpine = r.index
     void prev; void prevSpine
-    sceneSoon()
+    sceneSoon(); notesSoon()
     if (ending) { ending = null; return } // the card leaves on your next page turn
     teaseSoon()
   }
@@ -918,6 +918,28 @@
     }
     if (changed) { lenses?.invalidate(v); pag?.refresh() }
     ranges = paintAnnotations(v, anns)
+    notesSoon()
+  }
+  // ---------- margin notes (R8): on a wide screen, your notes sit in the margin beside their line ----------
+  let notes = $state<{ id: string; x: number; y: number; w: number; text: string; color: string }[]>([]), notesT = 0
+  function notesSoon() {
+    clearTimeout(notesT); notes = []
+    if (eff.marginNotes === false || staged) return
+    notesT = window.setTimeout(() => {
+      const v = pag?.current
+      if (!v || !pag) return
+      const b = pag.textBox(), room = innerWidth - b.right - 24
+      if (room < 150) return // a phone: notes stay in the highlight card
+      let free = 0
+      const theme = resolveTheme(eff.palette, eff.mode)
+      notes = anns.filter(a => a.spine === v.index && a.note).flatMap(a => {
+        const r = ranges.get(a.id)?.getClientRects()[0]
+        if (!r || pag!.pageOf(r) !== pag!.currentPage) return []
+        const f = v.iframe.getBoundingClientRect(), y = Math.max(free, r.top + f.top)
+        free = y + 64
+        return [{ id: a.id, x: b.right + 28, y, w: Math.min(240, room - 24), text: a.note, color: theme.base[+('0x' + a.color) || 0x0a] }]
+      })
+    }, 480)
   }
   function annAt(v: BookView, node: Node, off: number) {
     for (const [id, r] of ranges) { try { if (r.isPointInRange(node, off)) return anns.find(a => a.id === id) } catch { /* other doc */ } }
@@ -977,7 +999,7 @@
   async function saveNote() {
     if (!bar) return
     if (!bar.ann) await applyColor('0A')
-    bar.ann!.note = noteText.trim(); await saveAnnotation(bar.ann!); anns = [...anns]; bar = null
+    bar.ann!.note = noteText.trim(); await saveAnnotation(bar.ann!); anns = [...anns]; bar = null; notesSoon()
   }
   async function removeAnn() {
     if (!bar?.ann) return
@@ -1037,6 +1059,7 @@
 <div class="reader" style:--accent={drift?.accent} class:guiding={gstate.active && !!where} class:chrome={showChrome} class:padded={eff.guide} class:speedy={speedChip}>
   <div class="paper" bind:this={paperEl} style:view-transition-name="cover">
     <div class="stage" bind:this={host}></div>
+    {#each notes as n (n.id)}<aside class="mnote" style:left="{n.x}px" style:top="{n.y}px" style:width="{n.w}px" style:--c={n.color}>{n.text}</aside>{/each}
     {#if tease && !chrome && !staged}
       <div class="tease" style:left="{tease.x}px" style:top="{tease.y}px">
         <span class="t-orn" aria-hidden="true">❦</span>
@@ -1586,6 +1609,7 @@
   .sh-track::before { content: ''; position: absolute; left: 50%; top: -3px; width: 1px; height: 10px; background: var(--muted); opacity: .5; }
   .sh-track i { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--accent); box-shadow: 0 1px 4px rgb(0 0 0 / .25); }
   .sh-rate { font: 600 15px system-ui; color: var(--fg); font-variant-numeric: tabular-nums; }
+  .mnote { position: absolute; z-index: 4; max-height: 60px; overflow: hidden; padding-left: 10px; border-left: 2px solid var(--c); font: italic 13px/1.4 var(--serif); color: var(--muted); animation: tease-in .6s ease both; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; }
   .tease { position: absolute; z-index: 4; translate: -50% 0; width: min(300px, 80vw); display: grid; justify-items: center; gap: 6px; text-align: center; pointer-events: none; }
   .tease > * { animation: tease-in .9s cubic-bezier(.2,.7,.2,1) both; } /* a chapter's close settles in, once */
   .tease > :nth-child(2) { animation-delay: .12s; } .tease > :nth-child(3) { animation-delay: .24s; } .tease > :nth-child(4) { animation-delay: .36s; } .tease > :nth-child(5) { animation-delay: .5s; }

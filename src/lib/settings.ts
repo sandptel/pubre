@@ -138,6 +138,7 @@ export interface Settings {
   peek?: boolean // dragging toward a new chapter shows its name
   lastPage?: boolean // a chapter's last page shows what comes next
   framedCap?: boolean // a chapter's first letter sits in a frame
+  marginNotes?: boolean // on wide screens, your notes beside their line
   holdToRead: boolean // press-and-hold on the page starts reading there (off: holding selects text)
   pinControls: boolean // keep the reader's buttons on screen (the book makes room for them)
   chapterColour: boolean // a colourful chapter lends the accent its colour (ambient palette drift)
@@ -171,7 +172,7 @@ export const defaults: Settings = {
   palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto', letterSpacing: 0, measure: 'normal',
   guide: true, guideStyle: 'stage', paraEnd: 'breathe', pauses: 1, lookBack: true, stageStep: 'word', stagePointer: 'outline', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, v: 4, brightness: 100, inkRead: 10, inkNow: 100, inkAhead: 20, weather: true, weatherStyle: 'ascii', pointer: 'outline', focus: 'sentence', step: 'word', dimRead: true, wpm: 180,
   intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'whisper', asides: true, foreign: true, motion: 'full', onlineDefinitions: false, chapterPrompts: true,
-  smartPunct: true, hangQuotes: true, lineGrid: true, sceneBreaks: true, letters: true, plates: true, inkSoak: true, peek: true, lastPage: true, framedCap: true, haptics: false,
+  smartPunct: true, hangQuotes: true, lineGrid: true, sceneBreaks: true, letters: true, plates: true, inkSoak: true, peek: true, lastPage: true, framedCap: true, marginNotes: true, haptics: false,
 }
 
 /** Global settings with a book's own overrides layered on top. */

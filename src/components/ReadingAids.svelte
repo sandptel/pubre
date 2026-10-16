@@ -130,6 +130,7 @@
 
 <h3>The page</h3>
 <div class="group">
+  {@render choice('Reading', 'flow', [['pages', 'Pages'], ['scroll', 'Scroll']], 'Turn pages, or scroll one long column that settles on a line')}
   {@render toggle('Printer’s punctuation', 'smartPunct', 'Curly quotes, real dashes and ellipses')}
   {@render toggle('Hanging quotes', 'hangQuotes', 'An opening quote sits just outside the edge, so the text lines up')}
   {@render toggle('Even page bottoms', 'lineGrid', 'Every page ends on the same line')}

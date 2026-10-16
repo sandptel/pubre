@@ -125,6 +125,10 @@ export class Paginator {
   private peek: HTMLElement
   private inkT = 0
   private lastCfi = ''
+  private settleT = 0
+  private settling = false
+  private get scrolling() { return this.settings.flow === 'scroll' }
+  private get pageH() { return Math.max(1, this.L.H - 2 * this.L.t - this.reserve - this.reserveTop) }
   private fresh = false // the next show loads the chapter again (its text was set with other switches)
   private flingMs = 0 // a flick's own speed sets the next turn's duration
   private queued: 0 | 1 | -1 = 0 // one turn asked for while another was still moving
@@ -157,6 +161,7 @@ export class Paginator {
     // Taps and wheel in the outer margins (outside the port) still turn pages.
     host.addEventListener('click', e => { if (e.target === host || e.target === this.port) this.tap(e.clientX) })
     host.addEventListener('wheel', e => this.wheel(e), { passive: true })
+    this.port.addEventListener('scroll', () => this.onScroll(), { passive: true })
     this.placeToc()
     this.ro = new ResizeObserver(() => {
       clearTimeout(this.resizeTimer)
@@ -213,7 +218,7 @@ export class Paginator {
    *  what the next section is called and how it begins. Null anywhere else. */
   async sectionEnd(): Promise<{ x: number; y: number; room: number; label: string; line: string } | null> {
     const v = this.view
-    if (!v || !v.ix.words.length) return null
+    if (!v || !v.ix.words.length || this.scrolling) return null
     const page = this.page, w = this.starts[v.index + 1] - this.starts[v.index], pageW = w / v.pages
     const top = this.starts[v.index] + pageW * page
     const at = (m: Mark) => { if (m.index !== v.index) return m.at; const el = m.frag ? v.doc.getElementById(m.frag) : null; return el ? this.starts[v.index] + pageW * this.pageOfRect(el.getBoundingClientRect()) : m.at }
@@ -246,9 +251,9 @@ export class Paginator {
   }
   firstWordOnPage(v = this.view, page = this.page) {
     if (!v) return 0
-    const ws = v.ix.words, left = page * this.L.step
+    const ws = v.ix.words, sc = this.scrolling, left = sc ? page * this.pageH + this.L.t + this.reserveTop : page * this.L.step
     let lo = 0, hi = ws.length - 1, ans = ws.length - 1
-    const x = (k: number) => { const r = v.doc.createRange(); r.setStart(ws[k].sn, ws[k].so); r.setEnd(ws[k].en, ws[k].eo); return r.getClientRects()[0]?.left ?? 0 }
+    const x = (k: number) => { const r = v.doc.createRange(); r.setStart(ws[k].sn, ws[k].so); r.setEnd(ws[k].en, ws[k].eo); const q = r.getClientRects()[0]; return (sc ? q?.top : q?.left) ?? 0 }
     while (lo <= hi) { const mid = (lo + hi) >> 1; if (x(mid) >= left - 2) { ans = mid; hi = mid - 1 } else lo = mid + 1 }
     return ans
   }
@@ -275,7 +280,7 @@ export class Paginator {
     if (v && this.busy) this.queued = 1
     if (!v || this.busy) return
     if (this.page < v.pages - 1) return this.slide(this.page + 1)
-    if (v.index < this.book.spine.length - 1) return this.turnChapter(1)
+    if (v.index < this.book.spine.length - 1) return this.scrolling ? this.show(v.index + 1, () => 0) : this.turnChapter(1)
     this.bounce(-1)
   }
 
@@ -284,7 +289,7 @@ export class Paginator {
     if (v && this.busy) this.queued = -1
     if (!v || this.busy) return
     if (this.page > 0) return this.slide(this.page - 1)
-    if (v.index > 0) return this.turnChapter(-1)
+    if (v.index > 0) return this.scrolling ? this.show(v.index - 1, nv => nv.pages - 1) : this.turnChapter(-1)
     this.bounce(1)
   }
 
@@ -309,7 +314,7 @@ export class Paginator {
 
   private measure() {
     const V = this.host.clientWidth, H = this.host.clientHeight, s = this.settings
-    const cols = s.spread === 'auto' && V >= 900 && V > H * 1.1 ? 2 : 1
+    const cols = !this.scrolling && s.spread === 'auto' && V >= 900 && V > H * 1.1 ? 2 : 1
     // Measure ≈ 36em (60–75 characters); margins setting trades measure for whitespace.
     const maxCol = Math.round(16 * s.fontScale / 100 * (s.measure === 'short' ? 22 : [40, 36, 31][s.margin]) * (1 + (s.letterSpacing || 0) * 4))
     const outer = Math.max(16, Math.round(V * [0.04, 0.06, 0.09][s.margin]))
@@ -321,8 +326,11 @@ export class Paginator {
     const fade = `${Math.min(gap / 2, 10)}px` // enough to soften neighbouring pages in a slide; the margin stays clear for the place flag
     Object.assign(this.port.style, {
       position: 'absolute', top: '0', bottom: '0', overflow: 'hidden', left: this.L.left + 'px', width: step + 'px',
-      maskImage: `linear-gradient(90deg, transparent, #000 ${fade}, #000 calc(100% - ${fade}), transparent)`,
+      // scrolling: the text fades out under the running head and the page number instead of running beneath them
+      maskImage: this.scrolling ? `linear-gradient(transparent ${t * 0.45}px, #000 ${t - 3}px, #000 calc(100% - ${t - 3}px), transparent calc(100% - ${t * 0.45}px))` : `linear-gradient(90deg, transparent, #000 ${fade}, #000 calc(100% - ${fade}), transparent)`,
     })
+    if (this.scrolling) Object.assign(this.port.style, { overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'contain', scrollbarWidth: 'none' })
+    else this.port.scrollTop = 0
   }
 
   private style(doc: Document, id: string, css: string) {
@@ -343,6 +351,12 @@ export class Paginator {
     const colW = solo ? cols * this.L.colW + (cols - 1) * gap : this.L.colW
     this.style(v.doc, 'pubre-user', bookCss(this.settings, H - 2 * t, colW / (16 * this.settings.fontScale / 100 * 0.5)))
     this.style(v.doc, 'pubre-marks', marksCss(resolveTheme(this.settings.palette, this.settings.mode), this.settings.inkRead))
+    if (this.scrolling) { // one long column you scroll
+      this.style(v.doc, 'pubre-layout', `
+html { box-sizing: content-box !important; margin: 0 !important; max-width: none !important; width: ${colW}px !important; height: auto !important;
+  padding: ${t + this.reserveTop}px ${gap / 2}px ${t + this.reserve}px !important; columns: auto !important; column-width: auto !important; overflow: visible !important; touch-action: pan-y; }`)
+      return
+    }
     this.style(v.doc, 'pubre-layout', `
 html { box-sizing: content-box !important; margin: 0 !important; max-width: none !important;
   width: ${solo ? colW : cols * colW + (cols - 1) * gap}px !important; height: ${H - 2 * t - this.reserve - this.reserveTop}px !important; padding: ${t + this.reserveTop}px ${gap / 2}px ${t + this.reserve}px !important;
@@ -358,7 +372,7 @@ body > div, body > section, body > p, body > figure { text-align: center !import
     if (this.settings.plates !== false) markPlates(v.doc)
     const lh = snapToGrid(v.doc, !!this.settings.lineHeight && this.settings.lineGrid !== false)
     const box = H - 2 * t - this.reserve - this.reserveTop, lines = lh ? Math.floor(box / lh) * lh : box
-    this.style(v.doc, 'pubre-grid', lh ? `html { height: ${lines}px !important; padding-bottom: ${t + this.reserve + box - lines}px !important; }
+    this.style(v.doc, 'pubre-grid', lh && !this.scrolling ? `html { height: ${lines}px !important; padding-bottom: ${t + this.reserve + box - lines}px !important; }
 img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
     if (lh && v.doc.images.length) snapToGrid(v.doc) // again, now that pictures have their final size
     for (const el of Array.from(v.doc.querySelectorAll<HTMLElement>('table, pre'))) { // wide ones slide sideways, with a fade at the edge
@@ -366,6 +380,14 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
       const wide = el.localName === 'pre' ? el.scrollWidth > el.clientWidth + 2 : el.getBoundingClientRect().width > (el.parentElement?.clientWidth ?? 1e9) + 2
       el.toggleAttribute('data-pubre-wide', wide)
       if (wide && !el.dataset.pubreWideBound) { el.dataset.pubreWideBound = '1'; el.addEventListener('scroll', () => el.classList.toggle('pubre-end', el.scrollLeft + el.clientWidth >= el.scrollWidth - 2), { passive: true }) }
+    }
+    if (this.scrolling) { // the frame is as tall as the chapter; the port scrolls it. "Pages" are screens.
+      v.iframe.style.width = step + 'px'
+      v.iframe.style.height = this.L.H + 'px'
+      const h = v.doc.documentElement.scrollHeight
+      v.iframe.style.height = h + 'px'
+      v.pages = Math.max(1, Math.ceil((h - 2 * this.L.t) / this.pageH))
+      return
     }
     v.iframe.style.width = step + 'px'
     v.iframe.style.height = this.L.H + 'px'
@@ -375,6 +397,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
   }
 
   private pageOfRect(r: DOMRect) {
+    if (this.scrolling) return Math.max(0, Math.floor((r.top - this.L.t - this.reserveTop + 1) / this.pageH))
     return Math.max(0, Math.floor((r.left + 1) / this.L.step))
   }
 
@@ -382,7 +405,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
   private anchor(): Range | null {
     const v = this.view
     if (!v) return null
-    const x = this.page * this.L.step + this.L.gap / 2 + 4, y = this.L.t + this.reserveTop + 12
+    const x = this.scrolling ? this.L.gap / 2 + 4 : this.page * this.L.step + this.L.gap / 2 + 4, y = (this.scrolling ? this.port.scrollTop : 0) + this.L.t + this.reserveTop + 12
     const d = v.doc as Document & { caretPositionFromPoint?(x: number, y: number): { offsetNode: Node; offset: number } | null }
     const pos = d.caretPositionFromPoint?.(x, y)
     if (pos) {
@@ -405,6 +428,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
       ?? (range?.startContainer instanceof Element ? range.startContainer.getBoundingClientRect() : undefined)
     this.page = Math.min(v.pages - 1, rect ? this.pageOfRect(rect) : Math.floor(fraction * v.pages))
     this.setX(v, -this.page * this.L.step)
+    if (this.scrolling) this.port.scrollTop = rect ? Math.max(0, rect.top - this.L.t - this.reserveTop) : this.page * this.pageH
     this.emit()
     this.onView?.(v)
   }
@@ -455,6 +479,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
       this.page = Math.max(0, Math.min(v.pages - 1, pageFor(v)))
       this.setX(v, -this.page * this.L.step)
       this.view = v
+      if (this.scrolling) this.port.scrollTop = this.page * this.pageH
       if (v !== old) {
         await v.iframe.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: 'ease-out' }).finished
         v.iframe.style.opacity = '1'
@@ -468,7 +493,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
   }
 
   private setX(v: View, x: number) {
-    v.iframe.style.transform = `translate3d(${x}px,0,0)`
+    v.iframe.style.transform = this.scrolling ? 'none' : `translate3d(${x}px,0,0)`
   }
 
   private currentX(v: View) {
@@ -500,8 +525,36 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
   }
   /** A page just arrived: its ink soaks in from the top (a veil slides away; nothing on the page moves). */
   private soak() {
-    if (this.reduce.matches || this.settings.motion === 'calm' || this.settings.inkSoak === false) return
+    if (this.reduce.matches || this.settings.motion === 'calm' || this.settings.inkSoak === false || this.scrolling) return
     this.veil.animate([{ transform: 'translateY(0)', opacity: 1 }, { transform: `translateY(${this.L.H}px)`, opacity: 1 }], { duration: 440, easing: 'cubic-bezier(.3,.6,.2,1)' })
+  }
+  /** Scroll mode: which screen you're on (for the footer, your place, the guide), and settling after a flick. */
+  private onScroll() {
+    const v = this.view
+    if (!v || !this.scrolling) return
+    const page = Math.max(0, Math.min(v.pages - 1, Math.floor((this.port.scrollTop + this.pageH * 0.3) / this.pageH)))
+    if (page !== this.page) { this.page = page; this.emit() }
+    clearTimeout(this.settleT)
+    if (!this.settling) this.settleT = window.setTimeout(() => this.settle(), 170)
+  }
+  /** After a flick, ease the last few pixels so a line (or a paragraph's start, when one is near) sits under the top edge. */
+  private settle() {
+    const v = this.view, port = this.port
+    if (!v || !this.scrolling || port.scrollTop <= 0 || port.scrollTop + port.clientHeight >= port.scrollHeight - 2) return
+    const top = this.L.t + this.reserveTop, y = port.scrollTop + top + 3
+    const d = v.doc as Document & { caretRangeFromPoint?(x: number, y: number): Range | null }
+    const r = d.caretRangeFromPoint?.(this.L.gap / 2 + this.L.colW * 0.3, y)
+    const q = r?.getClientRects()[0] ?? (r?.startContainer.parentElement?.getBoundingClientRect())
+    if (!q) return
+    const line = q.height || 24
+    let target = q.top - top
+    const block = (r!.startContainer.nodeType === 3 ? r!.startContainer.parentElement : r!.startContainer as Element)?.closest('p, li, blockquote, h1, h2, h3, figure')
+    const bt = block?.getBoundingClientRect().top
+    if (bt !== undefined && Math.abs(bt - q.top) < line * 1.6) target = bt - top // a paragraph begins just here: start there
+    if (Math.abs(target - port.scrollTop) < 1 || Math.abs(target - port.scrollTop) > line * 2.2) return
+    this.settling = true
+    port.scrollTo({ top: target, behavior: this.reduce.matches ? 'auto' : 'smooth' })
+    setTimeout(() => (this.settling = false), 450)
   }
   /** Scene-break ornaments on the page you're on draw themselves in, once. */
   private inkBreaks() {
@@ -525,6 +578,13 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
 
   private async slide(page: number) {
     const v = this.view!
+    if (this.scrolling) { // a screen at a time, keeping a line of overlap; it settles on a line after
+      const line = parseFloat(v.doc.defaultView?.getComputedStyle(v.doc.body).lineHeight ?? '') || 24
+      const top = page > this.page ? this.port.scrollTop + this.pageH - line : this.port.scrollTop - this.pageH + line
+      this.page = page; this.emit()
+      this.port.scrollTo({ top: Math.max(0, top), behavior: this.reduce.matches ? 'auto' : 'smooth' })
+      return
+    }
     const dir = page > this.page ? 1 : -1, step = this.L.step, off = this.currentX(v) + this.page * step, ms = this.turnTime()
     this.busy = true
     this.page = page
@@ -591,6 +651,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
   }
 
   private wheel(e: WheelEvent) {
+    if (this.scrolling) return // the port scrolls on its own
     this.wheelAcc += Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
     if (Date.now() < this.wheelLock || Math.abs(this.wheelAcc) < 40) return
     this.wheelLock = Date.now() + 450
@@ -645,7 +706,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
       const dx = e.clientX - start.x, dy = e.clientY - start.y
       if (holding) { this.holdHook?.move(dx, dy); return }
       if (holdT && Math.hypot(dx, dy) > 8) { clearTimeout(holdT); holdT = 0 }
-      if (!start.touch || this.view !== v) return
+      if (!start.touch || this.view !== v || this.scrolling) return
       if (!dragging && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2 && !doc.getSelection()?.toString() && !(e.target as Element).closest?.('[data-pubre-wide]')) dragging = true
       if (!dragging) return
       const now = performance.now()

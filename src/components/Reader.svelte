@@ -309,7 +309,7 @@
     pag?.setReserve(eff.guide || pinned ? Math.max(0, 76 - t) : 0, pinned ? Math.max(0, 64 - t) : 0) // the pad never sits on text
   })
   // Only appearance changes re-lay out the book; feature settings (guide, lenses, pace) don't.
-  const LAYOUT = ['palette', 'mode', 'font', 'fontScale', 'lineHeight', 'margin', 'justify', 'bold', 'spread', 'letterSpacing', 'measure', 'inkRead', 'smartPunct', 'hangQuotes', 'lineGrid', 'sceneBreaks', 'letters', 'plates', 'framedCap', 'inkSoak', 'peek'] as const
+  const LAYOUT = ['palette', 'mode', 'font', 'fontScale', 'lineHeight', 'margin', 'justify', 'bold', 'spread', 'letterSpacing', 'measure', 'inkRead', 'smartPunct', 'hangQuotes', 'lineGrid', 'sceneBreaks', 'letters', 'plates', 'framedCap', 'inkSoak', 'peek', 'flow'] as const
   let layoutKey = ''
   $effect(() => {
     const s = $state.snapshot(eff)

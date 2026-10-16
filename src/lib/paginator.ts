@@ -120,6 +120,8 @@ export class Paginator {
   private starts: number[] = [] // cumulative spine weights, for whole-book progress
   private marks: Mark[] = [] // every TOC entry on the progress axis
   private wheelLock = 0
+  private edge: HTMLElement
+  private flingMs = 0 // a flick's own speed sets the next turn's duration
   private queued: 0 | 1 | -1 = 0 // one turn asked for while another was still moving
   private reduce = matchMedia('(prefers-reduced-motion: reduce)')
   private wheelAcc = 0
@@ -138,6 +140,10 @@ export class Paginator {
     this.port = document.createElement('div')
     this.port.className = 'pubre-port'
     host.append(this.port)
+    // The soft shadow that rides the edge between two pages while they slide.
+    this.edge = Object.assign(document.createElement('i'), { className: 'pubre-edge' })
+    this.edge.style.cssText = 'position:absolute;top:0;bottom:0;left:0;width:22px;z-index:2;pointer-events:none;opacity:0'
+    this.port.append(this.edge)
     // Taps and wheel in the outer margins (outside the port) still turn pages.
     host.addEventListener('click', e => { if (e.target === host || e.target === this.port) this.tap(e.clientX) })
     host.addEventListener('wheel', e => this.wheel(e), { passive: true })
@@ -418,12 +424,29 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
     ).finished
   }
 
+  /** Where the edge between two pages is (port x) and which way it shades: the outgoing page darkens toward it. */
+  private placeEdge(b: number, dir: number, opacity: number) {
+    this.edge.style.background = `linear-gradient(${dir > 0 ? 90 : 270}deg, transparent, rgba(0,0,0,.075))`
+    this.edge.style.transform = `translate3d(${dir > 0 ? b - 22 : b}px,0,0)`
+    this.edge.style.opacity = String(opacity)
+  }
+  private shade(b0: number, b1: number, dir: number, ms: number) {
+    if (this.reduce.matches) return
+    const x = (b: number) => `translate3d(${dir > 0 ? b - 22 : b}px,0,0)`
+    this.edge.style.background = `linear-gradient(${dir > 0 ? 90 : 270}deg, transparent, rgba(0,0,0,.075))`
+    this.edge.style.opacity = '0'
+    this.edge.animate([{ transform: x(b0), opacity: 1 }, { transform: x(b1), opacity: 0 }], { duration: ms, easing: EASE })
+  }
+  private turnTime() { const ms = this.flingMs || TURN_MS; this.flingMs = 0; return ms }
+
   private async slide(page: number) {
     const v = this.view!
+    const dir = page > this.page ? 1 : -1, step = this.L.step, off = this.currentX(v) + this.page * step, ms = this.turnTime()
     this.busy = true
     this.page = page
     this.emit()
-    try { await this.move(v, -page * this.L.step) } finally { this.busy = false; this.flush() }
+    this.shade(dir > 0 ? step + off : off, dir > 0 ? 0 : step, dir, ms)
+    try { await this.move(v, -page * step, ms) } finally { this.busy = false; this.flush() }
   }
 
   private async turnChapter(dir: 1 | -1) {
@@ -433,13 +456,14 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
       const v = await this.load(old.index + dir)
       const start = dir > 0 ? 0 : v.pages - 1
       const shift = dir * this.L.step
-      const oldX = this.currentX(old)
-      this.setX(v, -start * this.L.step + shift + (oldX + this.page * this.L.step)) // follow any drag offset
+      const oldX = this.currentX(old), off = oldX + this.page * this.L.step, ms = this.turnTime()
+      this.setX(v, -start * this.L.step + shift + off) // follow any drag offset
       v.iframe.style.opacity = '1'
       this.view = v
       this.page = start
       this.emit()
-      await Promise.all([this.move(old, -this.pageIndexOf(old) * this.L.step - shift), this.move(v, -start * this.L.step)])
+      this.shade(dir > 0 ? this.L.step + off : off, dir > 0 ? 0 : this.L.step, dir, ms)
+      await Promise.all([this.move(old, -this.pageIndexOf(old) * this.L.step - shift, ms), this.move(v, -start * this.L.step, ms)])
       old.iframe.remove()
       this.onView?.(v)
     } finally {
@@ -458,8 +482,8 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
     const v = this.view!
     const x = -this.page * this.L.step
     v.iframe.animate(
-      [{ transform: `translate3d(${x}px,0,0)` }, { transform: `translate3d(${x + dir * 36}px,0,0)` }, { transform: `translate3d(${x}px,0,0)` }],
-      { duration: 360, easing: 'ease-out' },
+      [{ transform: `translate3d(${x}px,0,0)` }, { transform: `translate3d(${x + dir * 22}px,0,0)`, offset: .3, easing: 'cubic-bezier(.2,.8,.3,1)' }, { transform: `translate3d(${x}px,0,0)` }],
+      { duration: 460, easing: 'cubic-bezier(.4,0,.2,1)' }, // the end of the book gives a little, like a rubber band
     )
   }
 
@@ -510,14 +534,14 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
 
     // Tap zones (any pointer) + drag-to-turn (touch/pen) + press-and-hold (holdHook).
     let start: { x: number; y: number; t: number; id: number; touch: boolean } | null = null
-    let dragging = false, holding = false, holdT = 0
+    let dragging = false, holding = false, holdT = 0, vel = 0, lastX = 0, lastT = 0
     const root = doc.documentElement as HTMLElement
     const selectable = (on: boolean) => { root.style.userSelect = root.style.webkitUserSelect = on ? '' : 'none' }
     doc.addEventListener('contextmenu', e => { if (holding || holdT) e.preventDefault() }) // Android's long-press menu
     doc.addEventListener('pointerdown', e => {
       if (!e.isPrimary || this.busy) return
       start = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId, touch: e.pointerType !== 'mouse' }
-      dragging = false
+      dragging = false; vel = 0; lastX = e.clientX; lastT = performance.now()
       clearTimeout(holdT); holdT = 0
       if (this.holdHook && e.pointerType !== 'mouse' && !(e.target as Element).closest?.('a[href]')) { // a mouse press-pause-drag is a selection; Space holds on desktop
         const s0 = start
@@ -539,8 +563,12 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
       if (!start.touch || this.view !== v) return
       if (!dragging && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2 && !doc.getSelection()?.toString()) dragging = true
       if (!dragging) return
+      const now = performance.now()
+      if (now > lastT) { vel = 0.7 * vel + 0.3 * (e.clientX - lastX) / (now - lastT); lastX = e.clientX; lastT = now }
       const atEdge = (dx > 0 && this.page === 0 && v.index === 0) || (dx < 0 && this.page === v.pages - 1 && v.index === this.book.spine.length - 1)
-      this.setX(v, -this.page * this.L.step + (atEdge ? dx * 0.3 : dx))
+      const ox = atEdge ? dx * 0.3 : dx
+      this.setX(v, -this.page * this.L.step + ox)
+      if (!atEdge && !this.reduce.matches) this.placeEdge(ox < 0 ? this.L.step + ox : ox, ox < 0 ? 1 : -1, Math.min(1, Math.abs(ox) / 60))
     })
     const end = (e: PointerEvent) => {
       if (!start || e.pointerId !== start.id) return
@@ -551,7 +579,11 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
       if (dragging) {
         dragging = false
         const fast = Math.abs(dx) / dt > 0.4
+        this.edge.style.opacity = '0'
         if (e.type !== 'pointercancel' && (Math.abs(dx) > this.L.step * 0.18 || fast)) {
+          // the flick's speed carries on: a quick one lands quickly, a slow drag settles slowly
+          const left = this.L.step - Math.abs(dx), speed = Math.max(Math.abs(vel), Math.abs(dx) / dt, 0.5)
+          this.flingMs = Math.round(Math.min(TURN_MS, Math.max(170, left / speed * 1.6)))
           dx < 0 ? this.next() : this.prev()
         } else {
           this.busy = true

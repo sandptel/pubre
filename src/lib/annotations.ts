@@ -22,11 +22,15 @@ export interface Annotation {
 
 // ---------------------------------------------------------------- ranges
 
+/** Text compared as typeset or not: pubre curls quotes and sets dashes/ellipses (lib/typeset.ts) without
+ *  changing lengths, so a quote saved before or after that still matches, character for character. */
+const fold = (s: string) => s.replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[—….\u2060-]/g, '\0')
+
 /** Resolve an annotation in a chapter document: CFI first, then its quote. */
 export function resolveAnnotation(doc: Document, a: Annotation): Range | null {
   try {
     const r = cfiToRange(doc, a.cfi)
-    if (r.toString() === a.exact) return r
+    if (fold(r.toString()) === fold(a.exact)) return r
   } catch { /* fall through to quote */ }
   return findQuote(doc, a.exact, a.prefix)
 }
@@ -37,8 +41,9 @@ function findQuote(doc: Document, exact: string, prefix: string): Range | null {
   let text = ''
   const tw = doc.createTreeWalker(doc.body ?? doc.documentElement, NodeFilter.SHOW_TEXT)
   while (tw.nextNode()) { const n = tw.currentNode as Text; starts.push(text.length); nodes.push(n); text += n.data }
-  let i = prefix ? text.indexOf(prefix + exact) : -1
-  i = i >= 0 ? i + prefix.length : text.indexOf(exact)
+  const ft = fold(text), fe = fold(exact), fp = fold(prefix)
+  let i = prefix ? ft.indexOf(fp + fe) : -1
+  i = i >= 0 ? i + prefix.length : ft.indexOf(fe)
   if (i < 0) return null
   const at = (pos: number, end: boolean): [Text, number] => {
     let k = 0

@@ -6,6 +6,7 @@ import { type Book, type TocItem } from './epub.ts'
 import { bookCss, resolveTheme, type Settings } from './settings.ts'
 import { indexDocument, type TextIndex } from './textindex.ts'
 import { Marks, marksCss } from './marks.ts'
+import { typesetDocument } from './typeset.ts'
 import { cfiToRange } from '../epub/cfi.ts'
 
 export interface View { iframe: HTMLIFrameElement; doc: Document; index: number; pages: number; ix: TextIndex; marks: Marks }
@@ -356,6 +357,7 @@ body > div, body > section, body > p, body > figure { text-align: center !import
     if (!doc.documentElement.getAttribute('lang') && this.book.metadata.language) {
       doc.documentElement.setAttribute('lang', this.book.metadata.language) // enables hyphenation
     }
+    typesetDocument(doc) // printer's punctuation, before anything reads the text
     const v: View = { iframe, doc, index, pages: 1, ix: { words: [], sentences: [], blocks: [] }, marks: new Marks(doc) }
     this.inject(v)
     sectionBreaks(doc)

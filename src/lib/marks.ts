@@ -80,6 +80,10 @@ export function marksCss(t: Theme, inkRead = 10): string {
 [data-pubre-letter] { margin-left: 1.2em !important; margin-right: 0 !important; padding-left: .9em !important; border-left: 1.5px solid ${alpha(muted, 0.45)} !important; font-style: italic; }
 [data-pubre-letter] i, [data-pubre-letter] em { font-style: normal; }
 [data-pubre-sign] { text-align: right !important; }
+/* pictures: a framed plate, the caption under it; tap to look closer */
+[data-pubre-plate][data-pubre-plate] { display: block; box-sizing: border-box; max-width: 100%; margin-left: auto !important; margin-right: auto !important; padding: .45em !important; border: 1px solid ${alpha(muted, 0.32)} !important; border-radius: 3px; background-color: ${alpha(fg, 0.03)} !important; text-align: center; text-indent: 0 !important; }
+[data-pubre-plate] img { display: block; margin: 0 auto !important; cursor: zoom-in; }
+[data-pubre-caption] { font-style: italic; font-size: .82em !important; line-height: 1.4 !important; color: ${muted} !important; text-align: center !important; text-indent: 0 !important; margin-top: .5em !important; }
 @property --place { syntax: '<number>'; inherits: true; initial-value: 1 }
 ::highlight(r-read) { background-color: color-mix(in srgb, ${accent} calc(var(--place) * ${t.dark ? 13 : 9}%), transparent) }
 ::highlight(r-here) { background-color: color-mix(in srgb, ${accent} calc(var(--place) * ${t.dark ? 34 : 28}%), transparent); text-decoration: underline 2px ${accent}; text-underline-offset: 5px }

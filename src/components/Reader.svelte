@@ -33,6 +33,7 @@
   import Sheet from './Sheet.svelte'
   import Stage, { type StageState } from './Stage.svelte'
   import Ticker from './Ticker.svelte'
+  import Zoom from './Zoom.svelte'
   import ReadPreview from './ReadPreview.svelte'
   import Constellation from './Constellation.svelte'
   import ChapterStrip, { type StripChapter } from './ChapterStrip.svelte'
@@ -229,7 +230,7 @@
         guide.onPace = wpm => (settings.wpm = wpm)
         guide.onToast = toast
         pag.keyHook = e => !!stage?.key(e) || guide!.key(e)
-        pag.tapHook = (v, x, y) => tapPlace(v, x, y) || guide!.tapWord(v, x, y) || tapAnnotation(v, x, y) || tapLens(v, x, y)
+        pag.tapHook = (v, x, y) => tapPlace(v, x, y) || tapPlate(v, x, y) || guide!.tapWord(v, x, y) || tapAnnotation(v, x, y) || tapLens(v, x, y)
         pin = Object.assign(document.createElement('i'), { className: 'pubre-place', innerHTML: '<b></b>' }); pag.port.append(pin)
         pag.holdHook = textHold
         pag.prepareHook = (doc, index) => { if (eff.openers) { titleHeadings(doc); applyOpeners(doc, index) } }
@@ -726,6 +727,15 @@
     v.doc.addEventListener('mouseleave', hideCard)
   }
   /** Touch: a tap on a marked word (rare word, name, other language) opens its card. */
+  /** Tap a picture on the page to look at it closely. */
+  let zoom = $state<{ src: string; from: { x: number; y: number; w: number; h: number } } | null>(null)
+  function tapPlate(v: BookView, x: number, y: number) {
+    const img = (v.doc.elementFromPoint(x, y) as Element | null)?.closest('[data-pubre-plate]')?.querySelector('img')
+    if (!img) return false
+    const r = img.getBoundingClientRect(), f = v.iframe.getBoundingClientRect()
+    zoom = { src: img.currentSrc || img.src, from: { x: r.left + f.left, y: r.top + f.top, w: r.width, h: r.height } }
+    return true
+  }
   function tapLens(v: BookView, x: number, y: number) {
     if (matchMedia('(hover: hover)').matches) return false
     // a finger is wider than a word: look at the tap point, then a little to each side
@@ -1119,6 +1129,7 @@
       {/if}
     </div>
   {/if}
+  {#if zoom}<Zoom src={zoom.src} from={zoom.from} onclose={() => (zoom = null)} />{/if}
   {#if recap}
     <div class="recap glass" role="dialog" aria-label="Previously">
       <span class="r-eyebrow">Welcome back</span>

@@ -152,3 +152,25 @@ export function markLetters(doc: Document) {
     if (ps.length > 1 && (tail.length < 90 || SIGNOFF.test(tail))) last.setAttribute('data-pubre-sign', '')
   }
 }
+
+/** Pictures (P5): an illustration in the flow becomes a framed plate with its caption under it. Run after
+ *  images have decoded (sizes are known); drop-cap initials and tiny ornaments are left alone. */
+export function markPlates(doc: Document) {
+  const body = doc.body
+  if (!body || (body.textContent ?? '').trim().length < 40) return // a cover or a full-page picture: shown as is
+  for (const img of Array.from(body.querySelectorAll('img'))) {
+    if (img.closest('[data-pubre-cap], [data-pubre-plate], a[href]') || img.naturalWidth < 160 || img.naturalHeight < 120) continue
+    if (img.closest('h1, h2, h3, h4, h5, h6')) continue // a chapter's heading picture belongs to the opener
+    let box: Element | null = img.closest('figure, [role="figure"], [class*="fig" i], [class*="illus" i]')
+    if (box && box.querySelectorAll('img').length > 3) box = null
+    if (!box) {
+      const p = img.parentElement
+      const alone = p && p !== body && (p.textContent ?? '').trim().length < 3 && p.querySelectorAll('img').length === 1
+      box = alone ? (p.parentElement && p.parentElement !== body && /figure|fig|illus|image|center/i.test(p.parentElement.className) ? p.parentElement : p) : null
+    }
+    if (!box || box === body) continue
+    box.setAttribute('data-pubre-plate', '')
+    const cap = box.querySelector('figcaption, [class*="caption" i], [class*="cap" i]:not(img)') ?? (/caption|cap\b/i.test(box.nextElementSibling?.className ?? '') ? box.nextElementSibling : null)
+    cap?.setAttribute('data-pubre-caption', '')
+  }
+}

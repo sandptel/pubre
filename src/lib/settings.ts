@@ -198,6 +198,7 @@ ${s.lineHeight ? `body, p, li, blockquote, dd, div { line-height: ${s.lineHeight
 ${s.justify && s.measure !== 'short' ? 'p { text-align: justify; hyphens: auto; -webkit-hyphens: auto; }' : ''}
 ${s.letterSpacing ? `body, body *${notCode} { letter-spacing: ${s.letterSpacing}em !important; word-spacing: ${s.letterSpacing * 1.5}em !important; }` : ''}
 p { widows: 2; orphans: 2; }
+[data-pubre-hang="d"] { text-indent: -.42em !important; } [data-pubre-hang="s"] { text-indent: -.24em !important; } /* opening quotes hang in the margin */
 img, svg, video, canvas { max-width: 100% !important; max-height: ${pageHeight}px !important;
   height: auto; object-fit: contain; break-inside: avoid; }
 ${t.dark ? 'img { filter: brightness(.88); }' : ''}

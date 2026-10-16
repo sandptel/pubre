@@ -6,7 +6,7 @@ import { type Book, type TocItem } from './epub.ts'
 import { bookCss, resolveTheme, type Settings } from './settings.ts'
 import { indexDocument, type TextIndex } from './textindex.ts'
 import { Marks, marksCss } from './marks.ts'
-import { typesetDocument } from './typeset.ts'
+import { typesetDocument, markHangingQuotes } from './typeset.ts'
 import { cfiToRange } from '../epub/cfi.ts'
 
 export interface View { iframe: HTMLIFrameElement; doc: Document; index: number; pages: number; ix: TextIndex; marks: Marks }
@@ -362,6 +362,7 @@ body > div, body > section, body > p, body > figure { text-align: center !import
     this.inject(v)
     sectionBreaks(doc)
     this.prepareHook?.(doc, index)
+    markHangingQuotes(doc)
     this.bind(v)
     const timeout = new Promise(r => setTimeout(r, 1500))
     await Promise.race([Promise.allSettled([doc.fonts?.ready, ...Array.from(doc.images, i => i.decode())]), timeout])

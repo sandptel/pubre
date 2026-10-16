@@ -1,6 +1,7 @@
 // Printer's punctuation (T1): curly quotes, em dashes and ellipses, set in place without changing the
 // text's length (saved places, highlights and CFIs count characters). A replacement that is shorter than
 // what it replaces is padded with word joiners (U+2060): invisible, and no line break lands inside.
+// Plus the marks for hanging opening quotes (T3), set as attributes so no node is added.
 
 const WJ = '⁠'
 const OPENS_AFTER = /^$|[\s([{—–/⁠-]/
@@ -46,5 +47,17 @@ export function typesetDocument(doc: Document) {
     const t = smartText(n.data, prev)
     if (t !== n.data) n.data = t
     if (t) prev = t[t.length - 1]
+  }
+}
+
+/** Mark paragraphs that start flush at the edge with an opening quote, so CSS can hang it in the margin
+ *  (indented paragraphs and drop-cap openers are left alone: their quote isn't at the edge). */
+export function markHangingQuotes(doc: Document) {
+  const win = doc.defaultView
+  for (const p of Array.from(doc.querySelectorAll('p, li'))) {
+    const m = /^[\s⁠]*([“‘«])/.exec(p.textContent ?? '')
+    if (!m || p.hasAttribute('data-pubre-first')) { p.removeAttribute('data-pubre-hang'); continue }
+    if (win && !p.hasAttribute('data-pubre-hang') && parseFloat(win.getComputedStyle(p).textIndent) !== 0) continue
+    p.setAttribute('data-pubre-hang', m[1] === '‘' ? 's' : 'd')
   }
 }

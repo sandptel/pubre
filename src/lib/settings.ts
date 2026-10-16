@@ -102,7 +102,7 @@ export const fonts: Record<string, { name: string; stack: string; web?: string }
 export type Pointer = import('./pointers.ts').PointerType
 export type Focus = 'sentence' | 'line' | 'paragraph'
 export type Intensity = 'quiet' | 'guided' | 'rich'
-export type VoicesStyle = 'ink' | 'underline' | 'marks' | 'off'
+export type VoicesStyle = 'ink' | 'underline' | 'marks' | 'whisper' | 'off'
 
 export interface Settings {
   // Appearance
@@ -126,7 +126,6 @@ export interface Settings {
   stageStep: 'sentence' | 'phrase' | 'word' // stage: how far each beat moves
   stagePointer: 'ink' | Pointer // stage (phrase/word): words ink in as you go; optionally a marker too
   stageLenses: boolean // stage: names, voices, rare words… in the lifted text
-  stageTail?: boolean // stage: a faint ghost of the pointer a beat behind it (off: just the pointer)
   haptics?: boolean // a faint tick at sentence and paragraph ends (Android)
   holdToRead: boolean // press-and-hold on the page starts reading there (off: holding selects text)
   pinControls: boolean // keep the reader's buttons on screen (the book makes room for them)
@@ -158,8 +157,8 @@ export interface Settings {
 
 export const defaults: Settings = {
   palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto', letterSpacing: 0, measure: 'normal',
-  guide: true, guideStyle: 'stage', paraEnd: 'breathe', pauses: 1, lookBack: true, stageStep: 'word', stagePointer: 'outline', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, v: 3, brightness: 100, inkRead: 10, inkNow: 100, inkAhead: 20, weather: true, pointer: 'outline', focus: 'sentence', step: 'word', dimRead: true, wpm: 180,
-  intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'ink', asides: true, foreign: true, motion: 'full', onlineDefinitions: false, chapterPrompts: true,
+  guide: true, guideStyle: 'stage', paraEnd: 'breathe', pauses: 1, lookBack: true, stageStep: 'word', stagePointer: 'outline', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, v: 4, brightness: 100, inkRead: 10, inkNow: 100, inkAhead: 20, weather: true, pointer: 'outline', focus: 'sentence', step: 'word', dimRead: true, wpm: 180,
+  intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'whisper', asides: true, foreign: true, motion: 'full', onlineDefinitions: false, chapterPrompts: true,
 }
 
 /** Global settings with a book's own overrides layered on top. */
@@ -170,6 +169,7 @@ export function loadSettings(): Settings {
     const saved = JSON.parse(localStorage.getItem('pubre:settings') ?? '{}')
     // v3: Ring is the default pointer (move everyone to it once; later choices are kept)
     if ((saved.v ?? 1) < 3) { saved.pointer = 'outline'; if (saved.stagePointer !== 'ink') saved.stagePointer = 'outline'; saved.v = 3 }
+    if ((saved.v ?? 1) < 4) { if (!saved.voices || saved.voices === 'ink') saved.voices = 'whisper'; saved.v = 4 } // who's speaking: a name whisper and coloured quote marks
     return { ...defaults, ...saved }
   } catch {
     return { ...defaults }

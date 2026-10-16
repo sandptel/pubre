@@ -1,3 +1,4 @@
+import { FEMALE, MALE, TITLES } from '../insights/gazetteer.ts'
 // Lenses: the visual grammar's "who" (names, Voices) and "tell me more" (hard words, foreign phrases),
 // plus asides (contrast). Richness without clutter, per plan v3 + reading research + critic pass #1:
 //  · attention budget per painted range (≈ the pages around you), scaled by intensity: names tinted at
@@ -13,7 +14,7 @@ import { isHard, rarity, onDefs } from './lexicon.ts'
 import { blockOffsets, blockRange } from './textindex.ts'
 
 export type TokenKind = 'name' | 'hard' | 'foreign' | 'speech' | 'aside'
-export interface Token { kind: TokenKind; blk: number; a: number; b: number; key: string; slot: number; range?: Range }
+export interface Token { kind: TokenKind; blk: number; a: number; b: number; key: string; slot: number; range?: Range; guess?: boolean }
 interface Parsed { tokens: Token[]; byBlock: Map<number, Token[]>; share: Map<number, number> }
 
 const SAY = 'said|says|whispered|cried|repeated|muttered|asked|shouted|rejoined|replied|answered|exclaimed|called|roared|sighed|added|continued|returned|observed'
@@ -25,37 +26,93 @@ export const RARE = 2.3 // Zipf below which a defined word is worth marking
 /** A short quote whose words are all capitalised ("The Night Before Christmas") is a title, not speech. */
 const isTitle = (q: string) => { const w = q.replace(/[“”"]/g, '').trim().split(/\s+/); return w.length <= 6 && !/[.!?,]$/.test(q.replace(/[“”"]/g, '').trim()) && w.every(x => /^[A-Z0-9]/.test(x) || SMALL.test(x)) }
 
-export interface Quote { a: number; b: number; speaker: string | null }
+export interface Quote { a: number; b: number; speaker: string | null; guess?: boolean }
 /**
  * Who speaks each quote, confident only: an explicit tag next to the quote ("said Mr. Darcy",
  * "Ahab cried"), else the paragraph's single tagged speaker, else an unclosed quote carried from a
  * tagged previous paragraph. Anything else stays unattributed (plain ink). Titles and epigraphs
  * (a paragraph that is > 80% one untagged quote) are not speech at all.
  */
-export function attribute(blocks: string[], names: string[]): Quote[][] {
+export function attribute(blocks: string[], names: string[], gender: (name: string) => '' | 'm' | 'f' = () => ''): Quote[][] {
   const alt = names.map(esc).join('|')
+  const pron = new RegExp(`^[\\s,;—]*(?:(?:${SAY})\\s+(he|she)\\b|(he|she)\\s+(?:\\w+\\s+)?(?:${SAY})\\b)`, 'i')
+  const rel = new RegExp(`^[\\s,;—]*(?:(?:${SAY})\\s+(?:his|her)\\s+(wife|lady|husband|mother|father|daughter|son|sister|brother|aunt|uncle)\\b|(?:his|her)\\s+(wife|lady|husband|mother|father|daughter|son|sister|brother|aunt|uncle)\\s+(?:\\w+\\s+)?(?:${SAY})\\b)`, 'i')
+  const voc = alt ? new RegExp(`^[“"]\\s*(?:(?:[Mm]y\\s+)?[Dd]ear(?:est)?\\s+|[Oo]h,?\\s+)?${HON}(${alt})\\s*[,!]`) : null
+  const mention = alt ? new RegExp(`(?<![A-Za-z])${HON}(${alt})(?![A-Za-z])`, 'g') : null
+  const mentioned: string[] = [] // names in the text, most recent first (narration counts, not only speakers)
+  const noted = (n: string) => { const i = mentioned.indexOf(n); if (i >= 0) mentioned.splice(i, 1); mentioned.unshift(n); mentioned.length = Math.min(mentioned.length, 12) }
+  const surname = (n: string) => n.replace(/^(?:Mr|Mrs|Miss|Ms|Sir|Lady|Lord)\.?\s+/, '')
+  const FEM = /wife|lady|mother|daughter|sister|aunt/i
+  /** "his wife" when Mr. Bennet is about → Mrs. Bennet; "her mother" → the latest Mrs.; else the latest of that gender. */
+  const kin = (noun: string): string | null => {
+    const fem = FEM.test(noun), pool = [...new Set([...recent, ...mentioned])]
+    if (/wife|lady/i.test(noun)) { const m = pool.find(n => /^Mr\.?\s/.test(n)); const w = m && names.find(n => /^Mrs\.?\s/.test(n) && surname(n) === surname(m)); if (w) return w }
+    if (/husband/i.test(noun)) { const f = pool.find(n => /^Mrs\.?\s/.test(n)); const h = f && names.find(n => /^Mr\.?\s/.test(n) && surname(n) === surname(f)); if (h) return h }
+    if (/mother/i.test(noun)) return pool.find(n => /^Mrs\.?\s/.test(n)) ?? names.find(n => /^Mrs\.?\s/.test(n)) ?? null
+    if (/father/i.test(noun)) return pool.find(n => /^Mr\.?\s/.test(n)) ?? null
+    return pool.find(n => gender(n) === (fem ? 'f' : 'm')) ?? null
+  }
+  const recent: string[] = [] // speakers, most recent first
+  let lastTo: string | null = null // who the previous turn was spoken to ("My dear Mr. Bennet, …"): the likeliest to answer
+  const full = (n: string) => names.find(x => x !== n && surname(x) === n && /^Mr\.?\s/.test(x)) ?? n
+  const heard = (n: string | null) => { if (!n) return; const i = recent.indexOf(n); if (i >= 0) recent.splice(i, 1); recent.unshift(n); recent.length = Math.min(recent.length, 6) }
+  let turns: (string | null)[] = [] // speakers of the run of dialogue paragraphs just before
   const after = alt ? new RegExp(`^[\\s,;—]*(?:(?:${SAY})\\s+${HON}(${alt})\\b|${HON}(${alt})\\s+(?:\\w+\\s+)?(?:${SAY})\\b)`) : null
   const before = alt ? new RegExp(`(?:(?:${SAY})\\s+${HON}(${alt})|${HON}(${alt})\\s+(?:\\w+\\s+)?(?:${SAY}))[\\s,:—]*$`) : null
   let carry: string | null = null
   return blocks.map(text => {
     const found = [...text.matchAll(QUOTES)].filter(m => !isTitle(m[0]))
-    if (!found.length) { carry = null; return [] }
+    if (!found.length) { carry = null; if (mention) for (const m of text.matchAll(mention)) noted(names.includes(m[0].trim()) ? m[0].trim() : m[1]); if (text.trim().length > 240) { turns = []; lastTo = null }; return [] } // a long stretch of narration ends the exchange
     const qs: Quote[] = found.map(m => {
       const a = m.index!, b = a + m[0].length
       const t = (after && text.slice(b, b + 60).match(after)) || (before && text.slice(Math.max(0, a - 60), a).match(before))
       return { a, b, speaker: t ? t[1] ?? t[2] : null }
     })
-    if (qs.length === 1 && !qs[0].speaker && !carry && qs[0].b - qs[0].a > 0.8 * text.trim().length) { carry = null; return [] }
+    if (qs.length === 1 && !qs[0].speaker && !carry && turns.length < 2 && qs[0].b - qs[0].a > 0.8 * text.trim().length) { carry = null; return [] } // an epigraph, not a turn in an exchange
     const tagged = new Set(qs.map(q => q.speaker).filter(Boolean))
     const own = tagged.size === 1 ? [...tagged][0]! : null
     if (carry && /^\s*[“"]/.test(text) && !qs[0].speaker && (!own || own === carry)) qs[0].speaker = carry
     for (const q of qs) q.speaker ??= own
+    // Guesses, marked as such: "he said" → the last man who spoke; an untagged turn in a two-person exchange →
+    // the one who isn't the last speaker (the Muzny sieve's turn-taking rule).
+    if (mention) for (const m of text.matchAll(mention)) noted(names.includes(m[0].trim()) ? m[0].trim() : m[1])
+    for (const q of qs) {
+      if (q.speaker) continue
+      const r = text.slice(q.b, q.b + 50).match(rel)
+      if (r) { const who = kin(r[1] ?? r[2]); if (who) { q.speaker = who; q.guess = true; continue } }
+      const g = text.slice(q.b, q.b + 40).match(pron)
+      if (g) { const want = (g[1] ?? g[2]).toLowerCase() === 'she' ? 'f' : 'm'; const hit = [...(lastTo ? [lastTo] : []), ...recent, ...mentioned].find(n => gender(n) === want); if (hit) { q.speaker = hit; q.guess = true } }
+    }
+    // a turn that names who it's spoken to ("My dear Mr. Bennet, …"): in a two-person exchange, it's the other one
+    const to = voc && qs[0] && !qs[0].speaker ? text.slice(qs[0].a, qs[0].a + 60).match(voc) : null
+    if (to) { const addressee = to[1], other = [...new Set([...turns.slice(-3).filter(Boolean) as string[], ...recent])].find(n => n !== addressee && surname(n) !== addressee); if (other) { qs[0].speaker = other; qs[0].guess = true } }
+    const opens = /^\s*[“"]/.test(text)
+    if (opens && !qs[0].speaker && lastTo && turns[turns.length - 1] && turns[turns.length - 1] !== lastTo) { qs[0].speaker = lastTo; qs[0].guess = true } // answering who spoke to them
+    if (opens && !qs[0].speaker && turns.length >= 2) {
+      const b = turns[turns.length - 1], a = b ? [...turns].reverse().find(t => t && t !== b) : null
+      if (a && b) { qs[0].speaker = a; qs[0].guess = true; for (const q of qs.slice(1)) if (!q.speaker) { q.speaker = a; q.guess = true } }
+    }
+    for (const q of qs) heard(q.speaker)
+    const said = voc ? qs.map(q => text.slice(q.a, q.a + 60).match(voc)?.[0] ? text.slice(q.a, q.a + 60).match(voc)![1] : null).find(Boolean) : null
+    if (said) lastTo = full(said) // kept for the exchange: who she talks to is who answers
+    if (opens) turns.push(qs[0].speaker); else turns = qs.some(q => q.speaker) ? [qs.find(q => q.speaker)!.speaker] : []
     const last = found[found.length - 1][0]
     carry = /[”"]$/.test(last) && last.length > 1 ? null : qs[qs.length - 1].speaker
     return qs
   })
 }
 const HARDWORD = /(?<![A-Za-z’'-])[a-z][a-z’'-]{3,}(?![A-Za-z])/g
+/** A character's gender from a title or a known given name ('' when the text doesn't say). */
+export function genderOf(name: string, alias = name): '' | 'm' | 'f' {
+  for (const n of [alias, name]) {
+    const [first, second] = n.replace(/\./g, '').split(/\s+/)
+    const t = TITLES.get(first)
+    if (t) return t
+    if (FEMALE.has(first) || (second && FEMALE.has(second) && !MALE.has(first))) return 'f'
+    if (MALE.has(first)) return 'm'
+  }
+  return ''
+}
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 export class Lenses {
@@ -94,8 +151,8 @@ export class Lenses {
     if (p) return p
     p = { tokens: [], byBlock: new Map(), share: new Map() }
     const add = (t: Token) => { p!.tokens.push(t); let l = p!.byBlock.get(t.blk); if (!l) p!.byBlock.set(t.blk, (l = [])); l.push(t) }
-    const blocks = v.ix.blocks.map(blk => (blk.kind === 'text' ? blk.text : ''))
-    const quotes = attribute(blocks, [...this.canon.keys()])
+    const blocks = v.ix.blocks.map(blk => (blk.kind === 'text' && !blk.el.closest?.('[data-pubre-caption], [data-pubre-plate]') ? blk.text : '')) // a picture's caption isn't a turn of speech
+    const quotes = attribute(blocks, [...this.canon.keys()], n => genderOf(this.canon.get(n) ?? n, n))
     blocks.forEach((text, bi) => {
       if (!text) return
       if (this.nameRe) for (const m of text.matchAll(this.nameRe)) {
@@ -106,7 +163,7 @@ export class Lenses {
       for (const m of text.matchAll(ASIDES)) add({ kind: 'aside', blk: bi, a: m.index!, b: m.index! + m[0].length, key: '', slot: -1 })
       const qs = quotes[bi]
       p!.share.set(bi, qs.reduce((n, q) => n + q.b - q.a, 0) / Math.max(1, text.length))
-      for (const q of qs) { const who = q.speaker ? this.person(q.speaker) : undefined; add({ kind: 'speech', blk: bi, a: q.a, b: q.b, key: who?.name ?? q.speaker ?? '', slot: who?.slot ?? -1 }) }
+      for (const q of qs) { const who = q.speaker ? this.person(q.speaker) : undefined; add({ kind: 'speech', blk: bi, a: q.a, b: q.b, key: who?.name ?? q.speaker ?? '', slot: who?.slot ?? -1, guess: q.guess }) }
     })
     // Foreign phrases: elements whose language differs from the book's.
     for (const el of Array.from(v.doc.querySelectorAll('[lang], [*|lang]'))) {
@@ -173,6 +230,20 @@ export class Lenses {
     for (const [name, rs] of Object.entries(out)) m.set(name, rs)
   }
 
+  /** The name whisper: who speaks each dialogue paragraph in [from, to], only where the speaker changes and the
+   *  paragraph doesn't name them already. `guess`: worked out from turn-taking or a pronoun, not a tag. */
+  whispers(v: View, from: number, to: number): { blk: number; name: string; slot: number; guess: boolean }[] {
+    const p = this.parse(v), out: { blk: number; name: string; slot: number; guess: boolean }[] = []
+    let prev = ''
+    for (let bi = Math.max(0, from - 12); bi <= to; bi++) {
+      const ts = p.byBlock.get(bi) ?? [], sp = ts.find(t => t.kind === 'speech' && t.key)
+      if (!sp) { if ((v.ix.blocks[bi]?.text.length ?? 0) > 240) prev = ''; continue }
+      if (bi >= from && sp.key !== prev && !ts.some(t => t.kind === 'name' && t.key === sp.key))
+        out.push({ blk: bi, name: sp.key, slot: sp.slot, guess: !!sp.guess })
+      prev = sp.key
+    }
+    return out
+  }
   /** Lens token under a DOM position (for hover / dwell cards). */
   tokenAt(v: View, node: Node, offset: number): Token | null {
     const p = this.parse(v)

@@ -664,6 +664,34 @@
     if (!ws.length) return
     const a = pag.firstWordOnPage(v, page), b = page + 1 < v.pages ? pag.firstWordOnPage(v, page + 1) : ws.length - 1
     lenses.paint(v, ws[a].b, ws[b].b)
+    whisperSoon(v, ws[a].b, ws[b].b)
+  }
+  // ---------- who's speaking: a small name in the leading above a line, where the speaker changes ----------
+  let whisperEl: HTMLElement | undefined, whisperT = 0
+  function whisperSoon(v: BookView, from: number, to: number) {
+    whisperEl?.replaceChildren(); clearTimeout(whisperT)
+    if (eff.voices !== 'whisper' || staged || !lenses || !pag || eff.intensity === 'quiet') return
+    whisperT = window.setTimeout(() => {
+      if (!pag || pag.current !== v) return
+      if (!whisperEl) { whisperEl = Object.assign(document.createElement('div'), { className: 'pubre-whispers' }); pag.port.append(whisperEl) }
+      const theme = resolveTheme(eff.palette, eff.mode), page = pag.currentPage
+      let free = -1e9 // the margin below the last name: a name that would run into it waits for the next change
+      const els = lenses!.whispers(v, from, to).flatMap(w => {
+        const blk = v.ix.blocks[w.blk], wd = v.ix.words[blk.a]
+        if (!wd) return []
+        const r = v.doc.createRange(); r.setStart(wd.sn, wd.so); r.setEnd(wd.en, wd.eo)
+        const q = r.getClientRects()[0]
+        if (!q || pag!.pageOf(q) !== page || q.top < free) return []
+        free = q.top + Math.min(9 * 7.5, w.name.length * 8.4) + 6
+        const b = Object.assign(document.createElement('b'), { textContent: w.name })
+        b.classList.toggle('guess', w.guess)
+        // in the margin beside the line, reading down: never on the letters
+        b.style.cssText = `--h:${w.slot >= 0 ? whoHue(theme, w.slot % WHO_SLOTS) : theme.base[4]};transform:translate(${pag!.columnLeft(v, q.left) - 13}px, ${q.top + 2}px)`
+        if (w.guess) b.title = 'pubre worked this out from the turn of the conversation'
+        return [b]
+      })
+      whisperEl.replaceChildren(...els)
+    }, 480)
   }
   // The cast is worked out in the background while you read. Meanwhile you see what there is: the cast an older
   // version found, or a first one from the chapters up to your place; a small chip says it's still at it.

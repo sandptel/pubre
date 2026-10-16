@@ -106,3 +106,9 @@ button { cursor: pointer; }
 .pubre-peek { position: absolute; z-index: 3; top: 46%; right: 14px; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 7px 12px; border-radius: 999px; background: var(--fg); color: var(--bg); font: 600 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; pointer-events: none; opacity: 0; transform: translateX(8px); transition: opacity .2s ease, transform .3s cubic-bezier(.22,1,.36,1); }
 .pubre-peek[data-side="l"] { right: auto; left: 14px; transform: translateX(-8px); }
 .pubre-peek.on { opacity: 1; transform: none; }
+
+/* Who's speaking: the speaker's name, small, in the leading just above the line (never on the letters) */
+.pubre-whispers { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.pubre-whispers b { position: absolute; left: 0; top: 0; writing-mode: vertical-rl; white-space: nowrap; max-height: 9em; overflow: hidden; text-overflow: ellipsis; font: 600 7.5px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: color-mix(in srgb, var(--h) 85%, var(--fg)); animation: whisper-in .6s ease both; }
+.pubre-whispers b.guess { opacity: .6; } /* worked out from the conversation, not said in the text */
+@keyframes whisper-in { from { opacity: 0; } }

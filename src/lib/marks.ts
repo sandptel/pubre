@@ -126,7 +126,7 @@ img[data-pubre-cap="img"], [data-pubre-cap="img"] img { display: block; height: 
 [data-pubre-opener="nocturne"] { font-variant: small-caps; letter-spacing: .12em; font-weight: 500 !important; color: ${muted} !important; background: linear-gradient(${a(muted, .14)}, ${a(bg, 0)}); padding: .6em 0 .4em; border-radius: 6px; }
 [data-pubre-first="nocturne"]::first-line { font-style: italic; }
 [data-pubre-opener="stage"] { text-transform: uppercase; letter-spacing: .16em; font-size: .92em !important; text-align: center !important; border-top: 1px solid ${line}; border-bottom: 1px solid ${line}; padding: .55em 0 !important; }
-[data-pubre-opener="swell"] { font-style: italic; font-weight: 400 !important; text-decoration: underline wavy ${a(accent, .45)} 1px; text-underline-offset: .4em; text-decoration-skip-ink: none; }
+[data-pubre-opener="swell"] { font-style: italic; font-weight: 400 !important; text-decoration: underline ${a(accent, .4)} 1px; text-underline-offset: .45em; }
 [data-pubre-first="swell"]::first-line { font-style: italic; }
 `
 }

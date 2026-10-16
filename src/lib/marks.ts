@@ -83,7 +83,7 @@ ${VOICES.map(k => `::highlight(v-ink-${k}) { color: ${mix(fg, voice(k), 0.55)} }
 ::highlight(v-soft-${k}) { color: ${mix(fg, voice(k), 0.42)} }
 ::highlight(v-under-${k}) { text-decoration: underline 1.5px ${alpha(voice(k), 0.5)}; text-underline-offset: 6px }
 ::highlight(v-marks-${k}) { color: ${voice(k)} }`).join('\n')}
-::highlight(spark) { text-decoration: underline wavy 1.5px ${alpha(accent, 0.85)}; text-underline-offset: 5px; text-shadow: 0 0 10px ${alpha(accent, 0.55)} }
+::highlight(spark) { text-decoration: underline dotted 2px ${alpha(accent, 0.8)}; text-underline-offset: 5px; text-shadow: 0 0 9px ${alpha(accent, 0.4)} } /* once in the whole book: it glows (not wavy: that reads as a typo) */
 ::highlight(hard) { text-decoration: underline dotted 2px ${alpha(accent, 0.8)}; text-underline-offset: 5px }
 ::highlight(foreign) { text-decoration: underline dashed 1.5px ${alpha(muted, 0.8)}; text-underline-offset: 5px }
 ${Array.from({ length: WHO_SLOTS }, (_, k) => `::highlight(who-${k}) { background-color: ${alpha(whoHue(t, k), t.dark ? 0.22 : 0.16)}; text-decoration: underline 1px ${alpha(whoHue(t, k), 0.35)}; text-underline-offset: 3px }`).join('\n')}

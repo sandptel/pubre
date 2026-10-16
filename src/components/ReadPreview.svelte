@@ -68,7 +68,7 @@
   span { transition: color .25s ease; }
   span.now { -webkit-text-stroke: .018em currentColor; }
   span.nm { background: color-mix(in srgb, var(--base0D, var(--accent)) 16%, transparent); border-radius: 3px; color: var(--base0D) !important; }
-  span.hw { text-decoration: underline wavy color-mix(in srgb, var(--accent) 80%, transparent) 1.5px; text-underline-offset: 4px; }
+  span.hw { text-decoration: underline dotted color-mix(in srgb, var(--accent) 80%, transparent) 2px; text-underline-offset: 4px; }
   .ptr { position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; transition: transform .28s cubic-bezier(.22,1,.36,1), width .24s ease, height .24s ease; }
   .ptr.typing { animation: type .42s steps(6, end) both; transform-origin: left; }
   @keyframes type { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }

@@ -207,6 +207,10 @@ img, svg, video, canvas { max-width: 100% !important; max-height: ${pageHeight}p
   height: auto; object-fit: contain; break-inside: avoid; }
 ${t.dark ? 'img { filter: brightness(.88); }' : ''}
 table, figure, pre { break-inside: avoid; }
+pre { max-width: 100% !important; overflow-x: auto; }
+[data-pubre-wide] { display: block !important; max-width: 100% !important; overflow-x: auto; overscroll-behavior-x: contain; touch-action: pan-x pan-y; } /* too wide for the column: it slides on its own */
+[data-pubre-wide] { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+[data-pubre-wide].pubre-end { -webkit-mask-image: none; mask-image: none; }
 div, figure, section, p, blockquote { max-width: 100% !important; box-sizing: border-box; } /* a figure with an inline width wider than the column bled into the next page */
 ::selection { background: color-mix(in srgb, ${accent} 30%, transparent); }
 `

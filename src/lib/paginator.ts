@@ -318,6 +318,12 @@ body > div, body > section, body > p, body > figure { text-align: center !import
     this.style(v.doc, 'pubre-grid', lh ? `html { height: ${lines}px !important; padding-bottom: ${t + this.reserve + box - lines}px !important; }
 img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
     if (lh && v.doc.images.length) snapToGrid(v.doc) // again, now that pictures have their final size
+    for (const el of Array.from(v.doc.querySelectorAll<HTMLElement>('table, pre'))) { // wide ones slide sideways, with a fade at the edge
+      el.removeAttribute('data-pubre-wide')
+      const wide = el.localName === 'pre' ? el.scrollWidth > el.clientWidth + 2 : el.getBoundingClientRect().width > (el.parentElement?.clientWidth ?? 1e9) + 2
+      el.toggleAttribute('data-pubre-wide', wide)
+      if (wide && !el.dataset.pubreWideBound) { el.dataset.pubreWideBound = '1'; el.addEventListener('scroll', () => el.classList.toggle('pubre-end', el.scrollLeft + el.clientWidth >= el.scrollWidth - 2), { passive: true }) }
+    }
     v.iframe.style.width = step + 'px'
     v.iframe.style.height = this.L.H + 'px'
     const ncols = Math.max(1, Math.ceil((v.doc.documentElement.scrollWidth - gap / 2) / (colW + gap)))
@@ -594,7 +600,7 @@ img, svg, video, canvas { max-height: ${lines}px !important; }` : '')
       if (holding) { this.holdHook?.move(dx, dy); return }
       if (holdT && Math.hypot(dx, dy) > 8) { clearTimeout(holdT); holdT = 0 }
       if (!start.touch || this.view !== v) return
-      if (!dragging && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2 && !doc.getSelection()?.toString()) dragging = true
+      if (!dragging && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2 && !doc.getSelection()?.toString() && !(e.target as Element).closest?.('[data-pubre-wide]')) dragging = true
       if (!dragging) return
       const now = performance.now()
       if (now > lastT) { vel = 0.7 * vel + 0.3 * (e.clientX - lastX) / (now - lastT); lastX = e.clientX; lastT = now }

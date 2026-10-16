@@ -34,6 +34,8 @@
   import Stage, { type StageState } from './Stage.svelte'
   import Ticker from './Ticker.svelte'
   import Zoom from './Zoom.svelte'
+  import { AsciiWeather } from '../lib/asciiweather.ts'
+  import { sceneOf, SceneTrack, type Scene } from '../insights/scene.ts'
   import { quoteCard, shareCard } from '../lib/quotecard.ts'
   import ReadPreview from './ReadPreview.svelte'
   import Constellation from './Constellation.svelte'
@@ -391,6 +393,32 @@
     const c = s && chapterFor(profileChapters, s.label, book?.spineIndex(s.href) ?? -1)
     return c?.title ? c.weather ?? '' : ''
   })
+  // The weather of the passage (E1): the page you're on and the one before, held two pages so it never flickers;
+  // the chapter's own weather when the passage says nothing.
+  const track = new SceneTrack()
+  let trackSpine = -1, scene = $state<Scene>(''), sceneT = 0, skyEl = $state<HTMLCanvasElement>(), sky: AsciiWeather | undefined
+  function sceneSoon() {
+    clearTimeout(sceneT)
+    sceneT = window.setTimeout(() => {
+      const v = pag?.current
+      if (!v || !v.ix.words.length || !pag) return
+      if (v.index !== trackSpine) { track.reset(); trackSpine = v.index }
+      const ws = v.ix.words, pg = pag.currentPage
+      const a = pag.firstWordOnPage(v, Math.max(0, pg - 1)), b = pg + 1 < v.pages ? pag.firstWordOnPage(v, pg + 1) : ws.length - 1
+      const r = sceneOf(v.ix.blocks.slice(ws[a].b, ws[b].b + 1).map(bl => bl.text).join(' '))
+      scene = track.next(r.scene, r.score)
+    }, 350)
+  }
+  const passage = $derived<Scene>(!eff.weather || eff.intensity === 'quiet' ? '' : scene || ({ storm: 'storm', fog: 'fog', snow: 'snow', night: 'night', '': '' } as const)[weather || ''])
+  $effect(() => {
+    const s = passage, style = eff.weatherStyle ?? 'ascii', el = skyEl
+    if (!el) return
+    if (style !== 'ascii' || !s) { sky?.set('', inks(), box(), true, false); return }
+    sky ??= new AsciiWeather(el)
+    sky.set(s, inks(), box(), eff.motion !== 'full' || reduceMotion || staged, resolveTheme(eff.palette, eff.mode).dark)
+  })
+  const box = () => pag?.textBox() ?? { left: 0, right: innerWidth, top: 0, bottom: innerHeight }
+  const inks = () => { const t = resolveTheme(eff.palette, eff.mode).base; return { rain: t[0x0d], snow: t[5], fog: t[4], night: t[5], sun: t[0x0a], sea: t[0x0c], wind: t[4] } }
   const wedgeInfo = (label: string, href: string) => {
     const c = profileChapters && chapterFor(profileChapters, label, book?.spineIndex(href) ?? -1)
     return c?.title ? { tint: moodTint(c.mood), talk: c.talk } : undefined
@@ -808,6 +836,7 @@
     lastLoc = { chapter: r.chapter, progress: r.progress }
     const prevSpine = lastSpine; lastSpine = r.index
     void prev; void prevSpine
+    sceneSoon()
     if (ending) { ending = null; return } // the card leaves on your next page turn
     teaseSoon()
   }
@@ -1156,7 +1185,8 @@
     onopen={o => { staged = o; speedOpen = false; if (o) { chrome = false; hideCard(); guide?.deactivate(); pushBack('stage'); paintPlace(); coachOpened() } else { paintLenses(); popBack('stage'); if (placeV) setPlace(placeV, placeK, true); placeSoon(true); setTimeout(() => { pag?.current?.marks.clear('r-'); requestAnimationFrame(() => paintPlace()) }, 1200) /* WebKit keeps highlight geometry from the set-down a few letters off: clear, then paint again once settled */; coachClosed() } }} onplace={(v, k) => setPlace(v, k)} resumeAt={placeHere} onstate={st => (sstate = st)}
     onpace={w => (settings.wpm = w)} ontoast={toast}
     onsetting={setSetting} />
-  {#if weather}{#key weather}<div class="weather w-{weather}" class:still={eff.motion !== 'full' || reduceMotion} transition:fade={{ duration: 1200 }} aria-hidden="true"></div>{/key}{/if}
+  <canvas class="sky" bind:this={skyEl} aria-hidden="true"></canvas>
+  {#if passage && eff.weatherStyle === 'tint'}{#key passage}<div class="weather t-{passage}" transition:fade={{ duration: 2000 }} aria-hidden="true"></div>{/key}{/if}
   {#if (eff.brightness ?? 100) < 100}<div class="dimmer" style:opacity={(100 - eff.brightness) / 100 * 0.9} aria-hidden="true"></div>{/if}
   {#if bar}
     <div class="hl-bar glass" class:below={bar.below} style:left="{bar.x}px" style:top="{bar.y}px" role="toolbar" aria-label="Highlight">
@@ -1650,15 +1680,16 @@
   .lens-card :global(.c-av) { width: 44px; height: 44px; border-radius: 12px; flex: none; }
   @keyframes cardIn { from { opacity: 0; scale: .94; } }
   :global(.star-birth) { position: fixed; z-index: 6; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; }
-  /* weather: a whisper of rain, fog at the edges, slow snow, a night vignette — all very faint */
-  .weather { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
-  .w-storm { opacity: .06; background: repeating-linear-gradient(105deg, transparent 0 14px, var(--fg) 14px 15px, transparent 15px 46px); background-size: 180px 180px; animation: rain .7s linear infinite; }
-  .w-fog { background: radial-gradient(ellipse at 50% 50%, transparent 55%, color-mix(in srgb, var(--fg) 7%, transparent) 100%), linear-gradient(transparent 70%, color-mix(in srgb, var(--bg) 60%, color-mix(in srgb, var(--fg) 8%, transparent))); }
-  .w-snow { opacity: .1; background-image: radial-gradient(circle, var(--fg) 1px, transparent 1.5px), radial-gradient(circle, var(--fg) .8px, transparent 1.2px); background-size: 90px 90px, 140px 140px; background-position: 0 0, 40px 60px; animation: snow 14s linear infinite; }
-  .w-night { background: radial-gradient(ellipse at 50% 40%, transparent 50%, rgb(10 14 30 / .14) 100%); }
-  .weather.still { animation: none; }
-  @keyframes rain { to { background-position: -40px 180px; } }
-  @keyframes snow { to { background-position: 30px 90px, 80px 200px; } }
+  /* weather: drawn in type in the margins (canvas), or a tint of the paper where nothing moves */
+  .sky { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+  .weather { position: absolute; inset: 0; z-index: 0; pointer-events: none; mix-blend-mode: multiply; }
+  .t-rain, .t-storm { background: color-mix(in srgb, var(--base0D, #6f86a8) 7%, transparent); }
+  .t-snow { background: color-mix(in srgb, var(--base0C, #9ab) 5%, transparent); }
+  .t-fog { background: color-mix(in srgb, var(--muted) 8%, transparent); }
+  .t-night { background: radial-gradient(ellipse at 50% 40%, transparent 50%, rgb(10 14 30 / .12) 100%); }
+  .t-sun { background: radial-gradient(70% 60% at 90% 0%, color-mix(in srgb, var(--base0A, #e8b04a) 12%, transparent), transparent 70%); }
+  .t-sea { background: linear-gradient(transparent 55%, color-mix(in srgb, var(--base0C, #3b7f8a) 7%, transparent)); }
+  .t-wind { background: none; }
   .dimmer { position: absolute; inset: 0; z-index: 7; background: #000; pointer-events: none; transition: opacity .2s; }
   .toast { position: absolute; z-index: 9; left: 50%; top: calc(env(safe-area-inset-top) + var(--s5)); translate: -50% 0; padding: 8px 14px; border-radius: 999px; font-size: 13px; animation: toastIn .35s var(--ease); pointer-events: none; }
   @keyframes toastIn { from { opacity: 0; transform: translateY(-6px); } }

@@ -142,7 +142,8 @@ export interface Settings {
   pinControls: boolean // keep the reader's buttons on screen (the book makes room for them)
   chapterColour: boolean // a colourful chapter lends the accent its colour (ambient palette drift)
   openers: boolean // each chapter opens into its own room (classic, daylight, nocturne, stage, long swell)
-  weather: boolean // a chapter's weather (storm, fog, snow, night) as a faint trace on the page
+  weather: boolean // the weather of the passage, as a small touch on the page
+  weatherStyle?: 'ascii' | 'tint' // ascii: drawn in type in the margins; tint: the paper's colour only, nothing moves
   inkRead: number // how bright text you've already read is (0–100)
   inkNow: number // how bright the words being read are
   inkAhead: number // how bright the words still to read are
@@ -168,7 +169,7 @@ export interface Settings {
 
 export const defaults: Settings = {
   palette: 'pubre', mode: 'paper', font: 'newyork', fontScale: 110, lineHeight: 1.5, margin: 1, justify: true, bold: false, spread: 'auto', letterSpacing: 0, measure: 'normal',
-  guide: true, guideStyle: 'stage', paraEnd: 'breathe', pauses: 1, lookBack: true, stageStep: 'word', stagePointer: 'outline', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, v: 4, brightness: 100, inkRead: 10, inkNow: 100, inkAhead: 20, weather: true, pointer: 'outline', focus: 'sentence', step: 'word', dimRead: true, wpm: 180,
+  guide: true, guideStyle: 'stage', paraEnd: 'breathe', pauses: 1, lookBack: true, stageStep: 'word', stagePointer: 'outline', stageLenses: true, holdToRead: true, pinControls: false, chapterColour: true, openers: true, v: 4, brightness: 100, inkRead: 10, inkNow: 100, inkAhead: 20, weather: true, weatherStyle: 'ascii', pointer: 'outline', focus: 'sentence', step: 'word', dimRead: true, wpm: 180,
   intensity: 'guided', names: true, hardWords: true, hardStyle: 'shown', voices: 'whisper', asides: true, foreign: true, motion: 'full', onlineDefinitions: false, chapterPrompts: true,
   smartPunct: true, hangQuotes: true, lineGrid: true, sceneBreaks: true, letters: true, plates: true, inkSoak: true, peek: true, lastPage: true, framedCap: true, haptics: false,
 }

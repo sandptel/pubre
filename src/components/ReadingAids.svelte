@@ -119,7 +119,8 @@
       </div>
     </div>
     {@render choice('Voices', 'voices', [['whisper', 'Names'], ['ink', 'Ink'], ['underline', 'Line'], ['marks', 'Marks'], ['off', 'Off']], 'Who is speaking: a small name where the speaker changes, quote marks in their colour')}
-    {@render toggle('Chapter weather', 'weather', 'Storm, fog, snow or night, as a faint trace on the page')}
+    {@render toggle('Weather', 'weather', 'The weather of the passage: rain, snow, fog, night, sun, sea or wind')}
+    {#if value.weather}{@render choice('Weather style', 'weatherStyle', [['ascii', 'Margins'], ['tint', 'Tint']], 'Margins: drawn in type beside the text. Tint: the paper’s colour only, nothing moves')}{/if}
     {@render toggle('Chapter openers', 'openers', 'Each chapter opens into its own room')}
     {@render toggle('Chapter colour', 'chapterColour', 'A colourful chapter tints the accent as you enter it')}
     {@render toggle('Asides', 'asides', 'Parentheses and dashes, a step quieter')}

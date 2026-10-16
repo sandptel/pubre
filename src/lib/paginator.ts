@@ -198,6 +198,8 @@ export class Paginator {
   xOf(v: View) { return this.currentX(v) }
   /** Page (screen) a client rect inside the book document falls on. */
   pageOf(r: DOMRect) { return this.pageOfRect(r) }
+  /** Where the text sits on screen (host coordinates): what the margin weather keeps clear of. */
+  textBox() { const { left, step, gap, t, H } = this.L, l = this.port.offsetLeft + left * 0; return { left: l + gap / 2, right: l + step - gap / 2, top: t, bottom: H - t } }
   /** The left edge of the column holding document x, in port coordinates. */
   columnLeft(v: View, x: number) { const { gap, colW } = this.L, c = colW + gap; return gap / 2 + Math.floor((x - gap / 2 + 1) / c) * c + this.currentX(v) }
   /** Slide to a page of the current chapter. */

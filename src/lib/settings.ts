@@ -179,7 +179,8 @@ export function storeSettings(s: Settings) {
 }
 
 /** User overrides layered over publisher CSS (appended last, so equal specificity wins). */
-export function bookCss(s: Settings, pageHeight: number) {
+/** `colChars`: about how many characters fit on a line of the column (justify only when it's wide enough). */
+export function bookCss(s: Settings, pageHeight: number, colChars = 70) {
   const t = resolveTheme(s.palette, s.mode)
   const fg = t.base[5], accent = t.base[t.accent]
   const font = fonts[s.font]?.stack
@@ -195,7 +196,10 @@ body *:not(a) { color: inherit !important; background-color: transparent !import
 a { color: ${accent} !important; text-decoration-thickness: .06em; text-underline-offset: .15em; }
 ${font ? `body, body *${notCode} { font-family: ${font} !important; }` : ''}
 ${s.lineHeight ? `body, p, li, blockquote, dd, div { line-height: ${s.lineHeight} !important; }` : ''}
-${s.justify && s.measure !== 'short' ? 'p { text-align: justify; hyphens: auto; -webkit-hyphens: auto; }' : ''}
+${s.justify && s.measure !== 'short' && colChars >= 55 ? 'p { text-align: justify; hyphens: auto; -webkit-hyphens: auto; }'
+  : s.justify ? 'p { text-align: start; hyphens: auto; -webkit-hyphens: auto; }' : ''} /* a narrow column justified opens rivers: ragged with soft hyphens instead */
+p { text-wrap: pretty; hyphenate-limit-chars: 7 3 3; -webkit-hyphenate-limit-before: 3; -webkit-hyphenate-limit-after: 3; }
+h1, h2, h3, h4, h5, h6 { break-after: avoid; text-wrap: balance; }
 ${s.letterSpacing ? `body, body *${notCode} { letter-spacing: ${s.letterSpacing}em !important; word-spacing: ${s.letterSpacing * 1.5}em !important; }` : ''}
 p { widows: 2; orphans: 2; }
 [data-pubre-hang="d"] { text-indent: -.42em !important; } [data-pubre-hang="s"] { text-indent: -.24em !important; } /* opening quotes hang in the margin */

@@ -94,7 +94,7 @@
     <span class="label">Alignment</span>
     <div class="align">
       <button class:on={!settings.justify} onclick={() => (settings.justify = false)}><b>Default</b><small>Lines end where the words do; even spacing.</small></button>
-      <button class:on={settings.justify} onclick={() => (settings.justify = true)}><b>Justify</b><small>Text spreads to both edges, like print.</small></button>
+      <button class:on={settings.justify} onclick={() => (settings.justify = true)}><b>Justify</b><small>Both edges straight, like print, when the page is wide enough; narrow phone pages stay even-spaced.</small></button>
     </div>
   </div>
 {/if}

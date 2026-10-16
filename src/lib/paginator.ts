@@ -285,7 +285,7 @@ export class Paginator {
     // the spread, so the picture is centred instead of sitting in the left half.
     const solo = cols > 1 && (v.doc.body?.textContent ?? '').trim().length < 40 && !!v.doc.querySelector('img, svg, image')
     const colW = solo ? cols * this.L.colW + (cols - 1) * gap : this.L.colW
-    this.style(v.doc, 'pubre-user', bookCss(this.settings, H - 2 * t))
+    this.style(v.doc, 'pubre-user', bookCss(this.settings, H - 2 * t, colW / (16 * this.settings.fontScale / 100 * 0.5)))
     this.style(v.doc, 'pubre-marks', marksCss(resolveTheme(this.settings.palette, this.settings.mode), this.settings.inkRead))
     this.style(v.doc, 'pubre-layout', `
 html { box-sizing: content-box !important; margin: 0 !important; max-width: none !important;

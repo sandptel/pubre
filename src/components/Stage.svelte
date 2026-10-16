@@ -49,7 +49,7 @@
   let glossT = 0, hoverT = 0
   let glossTop = $state(false)
   let root = $state<HTMLDivElement>(), veil = $state<HTMLDivElement>(), lift = $state<HTMLDivElement>(), para = $state<HTMLDivElement>()
-  let flow = $state<HTMLDivElement>(), marker = $state<HTMLElement>(), ghost = $state<HTMLElement>(), cueEl = $state<HTMLElement>(), rail = $state<HTMLElement>(), railFill = $state<HTMLElement>(), railBtn = $state<HTMLElement>()
+  let flow = $state<HTMLDivElement>(), marker = $state<HTMLElement>(), cueEl = $state<HTMLElement>(), rail = $state<HTMLElement>(), railFill = $state<HTMLElement>(), railBtn = $state<HTMLElement>()
   // How each kind of mark moves through its pause; a kind cycles through its moves so no rhythm repeats.
   const MOVES: Record<Cue, string[]> = {
     comma: ['hop', 'sway', 'dip', 'breathe'], turn: ['sway', 'hop', 'breathe'], list: ['nudge', 'tick', 'dip'],
@@ -222,7 +222,6 @@
   function placeMarker(animate = true) {
     const m = marker
     if (!m) return
-    ghost?.classList.remove('on')
     if (pointer === 'ink' || !landed) { m.classList.remove('on'); return }
     if (pointer === 'type') return typeMarker(m, animate)
     const rs: DOMRect[] = []
@@ -240,9 +239,7 @@
       el.style.transform = `translate(${g[0]}px, ${g[1]}px)`
       el.style.width = g[2] + 'px'; el.style.height = g[3] + 'px'
     }
-    // a faint ghost a beat behind shows which way it's going (only for word-sized hops, never a glide)
-    const tail = ghost && !glide && settings.stageTail !== false && step === 'word'
-    const set = (dur: number) => { to(m, dur); if (tail && ghost) { ghost.dataset.p = pointer; to(ghost, dur, dur ? 90 : 0); ghost.classList.add('on') } }
+    const set = (dur: number) => to(m, dur)
     m.dataset.p = pointer; m.classList.add('on') // classList keeps Svelte's scoping class
     if (!animate || reduce) return set(0)
     if (newLine) { // a new line: fade across instead of sweeping diagonally
@@ -250,8 +247,7 @@
       setTimeout(() => set(0), 100)
       return
     }
-    // a hop is quick (100–160 ms, eased, no overshoot); the Pacer glides through the word's whole time
-    set(glide ? Math.round(unitMs()) : Math.min(160, Math.max(100, unitMs() * 0.35)))
+    set(glide ? Math.round(unitMs()) : Math.min(300, unitMs() * 0.6)) // the Pacer glides through the word's whole time
   }
 
   /** The Type pointer: letters type themselves — the marker grows across the unit one letter at a time, caret at its edge. */
@@ -832,7 +828,7 @@
     <div class="win" style:font-family={font} style:--size="{settings.fontScale / 100}">
       <div class="lift" bind:this={lift}>
         <div class="para" bind:this={para}>
-          <div class="flow" class:fine={step !== 'sentence'} style:--in-read={settings.inkRead ?? 10} style:--in-now={settings.inkNow ?? 100} style:--in-ahead={settings.inkAhead ?? 20} bind:this={flow} aria-live="polite"><i class="marker ptr ghost" bind:this={ghost} aria-hidden="true"></i><i class="marker ptr" bind:this={marker} aria-hidden="true"></i><i class="cue" bind:this={cueEl} aria-hidden="true"></i><div class="rail" bind:this={rail}><i class="rail-fill" bind:this={railFill}></i></div></div>
+          <div class="flow" class:fine={step !== 'sentence'} style:--in-read={settings.inkRead ?? 10} style:--in-now={settings.inkNow ?? 100} style:--in-ahead={settings.inkAhead ?? 20} bind:this={flow} aria-live="polite"><i class="marker ptr" bind:this={marker} aria-hidden="true"></i><i class="cue" bind:this={cueEl} aria-hidden="true"></i><div class="rail" bind:this={rail}><i class="rail-fill" bind:this={railFill}></i></div></div>
         </div>
       </div>
     </div>
@@ -977,7 +973,6 @@
   .gloss :global(i) { color: var(--muted); margin-right: 4px; }
   @keyframes glossIn { from { opacity: 0; transform: translateY(8px); } }
   /* The marker (phrase / word steps) */
-  .marker.ghost { opacity: 0 !important; } .marker.ghost:global(.on) { opacity: .38 !important; }
   .marker { position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .25s; }
   .marker:global(.on) { opacity: 1; }
   /* Punctuation beats: for the pause, the mark hands over to a copy of itself that moves the way the pause sounds */

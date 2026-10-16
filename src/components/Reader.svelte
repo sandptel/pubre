@@ -2,7 +2,7 @@
   import { onMount, untrack } from 'svelte'
   import { cubicOut } from 'svelte/easing'
   import { fade, fly } from 'svelte/transition'
-  import { Book, type TocItem } from '../lib/epub.ts'
+  import { Book, tocLabel, type TocItem } from '../lib/epub.ts'
   import { Paginator, type Relocation, type Section } from '../lib/paginator.ts'
   import { effective, type Settings } from '../lib/settings.ts'
   import { Guide, type GuideState } from '../lib/guide.ts'
@@ -804,6 +804,8 @@
   }
 
   let recap = $state<{ stage: 'ask' | 'show'; chapter: string; lines: string[]; who: string[]; mine: string[] } | null>(null)
+  let recapDown = { x: 0, t: 0 }
+  const focusOnMount = (el: HTMLElement) => { el.focus() }
   function prepareRecap() {
     const v = pag?.current
     if (!v || !v.ix.words.length) return
@@ -1164,19 +1166,23 @@
   {/if}
   {#if zoom}<Zoom src={zoom.src} from={zoom.from} onclose={() => (zoom = null)} />{/if}
   {#if recap}
-    <div class="recap glass" role="dialog" aria-label="Previously">
-      <span class="r-eyebrow">Welcome back</span>
-      <b class="r-title">{rec.title}</b>
-      {#if recap.chapter}<span class="r-ch">{recap.chapter}</span>{/if}
-      {#if recap.stage === 'ask'}
-        <p class="r-q">Before the recap: what happened last? Take a moment to recall it.</p>
-        <div class="r-actions"><button class="pill" onclick={() => recap && (recap = { ...recap, stage: 'show' })}>Show recap</button><button class="r-skip" onclick={() => (recap = null)}>Just read</button></div>
-      {:else}
-        {#if recap.lines.length}<div class="r-lines">{#each recap.lines as l}<p>{l}</p>{/each}</div>{/if}
-        {#if recap.mine.length}<span class="r-label">Your marks</span>{#each recap.mine as m}<p class="r-mine">“{m}”</p>{/each}{/if}
-        {#if recap.who.length}<span class="r-label">With</span><p class="r-who">{recap.who.join(' · ')}</p>{/if}
-        <div class="r-actions"><button class="pill" onclick={() => (recap = null)}>Continue reading</button></div>
-      {/if}
+    <!-- "Previously…" is a page before yours: remember first, tap to see the recap, turn the page to read on -->
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <div class="recap" role="dialog" aria-label="Previously" tabindex="-1" use:focusOnMount out:fly={{ x: -innerWidth, duration: reduceMotion ? 0 : 380, opacity: 1, easing: cubicOut }}
+      onkeydown={e => { if (['ArrowRight', ' ', 'PageDown', 'Enter', 'Escape'].includes(e.key)) { e.preventDefault(); recap = null } }}
+      onpointerdown={e => (recapDown = { x: e.clientX, t: Date.now() })}
+      onpointerup={e => { const dx = e.clientX - recapDown.x; if (dx < -50 || e.clientX > innerWidth * 0.7) recap = null; else if (Math.abs(dx) < 8 && recap?.stage === 'ask') recap = { ...recap, stage: 'show' } }}>
+      <div class="r-page">
+        <span class="r-eyebrow">Previously{recap.chapter ? ` · ${tocLabel(recap.chapter)}` : ''}</span>
+        <b class="r-title">{rec.title}</b>
+        {#if recap.stage === 'ask'}<p class="r-q">What happened last? Take a moment to remember, then tap to see.</p>{/if}
+        {#if recap.lines.length}<div class="r-lines" class:hidden={recap.stage === 'ask'}>{#each recap.lines as l}<p>{l}</p>{/each}</div>{/if}
+        {#if recap.stage !== 'ask'}
+          {#if recap.mine.length}<span class="r-label">Your marks</span>{#each recap.mine as m}<p class="r-mine">“{m}”</p>{/each}{/if}
+          {#if recap.who.length}<span class="r-label">With</span><p class="r-who">{recap.who.join(' · ')}</p>{/if}
+        {/if}
+        <span class="r-turn">Turn the page to read on ›</span>
+      </div>
     </div>
   {/if}
   {#if card}
@@ -1540,8 +1546,12 @@
   .e-l { font-size: 13px; color: var(--muted); }
   .e-row { display: flex; gap: var(--s2); align-items: center; }
   .e-in { flex: 1; min-width: 0; border: 0; border-radius: 10px; padding: 8px 10px; background: var(--hover); font: 14px system-ui; color: var(--fg); outline: none; }
-  .recap { position: absolute; z-index: 7; left: 50%; top: 50%; translate: -50% -50%; width: min(440px, calc(100vw - 32px)); max-height: 80dvh; overflow: auto;
-    padding: var(--s5); border-radius: 24px; display: grid; gap: var(--s2); animation: cardIn .35s var(--ease); }
+  .recap { position: absolute; z-index: 7; inset: 0; background: var(--bg); display: grid; place-items: center; overflow: auto; outline: none; box-shadow: 8px 0 24px -12px rgba(0,0,0,.25); animation: recapIn .5s var(--ease); }
+  @keyframes recapIn { from { opacity: 0; } }
+  .r-page { width: min(440px, calc(100vw - 48px)); display: grid; gap: var(--s2); justify-items: center; text-align: center; padding-block: var(--s6); }
+  .r-lines { text-align: left; transition: filter .5s ease, opacity .5s ease; }
+  .r-lines.hidden { filter: blur(6px); opacity: .55; }
+  .r-turn { margin-top: var(--s5); font: 600 10.5px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
   .r-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
   .r-title { font: 600 20px/1.2 var(--serif); }
   .r-ch { font: italic 14px var(--serif); color: var(--muted); }

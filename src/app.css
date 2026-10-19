@@ -107,8 +107,8 @@ button { cursor: pointer; }
 .pubre-peek[data-side="l"] { right: auto; left: 14px; transform: translateX(-8px); }
 .pubre-peek.on { opacity: 1; transform: none; }
 
-/* Who's speaking: the speaker's name, faint, in the margin level with the line and ending just before the text */
+/* Who's speaking: a small marker in the speaker's colour, in the margin level with the line (the quote marks share the colour) */
 .pubre-whispers { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
-.pubre-whispers b { position: absolute; left: 0; top: 0; translate: -100% 0; white-space: nowrap; font: italic 400 11px/14px var(--serif); color: color-mix(in srgb, var(--h) 70%, var(--fg)); opacity: .6; animation: whisper-in .6s ease both; }
-.pubre-whispers b.guess { opacity: .4; } /* worked out from the conversation, not said in the text */
+.pubre-whispers b { position: absolute; left: 0; top: 0; width: 6px; height: 6px; margin: -3px 0 0 -6px; border-radius: 50%; background: var(--h); opacity: .75; animation: whisper-in .6s ease both; }
+.pubre-whispers b.guess { background: none; box-shadow: inset 0 0 0 1.2px var(--h); } /* worked out from the conversation: a ring, not a dot */
 @keyframes whisper-in { from { opacity: 0; } }

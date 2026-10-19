@@ -118,7 +118,7 @@
         {/each}
       </div>
     </div>
-    {@render choice('Voices', 'voices', [['whisper', 'Names'], ['ink', 'Ink'], ['underline', 'Line'], ['marks', 'Marks'], ['off', 'Off']], 'Who is speaking: a small name where the speaker changes, quote marks in their colour')}
+    {@render choice('Voices', 'voices', [['whisper', 'Marker'], ['ink', 'Ink'], ['underline', 'Line'], ['marks', 'Marks'], ['off', 'Off']], 'Who is speaking: quote marks in their colour, and a small dot in the margin where the speaker changes')}
     {@render toggle('Weather', 'weather', 'The weather of the passage: rain, snow, fog, night, sun, sea or wind')}
     {#if value.weather}{@render choice('Weather style', 'weatherStyle', [['ascii', 'Margins'], ['tint', 'Tint']], 'Margins: drawn in type beside the text. Tint: the paper’s colour only, nothing moves')}{/if}
     {@render toggle('Chapter openers', 'openers', 'Each chapter opens into its own room')}

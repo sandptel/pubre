@@ -107,8 +107,8 @@ button { cursor: pointer; }
 .pubre-peek[data-side="l"] { right: auto; left: 14px; transform: translateX(-8px); }
 .pubre-peek.on { opacity: 1; transform: none; }
 
-/* Who's speaking: the speaker's name, small, in the leading just above the line (never on the letters) */
-.pubre-whispers { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-.pubre-whispers b { position: absolute; left: 0; top: 0; writing-mode: vertical-rl; white-space: nowrap; max-height: 9em; overflow: hidden; text-overflow: ellipsis; font: 600 7.5px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: color-mix(in srgb, var(--h) 85%, var(--fg)); animation: whisper-in .6s ease both; }
-.pubre-whispers b.guess { opacity: .6; } /* worked out from the conversation, not said in the text */
+/* Who's speaking: the speaker's name, faint, in the margin level with the line and ending just before the text */
+.pubre-whispers { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+.pubre-whispers b { position: absolute; left: 0; top: 0; translate: -100% 0; white-space: nowrap; font: italic 400 11px/14px var(--serif); color: color-mix(in srgb, var(--h) 70%, var(--fg)); opacity: .6; animation: whisper-in .6s ease both; }
+.pubre-whispers b.guess { opacity: .4; } /* worked out from the conversation, not said in the text */
 @keyframes whisper-in { from { opacity: 0; } }

@@ -702,20 +702,30 @@
     if (eff.voices !== 'whisper' || staged || !lenses || !pag || eff.intensity === 'quiet') return
     whisperT = window.setTimeout(() => {
       if (!pag || pag.current !== v) return
-      if (!whisperEl) { whisperEl = Object.assign(document.createElement('div'), { className: 'pubre-whispers' }); pag.port.append(whisperEl) }
+      // the layer lives beside the page (not in it), so a wide margin can hold a whole name
+      const port = pag.port
+      if (!whisperEl) {
+        whisperEl = Object.assign(document.createElement('div'), { className: 'pubre-whispers' }); port.before(whisperEl)
+        port.addEventListener('scroll', () => { if (whisperEl) whisperEl.style.transform = `translateY(${+(whisperEl.dataset.top ?? 0) - port.scrollTop}px)` }, { passive: true })
+      }
+      whisperEl.dataset.top = String(port.scrollTop); whisperEl.style.transform = ''
       const theme = resolveTheme(eff.palette, eff.mode), page = pag.currentPage
-      let free = -1e9 // the margin below the last name: a name that would run into it waits for the next change
+      const fit = (t: string) => { const c = (fit as unknown as { c?: CanvasRenderingContext2D }).c ??= document.createElement('canvas').getContext('2d')!; c.font = 'italic 11px Georgia, serif'; return c.measureText(t).width }
+      let free = -1e9 // below the last name: one that would run into it waits for the next change
       const els = lenses!.whispers(v, from, to).flatMap(w => {
         const blk = v.ix.blocks[w.blk], wd = v.ix.words[blk.a]
         if (!wd) return []
         const r = v.doc.createRange(); r.setStart(wd.sn, wd.so); r.setEnd(wd.en, wd.eo)
         const q = r.getClientRects()[0]
         if (!q || pag!.pageOf(q) !== page || q.top < free) return []
-        free = q.top + Math.min(9 * 7.5, w.name.length * 8.4) + 6
-        const b = Object.assign(document.createElement('b'), { textContent: w.name })
+        free = q.top + 16
+        // in the margin, level with the line and ending just before the text; a narrow margin gets the initial
+        const right = port.offsetLeft + pag!.columnLeft(v, q.left) - 9, y = port.offsetTop + q.top + (q.height - 14) / 2
+        const short = /^(Mr|Mrs|Miss|Ms|Dr|Sir|Lady|Lord|Captain)\.?\s/.test(w.name) ? w.name : w.name.split(/\s+/)[0]
+        const label = fit(short) <= right - 6 ? short : (w.name.replace(/^(Mr|Mrs|Miss|Ms|Dr|Sir|Lady|Lord|Captain)\.?\s+/, '')[0] ?? '')
+        const b = Object.assign(document.createElement('b'), { textContent: label })
         b.classList.toggle('guess', w.guess)
-        // in the margin beside the line, reading down: never on the letters
-        b.style.cssText = `--h:${w.slot >= 0 ? whoHue(theme, w.slot % WHO_SLOTS) : theme.base[4]};transform:translate(${pag!.columnLeft(v, q.left) - 13}px, ${q.top + 2}px)`
+        b.style.cssText = `--h:${w.slot >= 0 ? whoHue(theme, w.slot % WHO_SLOTS) : theme.base[4]};transform:translate(${right}px, ${y}px)`
         if (w.guess) b.title = 'pubre worked this out from the turn of the conversation'
         return [b]
       })

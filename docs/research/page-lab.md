@@ -11,6 +11,7 @@ The working plan for pubre's next phase: richer presentation, motion, typesettin
 - Local copies of both boards are in `research/page-lab/round1-ideas.html` and `round2-variants.html`. They are self-contained; the db only works when published.
 - Once choices arrive, start the build loop below in this order: bugs → typesetting (T*) → page turn and settle → pointer (D1 set) → presenters (P*) → last page → speaker and weather → R items.
 
+- **Speaker hints decided (2026-10-19):** colour only: quote marks in the speaker's colour plus a small dot in the margin where the speaker changes (ring = guessed). Vertical and horizontal name labels were tried and dropped.
 - **Round 3** board: https://claude.ai/artifact/UoJeXzAnMgDaTxcpkHHNpg (local copy research/page-lab/round3-variants.html). Read with `ArtifactData get`, collection `choices`, doc_id `round3`: `{choice: {speaker, density, glyphs, wxcolor, wxwhere}, ideas: string[], notes, at}`. Waiting for the user.
 
 ## Where things live
